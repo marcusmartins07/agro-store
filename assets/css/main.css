@@ -1,4 +1,4 @@
-/* Header estilo e-commerce */
+/* Header */
 .topo {
   display: flex;
   justify-content: space-between;
@@ -15,6 +15,7 @@
   font-size: 1.5rem;
   font-weight: bold;
   color: #4CAF50;
+  text-decoration: none;
 }
 
 .busca {
@@ -94,17 +95,19 @@
   color: #4CAF50;
 }
 
-.card button {
+.botao-comprar {
+  display: inline-block;
   margin-top: 0.5rem;
   padding: 0.5rem 1rem;
-  border: none;
-  border-radius: 30px;
   background: #4CAF50;
   color: white;
-  cursor: pointer;
+  text-decoration: none;
+  border-radius: 30px;
+  font-weight: bold;
+  transition: background 0.3s;
 }
 
-.card button:hover {
+.botao-comprar:hover {
   background: #43a047;
 }
 
