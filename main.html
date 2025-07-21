@@ -5,56 +5,90 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Agro Store</title>
   <link rel="stylesheet" href="assets/css/main.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 </head>
 <body>
   <header class="topo">
     <a href="main.html" class="logo">Agro Store</a>
     <input type="text" placeholder="O que está procurando?" class="busca" />
     <div class="icones">
-      <span>👤</span>
-      <span>🤍</span>
-      <span>🛒</span>
+      <a href="cadastro.html" title="Login"><img src="assets/images/header/login.png" alt="Login"></a>
+      <a href="favoritos.html" title="Favoritos"><img src="assets/images/header/favorite.png" alt="Favoritos"></a>
+      <a href="carrinho.html" title="Carrinho"><img src="assets/images/header/shopping_cart.png" alt="Carrinho"></a>
     </div>
   </header>
 
   <main class="pagina">
     <aside class="sidebar">
       <h3>Filtrar</h3>
-      <label><input type="checkbox" /> Orgânico</label>
-      <label><input type="checkbox" /> Promoção</label>
-      <label><input type="checkbox" /> Hortaliças</label>
-      <label><input type="checkbox" /> Frutas</label>
+      <label><input type="checkbox"/> Orgânico</label>
+      <label><input type="checkbox"/> Promoção</label>
+      <label><input type="checkbox"/> Hortaliças</label>
+      <label><input type="checkbox"/> Frutas</label>
     </aside>
 
     <section class="produtos">
       <h2 class="titulo">Produtos</h2>
       <div class="grid">
         <div class="card">
-          <img src="https://via.placeholder.com/300x300" alt="Produto 1">
+          <img src="assets/images/main/alface_main.png" alt="Alface">
           <h4>Alface Crespa</h4>
-          <p>R$ 4,50</p>
+          <p class="preco-antigo"></p>
+          <p class="preco">R$ 4,50</p>
           <a href="produto.html" class="botao-comprar">Comprar</a>
         </div>
         <div class="card">
-          <img src="https://via.placeholder.com/300x300" alt="Produto 2">
+          <div class="badge">10% OFF</div>
+          <img src="assets/images/main/tomate_main.png" alt="Tomate">
           <h4>Tomate Italiano</h4>
-          <p>R$ 6,00</p>
+          <p class="preco-antigo">R$ 6,00</p>
+          <p class="preco">R$ 5,40</p>
           <a href="produto.html" class="botao-comprar">Comprar</a>
         </div>
         <div class="card">
-          <img src="https://via.placeholder.com/300x300" alt="Produto 3">
+          <div class="badge">20% OFF</div>
+          <img src="assets/images/main/cenoura_main.png" alt="Cenoura">
           <h4>Cenoura</h4>
-          <p>R$ 3,80</p>
+          <p class="preco-antigo">De: R$ 4,50</p>
+          <p class="preco">R$ 3,60</p>
           <a href="produto.html" class="botao-comprar">Comprar</a>
         </div>
         <div class="card">
-          <img src="https://via.placeholder.com/300x300" alt="Produto 4">
+          <img src="assets/images/main/morango_main.png" alt="Morango">
           <h4>Morango</h4>
-          <p>R$ 8,00</p>
+          <p class="preco-antigo"> </p>
+          <p class="preco">R$ 8,00</p>
           <a href="produto.html" class="botao-comprar">Comprar</a>
         </div>
       </div>
     </section>
   </main>
 </body>
+<footer class="rodape">
+  <div class="rodape-container">
+    <div class="rodape-coluna">
+      <h4>Institucional</h4>
+      <a href="#">Sobre Nós</a>
+      <a href="#">Contato</a>
+      <a href="#">Política de Privacidade</a>
+    </div>
+    <div class="rodape-coluna">
+      <h4>Ajuda</h4>
+      <a href="#">Perguntas Frequentes</a>
+      <a href="#">Suporte</a>
+      <a href="#">Rastrear Pedido</a>
+    </div>
+    <div class="rodape-coluna">
+      <h4>Redes Sociais</h4>
+      <a href="#">Instagram</a>
+      <a href="#">Facebook</a>
+      <a href="#">WhatsApp</a>
+    </div>
+  </div>
+  <div class="rodape-direitos">
+    &copy; 2025 Agro Store. Feito por Marcus Martins e Carolina Schaffer
+  </div>
+</footer>
 </html>

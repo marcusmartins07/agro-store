@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Agro Store - Carrinho</title>
+  <link rel="stylesheet" href="assets/css/carrinho.css" />
+</head>
+<body>
+  <header class="topo">
+    <a href="main.html" class="logo">Agro Store</a>
+    <input type="text" placeholder="O que está procurando?" class="busca" />
+    <div class="icones">
+      <a href="cadastro.html" title="Login"><img src="assets/images/header/login.png" alt="Login"></a>
+      <a href="favoritos.html" title="Favoritos"><img src="assets/images/header/favorite.png" alt="Favoritos"></a>
+      <a href="carrinho.html" title="Carrinho"><img src="assets/images/header/shopping_cart.png" alt="Carrinho"></a>
+    </div>
+  </header>
+
+  <main class="carrinho-container">
+    <section class="carrinho-itens">
+      <h2>Carrinho</h2>
+
+      <div class="produto">
+        <img src="assets/images/main/morango_main.png" alt="Morango">
+        <div class="info">
+          <h4>Morango Orgânico</h4>
+          <p>Maço fresco colhido no dia</p>
+          <div class="quantidade">
+            <button>-</button>
+            <span>1</span>
+            <button>+</button>
+          </div>
+          <p class="preco">R$ 8,00</p>
+        </div>
+        <button class="remover">🗑</button>
+      </div>
+
+    </section>
+
+    <aside class="resumo">
+      <h3>Resumo do Pedido</h3>
+      <div class="linha"><span>Subtotal</span><span>R$ 8,00</span></div>
+      <div class="linha"><span>Frete</span><span>Grátis</span></div>
+      <div class="linha"><span>Seguro</span><span>R$ 0,00</span></div>
+      <div class="linha total"><strong>Total</strong><strong>R$ 8,00</strong></div>
+
+      <button class="finalizar">Finalizar Compra</button>
+      <a href="main.html" class="continuar">← Continuar Comprando</a>
+    </aside>
+  </main>
+</body>
+<footer class="rodape">
+  <div class="rodape-container">
+    <div class="rodape-coluna">
+      <h4>Institucional</h4>
+      <a href="#">Sobre Nós</a>
+      <a href="#">Contato</a>
+      <a href="#">Política de Privacidade</a>
+    </div>
+    <div class="rodape-coluna">
+      <h4>Ajuda</h4>
+      <a href="#">Perguntas Frequentes</a>
+      <a href="#">Suporte</a>
+      <a href="#">Rastrear Pedido</a>
+    </div>
+    <div class="rodape-coluna">
+      <h4>Redes Sociais</h4>
+      <a href="#">Instagram</a>
+      <a href="#">Facebook</a>
+      <a href="#">WhatsApp</a>
+    </div>
+  </div>
+  <div class="rodape-direitos">
+    &copy; 2025 Agro Store. Feito por Marcus Martins e Carolina Schaffer
+  </div>
+</footer>
+</html>

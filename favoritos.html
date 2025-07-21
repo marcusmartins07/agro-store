@@ -3,8 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agro Store - Produto</title>
-  <link rel="stylesheet" href="assets/css/produto.css">
+  <title>Favoritos - Agro Store</title>
+  <link rel="stylesheet" href="assets/css/favoritos.css">
 </head>
 <body>
   <header class="topo">
@@ -17,38 +17,30 @@
     </div>
   </header>
 
-  <main class="produto-detalhe">
-    <div class="galeria">
-      <img src="assets/images/produto/alface_main.png" alt="Produto principal" class="imagem-grande">
-      <div class="miniaturas">
-        <img src="assets/images/produto/alface_1.png" alt="alface_1">
-        <img src="assets/images/produto/alface_2.png" alt="alface_2">
+  <main class="pagina">
+    <section class="produtos">
+      <h2 class="titulo">Lista de Desejos</h2>
+      <div class="grid">
+        <div class="card">
+          <div class="badge">10% OFF</div>
+          <img src="assets/images/main/morango_main.png" alt="Morango">
+          <h4>Morango Orgânico</h4>
+          <p class="preco-antigo">De: R$ 9,00</p>
+          <p class="preco">R$ 8,00</p>
+          <a href="produto.html" class="botao-comprar">Comprar</a>
+        </div>
+        <div class="card">
+          <div class="badge">15% OFF</div>
+          <img src="assets/images/main/alface_main.png" alt="Alface">
+          <h4>Alface Crespa</h4>
+          <p class="preco-antigo">De: R$ 6,00</p>
+          <p class="preco">R$ 5,10</p>
+          <a href="produto.html" class="botao-comprar">Comprar</a>
+        </div>
       </div>
-    </div>
-    <div class="info">
-      <h1>Alface Crespa Orgânica</h1>
-      <p class="preco">R$ 4,50</p>
-      <div class="opcoes">
-        <label for="quantidade">Quantidade:</label>
-        <select id="quantidade">
-          <option>1 und</option>
-          <option>2 und</option>
-          <option>3 und</option>
-        </select>
-      </div>
-      <div class="acoes">
-        <button class="botao-comprar">🛒 Adicionar à sacola</button>
-        <button class="favoritar" title="Adicionar aos favoritos">❤️</button>
-      </div>
-      <div class="descricao">
-        <h3>Descrição do produto</h3>
-        <p>
-          Alface crespa orgânica, colhida no mesmo dia. Cultivada sem agrotóxicos, ideal para saladas frescas e saudáveis.
-          Produto disponível apenas para entrega na comunidade local.
-        </p>
-      </div>
-    </div>
+    </section>
   </main>
+
 </body>
 <footer class="rodape">
   <div class="rodape-container">

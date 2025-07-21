@@ -66,89 +66,67 @@ main {
   color: inherit;
 }
 
-/* Layout principal */
+/* Favoritos */
 
-.produto-detalhe {
+.pagina {
   display: flex;
   gap: 2rem;
   padding: 2rem;
-  max-width: 1200px;
-  margin: auto;
-  flex-wrap: wrap;
 }
 
-.galeria {
+.produtos {
   flex: 1;
-  min-width: 300px;
 }
 
-.imagem-grande {
-  width: 100%;
-  border-radius: 8px;
+.titulo {
+  font-size: 1.8rem;
+  margin-bottom: 1rem;
 }
 
-.miniaturas {
+.grid {
   display: flex;
-  gap: 0.5rem;
-  margin-top: 1rem;
+  flex-wrap: wrap;
+  gap: 1.5rem;
 }
 
-.miniaturas img {
-  width: 80px;
-  height: 80px;
+.card {
+  background: #fff;
+  padding: 1rem;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  width: 220px;
+  position: relative;
+  text-align: center;
+}
+
+.card img {
+  width: 100%;
+  height: 10rem;
   object-fit: cover;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  cursor: pointer;
 }
 
-.info {
-  flex: 1;
-  min-width: 300px;
+.card h4 {
+  font-size: 1.1rem;
+  margin: 0.5rem 0;
 }
 
-.info h1 {
-  margin-bottom: 0.5rem;
+.preco-antigo {
+  text-decoration: line-through;
+  color: #888;
+  font-size: 0.9rem;
 }
 
 .preco {
-  font-size: 1.5rem;
   color: #4CAF50;
   font-weight: bold;
-  margin-bottom: 1rem;
-}
-
-.opcoes {
-  margin-bottom: 1rem;
-}
-
-.opcoes select {
-  padding: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-}
-
-.acoes {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.comprar {
-  background-color: #4CAF50;
-  color: white;
-  padding: 0.6rem 1.2rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  cursor: pointer;
+  font-size: 1.2rem;
+  margin-bottom: 0.5rem;
 }
 
 .botao-comprar {
   display: inline-block;
   margin-top: 0.75rem;
-  padding: 0.6rem 1.2rem;
+  padding: 0.5rem 1rem;
   background: linear-gradient(135deg, #4CAF50, #66BB6A);
   color: white;
   text-decoration: none;
@@ -177,29 +155,15 @@ main {
   box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.4);
 }
 
-.favoritar {
-  background-color: transparent;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #e91e63;
-  transition: transform 0.2s ease;
-}
-
-.favoritar:hover {
-  transform: scale(1.2);
-}
-
-.comprar:hover {
-  background: #43a047;
-}
-
-.descricao {
-  margin-top: 2rem;
-}
-
-.descricao h3 {
-  margin-bottom: 0.5rem;
+.badge {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  background-color: #388E3C;
+  color: white;
+  padding: 0.2rem 0.5rem;
+  font-size: 0.75rem;
+  border-radius: 4px;
 }
 
 /* Footer */

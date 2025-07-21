@@ -21,7 +21,6 @@ html, body {
 main {
   flex: 1;
 }
-
 .topo {
   display: flex;
   justify-content: space-between;
@@ -66,89 +65,54 @@ main {
   color: inherit;
 }
 
-/* Layout principal */
+/* Cadastro */
 
-.produto-detalhe {
-  display: flex;
-  gap: 2rem;
-  padding: 2rem;
-  max-width: 1200px;
-  margin: auto;
-  flex-wrap: wrap;
+.cadastro-container {
+  max-width: 600px;
+  margin: 3rem auto;
+  padding: 0 1rem;
+  text-align: center;
 }
 
-.galeria {
-  flex: 1;
-  min-width: 300px;
-}
-
-.imagem-grande {
-  width: 100%;
-  border-radius: 8px;
-}
-
-.miniaturas {
-  display: flex;
-  gap: 0.5rem;
-  margin-top: 1rem;
-}
-
-.miniaturas img {
-  width: 80px;
-  height: 80px;
-  object-fit: cover;
-  border: 1px solid #ccc;
-  border-radius: 6px;
-  cursor: pointer;
-}
-
-.info {
-  flex: 1;
-  min-width: 300px;
-}
-
-.info h1 {
+.cadastro-container h1 {
+  font-size: 2rem;
+  font-weight: 600;
   margin-bottom: 0.5rem;
 }
 
-.preco {
-  font-size: 1.5rem;
-  color: #4CAF50;
-  font-weight: bold;
-  margin-bottom: 1rem;
-}
-
-.opcoes {
-  margin-bottom: 1rem;
-}
-
-.opcoes select {
-  padding: 0.5rem;
-  border-radius: 6px;
-  border: 1px solid #ccc;
-}
-
-.acoes {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  margin-top: 1rem;
-}
-
-.comprar {
-  background-color: #4CAF50;
-  color: white;
-  padding: 0.6rem 1.2rem;
-  border: none;
-  border-radius: 6px;
+.cadastro-container p {
   font-size: 1rem;
-  cursor: pointer;
+  color: #444;
+  margin-bottom: 2rem;
 }
 
-.botao-comprar {
-  display: inline-block;
-  margin-top: 0.75rem;
-  padding: 0.6rem 1.2rem;
+.form-cadastro {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.form-cadastro .linha {
+  display: flex;
+  gap: 1rem;
+}
+
+.form-cadastro input {
+  flex: 1;
+  padding: 0.8rem;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  font-size: 1rem;
+}
+
+.form-cadastro input:focus {
+  outline: none;
+  border-color: #4CAF50;
+  box-shadow: 0 0 0 2px rgba(76, 175, 80, 0.2);
+}
+
+.botao-cadastrar {
+  padding: 0.9rem;
   background: linear-gradient(135deg, #4CAF50, #66BB6A);
   color: white;
   text-decoration: none;
@@ -161,47 +125,27 @@ main {
   cursor: pointer;
 }
 
-.botao-comprar:hover {
+.botao-cadastrar:hover {
   background: linear-gradient(135deg, #43a047, #5fb860);
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
   transform: translateY(-2px);
 }
 
-.botao-comprar:active {
+.botao-cadastrar:active {
   transform: translateY(0);
   box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
-.botao-comprar:focus {
+.botao-cadastrar:focus {
   outline: none;
   box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.4);
 }
 
-.favoritar {
-  background-color: transparent;
-  border: none;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: #e91e63;
-  transition: transform 0.2s ease;
+.dica-senha {
+  font-size: 0.9rem;
+  color: #777;
+  margin-top: -0.5rem;
 }
-
-.favoritar:hover {
-  transform: scale(1.2);
-}
-
-.comprar:hover {
-  background: #43a047;
-}
-
-.descricao {
-  margin-top: 2rem;
-}
-
-.descricao h3 {
-  margin-bottom: 0.5rem;
-}
-
 /* Footer */
 
 .rodape {

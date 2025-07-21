@@ -1,10 +1,33 @@
 /* Header */
+
+@import url('https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap');
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  height: 100%;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-family: "Roboto", sans-serif;
+  font-weight: 400; /* Use 400 (normal), 500 (semibold), 700 (bold)... */
+  font-style: normal;
+}
+
+main {
+  flex: 1;
+}
+
 .topo {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
-  background: white;
+  padding: 0.8rem 2rem;
+  background: #4CAF50;
   box-shadow: 0 2px 4px rgba(0,0,0,0.1);
   position: sticky;
   top: 0;
@@ -12,9 +35,9 @@
 }
 
 .logo {
-  font-size: 1.5rem;
+  font-size: 2rem;
   font-weight: bold;
-  color: #4CAF50;
+  color: white;
   text-decoration: none;
 }
 
@@ -27,10 +50,20 @@
   max-width: 600px;
 }
 
-.icones span {
-  font-size: 1.5rem;
-  margin-left: 1rem;
-  cursor: pointer;
+.icones img {
+  width: 1.7rem;
+  margin-left: 1.3rem;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.icones a:hover img {
+  transform: scale(1.2);
+  opacity: 0.8;
+}
+
+.icones a {
+  text-decoration: none;
+  color: inherit;
 }
 
 /* Layout principal */
@@ -64,7 +97,6 @@
   font-size: 1.3rem;
 }
 
-/* Grid com 2 produtos por linha */
 .grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -79,6 +111,19 @@
   border-radius: 8px;
   text-align: center;
   box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+  position: relative;
+}
+
+.badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background-color: #4CAF50;
+  color: white;
+  padding: 4px 8px;
+  font-size: 0.8rem;
+  border-radius: 5px;
+  font-weight: bold;
 }
 
 .card img {
@@ -87,28 +132,116 @@
 }
 
 .card h4 {
+  font-size: 1.3rem;
   margin: 0.8rem 0 0.5rem;
 }
 
 .card p {
   font-weight: bold;
+}
+
+.card img {
+  max-width: 500px;
+  height: 500px;
+  border-radius: 8px;
+  display: block;
+  margin: 0 auto;
+}
+
+.preco-antigo {
+  text-decoration: line-through;
+  color: #999;
+  font-size: 0.9rem;
+  min-height: 1.2em;
+  display: block;
+  margin: 0;
+}
+
+.preco {
   color: #4CAF50;
+  font-size: 1.4rem;
+  font-weight: bold;
+  margin: 0;
 }
 
 .botao-comprar {
   display: inline-block;
-  margin-top: 0.5rem;
-  padding: 0.5rem 1rem;
-  background: #4CAF50;
+  margin-top: 0.75rem;
+  padding: 0.6rem 4rem;
+  background: linear-gradient(135deg, #4CAF50, #66BB6A);
   color: white;
   text-decoration: none;
+  border: none;
   border-radius: 30px;
   font-weight: bold;
-  transition: background 0.3s;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+  transition: all 0.3s ease;
+  cursor: pointer;
 }
 
 .botao-comprar:hover {
-  background: #43a047;
+  background: linear-gradient(135deg, #43a047, #5fb860);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.15);
+  transform: translateY(-2px);
+}
+
+.botao-comprar:active {
+  transform: translateY(0);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+}
+
+.botao-comprar:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(76, 175, 80, 0.4);
+}
+
+/* Footer */
+
+.rodape {
+  background-color: #4CAF50;
+  color: white;
+  padding: 2rem 1rem 1rem;
+  font-size: 0.95rem;
+  margin-top: 3rem;
+}
+
+.rodape-container {
+  display: flex;
+  justify-content: space-around;
+  flex-wrap: wrap;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.rodape-coluna {
+  flex: 1 1 200px;
+  margin: 1rem;
+}
+
+.rodape-coluna h4 {
+  margin-bottom: 1rem;
+  font-weight: 600;
+  font-size: 1.1rem;
+}
+
+.rodape-coluna a {
+  display: block;
+  color: white;
+  text-decoration: none;
+  margin: 0.4rem 0;
+  transition: opacity 0.2s ease;
+}
+
+.rodape-coluna a:hover {
+  opacity: 0.8;
+}
+
+.rodape-direitos {
+  text-align: center;
+  margin-top: 2rem;
+  font-size: 0.9rem;
+  opacity: 0.85;
 }
 
 /* Responsivo */
