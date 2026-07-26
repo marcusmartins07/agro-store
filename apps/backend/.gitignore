@@ -1,0 +1,16 @@
+*.pyc
+*.pyo
+*.pyd
+__pycache__/
+venv/
+.venv/
+.env
+db.sqlite3
+staticfiles/
+media/
+*/migrations/*
+!*/migrations/__init__.py
+.vscode/
+.DS_Store
+Thumbs.db
+*.log

@@ -1,0 +1,43 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  --green:        #2E8B57;
+  --green-dark:   #1e6b40;
+  --green-light:  #E8F5E9;
+  --green-mid:    #c8e6c9;
+  --green-text:   #1b5e35;
+  --tag-bg:       #a5d6a7;
+  --tag-text:     #1b5e35;
+  --white:        #ffffff;
+  --gray:         #6b7280;
+  --gray-light:   #f3f4f6;
+  --border:       #d1e7d8;
+  --star:         #f59e0b;
+  --danger:       #dc2626;
+  --font:         'Segoe UI', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  font-family: var(--font);
+  background: var(--green-light);
+  color: var(--green-text);
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button {
+  font-family: var(--font);
+  cursor: pointer;
+}
+
+input, select {
+  font-family: var(--font);
+}

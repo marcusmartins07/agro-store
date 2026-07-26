@@ -1,0 +1,17 @@
+{
+  "name": "agro-store",
+  "private": true,
+  "version": "0.1.0",
+  "workspaces": [
+    "apps/frontend"
+  ],
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:backend": "node scripts/backend.mjs runserver",
+    "dev:frontend": "npm run dev --workspace=apps/frontend",
+    "build": "npm run build --workspace=apps/frontend",
+    "check": "node scripts/backend.mjs check && npm run build --workspace=apps/frontend",
+    "migrate": "node scripts/backend.mjs migrate",
+    "test:backend": "node scripts/backend.mjs test"
+  }
+}
