@@ -20,8 +20,8 @@ class AvaliacaoViewSet(viewsets.ModelViewSet):
         return queryset
 
     def perform_create(self, serializer):
-        pedido_item = serializer.validated_data['pedido_item']
+        pedido_produto = serializer.validated_data['pedido_produto']
         serializer.save(
             usuario=self.request.user,
-            produto=pedido_item.produto
+            produto=pedido_produto.produto
         )

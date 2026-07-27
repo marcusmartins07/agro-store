@@ -72,7 +72,7 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCarrinhoStore } from '@/stores/index.js'
 import { useAuthStore } from '@/stores/auth.js'
@@ -82,12 +82,25 @@ const carrinhoStore = useCarrinhoStore()
 const authStore     = useAuthStore()
 const busca         = ref('')
 
+onMounted(() => {
+  if (authStore.estaLogado) carrinhoStore.carregar()
+})
+
+watch(() => authStore.estaLogado, (estaLogado) => {
+  if (estaLogado) {
+    carrinhoStore.carregar()
+  } else {
+    carrinhoStore.limparLocal()
+  }
+})
+
 function irParaProdutos() {
   router.push({ name: 'produtos', query: { q: busca.value } })
 }
 
 function sair() {
   authStore.logout()
+  carrinhoStore.limparLocal()
   router.push({ name: 'login' })
 }
 </script>

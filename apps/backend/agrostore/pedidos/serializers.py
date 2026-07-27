@@ -1,20 +1,30 @@
 from rest_framework import serializers
-from .models import Pedido, PedidoItem, PedidoCliente
+
+from .models import Pedido, PedidoCliente, PedidoProduto, StatusPedido
 
 
-class PedidoItemSerializer(serializers.ModelSerializer):
+class StatusPedidoSerializer(serializers.ModelSerializer):
     class Meta:
-        model = PedidoItem
+        model = StatusPedido
         fields = [
-            'pedido_item_id',
+            'status_pedido_id',
+            'status',
+        ]
+
+
+class PedidoProdutoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PedidoProduto
+        fields = [
+            'pedido_produto_id',
             'produto',
             'nome_produto',
             'quantidade',
-            'preco_unitario',
-            'preco_desconto',
+            'valor_unitario',
+            'valor_desconto',
             'subtotal',
         ]
-        read_only_fields = ['nome_produto', 'preco_unitario', 'preco_desconto', 'subtotal']
+        read_only_fields = ['nome_produto', 'valor_unitario', 'valor_desconto', 'subtotal']
 
 
 class PedidoClienteSerializer(serializers.ModelSerializer):
@@ -31,9 +41,9 @@ class PedidoClienteSerializer(serializers.ModelSerializer):
 
 
 class PedidoSerializer(serializers.ModelSerializer):
-    itens = PedidoItemSerializer(many=True, read_only=True)
+    itens = PedidoProdutoSerializer(many=True, read_only=True)
     cliente = PedidoClienteSerializer(read_only=True)
-    status_display = serializers.CharField(source='get_status_display', read_only=True)
+    status_nome = serializers.StringRelatedField(source='status', read_only=True)
     loja_nome = serializers.StringRelatedField(source='loja', read_only=True)
 
     class Meta:
@@ -43,18 +53,19 @@ class PedidoSerializer(serializers.ModelSerializer):
             'loja',
             'loja_nome',
             'status',
-            'status_display',
-            'total',
-            'total_desconto',
-            'total_com_desconto',
+            'status_nome',
+            'valor_bruto',
+            'valor_desconto',
+            'valor_liquido',
             'itens',
             'cliente',
         ]
-        read_only_fields = ['total', 'total_desconto', 'total_com_desconto']
+        read_only_fields = ['valor_bruto', 'valor_desconto', 'valor_liquido']
 
 
 class CriarPedidoSerializer(serializers.Serializer):
-    carrinho_ids = serializers.ListField(
+    carrinho_produto_ids = serializers.ListField(
         child=serializers.IntegerField(),
-        help_text="Lista de IDs do carrinho para gerar o pedido"
+        min_length=1,
+        help_text="Lista de IDs dos itens do carrinho para gerar o pedido",
     )

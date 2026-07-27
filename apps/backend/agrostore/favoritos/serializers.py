@@ -21,5 +21,5 @@ class FavoritoSerializer(serializers.ModelSerializer):
     def get_preco(self, obj):
         preco = obj.produto.precos.filter(vigencia_fim__isnull=True).last()
         if preco:
-            return preco.preco_desconto or preco.preco_venda
+            return preco.preco_venda - (preco.preco_desconto or 0)
         return None

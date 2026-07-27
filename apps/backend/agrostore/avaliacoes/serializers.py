@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from agrostore.pedidos.models import PedidoItem, Pedido
+
 from .models import Avaliacao
 
 
@@ -11,7 +11,7 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
         model = Avaliacao
         fields = [
             'avaliacao_id',
-            'pedido_item',
+            'pedido_produto',
             'produto',
             'produto_nome',
             'usuario_nome',
@@ -20,19 +20,16 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['usuario', 'produto']
 
-    def validate_pedido_item(self, value):
+    def validate_pedido_produto(self, value):
         usuario = self.context['request'].user
 
-        # Verifica se o pedido_item pertence ao usuário logado
         if value.pedido.usuario != usuario:
             raise serializers.ValidationError("Este item não pertence ao seu pedido.")
 
-        # Verifica se o pedido está entregue
-        if value.pedido.status != Pedido.Status.ENTREGUE:
+        if value.pedido.status.status != 'Entregue':
             raise serializers.ValidationError("Só é possível avaliar pedidos entregues.")
 
-        # Verifica se já existe avaliação para este item
-        if Avaliacao.objects.filter(pedido_item=value).exists():
+        if Avaliacao.objects.filter(pedido_produto=value).exists():
             raise serializers.ValidationError("Este item já foi avaliado.")
 
         return value

@@ -47,7 +47,7 @@ class PrecoProduto(BaseModel):
 
         if self.preco_venda and self.preco_desconto:
             self.porcentagem_desconto = int(
-                ((self.preco_venda - self.preco_desconto) / self.preco_venda) * 100
+                (self.preco_desconto / self.preco_venda) * 100
             )
         elif self.preco_venda and self.porcentagem_desconto is not None:
             if 0 <= self.porcentagem_desconto <= 100:

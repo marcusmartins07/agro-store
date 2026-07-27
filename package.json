@@ -12,6 +12,6 @@
     "build": "npm run build --workspace=apps/frontend",
     "check": "node scripts/backend.mjs check && npm run build --workspace=apps/frontend",
     "migrate": "node scripts/backend.mjs migrate",
-    "test:backend": "node scripts/backend.mjs test"
+    "test:backend": "node scripts/backend.mjs test agrostore.usuarios agrostore.lojas agrostore.produtos agrostore.carrinhos agrostore.pedidos agrostore.favoritos agrostore.avaliacoes"
   }
 }

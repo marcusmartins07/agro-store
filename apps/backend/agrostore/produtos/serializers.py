@@ -51,6 +51,7 @@ class ProdutoSerializer(serializers.ModelSerializer):
             'codigo_barras',
             'estoque',
             'sku',
+            'ativo',
             'preco',
             'preco_original',
             'desconto',
@@ -62,7 +63,7 @@ class ProdutoSerializer(serializers.ModelSerializer):
     def get_preco(self, obj):
         preco = self.get_preco_atual(obj)
         if preco:
-            return preco.preco_desconto or preco.preco_venda
+            return preco.preco_venda - (preco.preco_desconto or 0)
         return None
 
     def get_preco_original(self, obj):

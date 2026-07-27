@@ -8,9 +8,11 @@ const pythonCommand = getPythonCommand()
 const processes = [
   spawn(pythonCommand, ['apps/backend/manage.py', 'runserver'], {
     stdio: 'inherit',
+    shell: isWindows,
   }),
   spawn(npmCommand, ['run', 'dev', '--workspace=apps/frontend'], {
     stdio: 'inherit',
+    shell: isWindows,
   }),
 ]
 
@@ -21,7 +23,9 @@ function stop(exitCode = 0) {
   stopping = true
 
   for (const child of processes) {
-    if (!child.killed) child.kill()
+    if (!child.killed) {
+      child.kill()
+    }
   }
 
   process.exitCode = exitCode
@@ -34,7 +38,9 @@ for (const child of processes) {
   })
 
   child.on('exit', (code, signal) => {
-    if (!stopping && (code !== 0 || signal)) stop(code ?? 1)
+    if (!stopping && (code !== 0 || signal)) {
+      stop(code ?? 1)
+    }
   })
 }
 

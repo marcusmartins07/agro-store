@@ -1,58 +1,126 @@
 import { defineStore } from 'pinia'
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
+import { api } from '@/services/api.js'
 
-// ─── CARRINHO ────────────────────────────────────────────────────────────────
 export const useCarrinhoStore = defineStore('carrinho', () => {
-  const itens = ref([])
+  const carrinhos = ref([])
+  const carregando = ref(false)
+  const erro = ref('')
 
-  // Adiciona produto; se já existir, incrementa quantidade
-  function adicionar(produto) {
-    const existente = itens.value.find(i => i.id === produto.id)
-    if (existente) {
-      existente.quantidade++
-    } else {
-      itens.value.push({ ...produto, quantidade: 1 })
-    }
-  }
-
-  function remover(id) {
-    itens.value = itens.value.filter(i => i.id !== id)
-  }
-
-  function alterarQuantidade(id, delta) {
-    const item = itens.value.find(i => i.id === id)
-    if (!item) return
-    item.quantidade += delta
-    if (item.quantidade <= 0) remover(id)
-  }
-
-  function limpar() {
-    itens.value = []
-  }
-
-  // Total geral
-  const total = computed(() =>
-    itens.value.reduce((acc, i) => acc + i.preco * i.quantidade, 0)
+  const itens = computed(() =>
+    carrinhos.value.flatMap(carrinho =>
+      carrinho.itens.map(item => ({
+        ...item,
+        carrinho_id: carrinho.carrinho_id,
+        loja: carrinho.loja,
+        loja_nome: carrinho.loja_nome,
+      }))
+    )
   )
 
-  // Agrupado por fornecedor
+  const totalItens = computed(() =>
+    itens.value.reduce((acc, item) => acc + Number(item.quantidade || 0), 0)
+  )
+
+  const total = computed(() =>
+    itens.value.reduce((acc, item) => acc + Number(item.subtotal || 0), 0)
+  )
+
   const porFornecedor = computed(() => {
     const grupos = {}
     for (const item of itens.value) {
-      if (!grupos[item.fornecedor]) grupos[item.fornecedor] = []
-      grupos[item.fornecedor].push(item)
+      const fornecedor = item.loja_nome || 'Fornecedor'
+      if (!grupos[fornecedor]) grupos[fornecedor] = []
+      grupos[fornecedor].push(item)
     }
     return grupos
   })
 
-  const totalItens = computed(() =>
-    itens.value.reduce((acc, i) => acc + i.quantidade, 0)
-  )
+  async function carregar() {
+    if (!localStorage.getItem('access_token')) {
+      limparLocal()
+      return
+    }
 
-  return { itens, adicionar, remover, alterarQuantidade, limpar, total, porFornecedor, totalItens }
+    carregando.value = true
+    erro.value = ''
+    try {
+      carrinhos.value = await api.carrinhos.listar()
+    } catch (e) {
+      erro.value = extrairMensagemErro(e)
+      throw e
+    } finally {
+      carregando.value = false
+    }
+  }
+
+  async function adicionar(produtoId, quantidade = 1) {
+    erro.value = ''
+    try {
+      await api.carrinhos.adicionar(produtoId, quantidade)
+      await carregar()
+    } catch (e) {
+      erro.value = extrairMensagemErro(e)
+      throw e
+    }
+  }
+
+  async function alterarQuantidade(itemId, quantidade) {
+    erro.value = ''
+    try {
+      await api.carrinhos.atualizarItem(itemId, quantidade)
+      await carregar()
+    } catch (e) {
+      erro.value = extrairMensagemErro(e)
+      throw e
+    }
+  }
+
+  async function remover(itemId) {
+    erro.value = ''
+    try {
+      await api.carrinhos.removerItem(itemId)
+      await carregar()
+    } catch (e) {
+      erro.value = extrairMensagemErro(e)
+      throw e
+    }
+  }
+
+  async function finalizar(carrinhoProdutoIds) {
+    erro.value = ''
+    try {
+      const pedidos = await api.pedidos.finalizarCarrinho(carrinhoProdutoIds)
+      await carregar()
+      return pedidos
+    } catch (e) {
+      erro.value = extrairMensagemErro(e)
+      throw e
+    }
+  }
+
+  function limparLocal() {
+    carrinhos.value = []
+    erro.value = ''
+  }
+
+  return {
+    carrinhos,
+    carregando,
+    erro,
+    itens,
+    total,
+    porFornecedor,
+    totalItens,
+    carregar,
+    adicionar,
+    alterarQuantidade,
+    remover,
+    finalizar,
+    limparLocal,
+  }
 })
 
-// ─── FAVORITOS ───────────────────────────────────────────────────────────────
 export const useFavoritosStore = defineStore('favoritos', () => {
   const itens = ref([])
 
@@ -69,10 +137,21 @@ export const useFavoritosStore = defineStore('favoritos', () => {
     return itens.value.some(i => i.id === id)
   }
 
-  // Ordenado do mais recente para o mais antigo
   const ordenados = computed(() =>
     [...itens.value].sort((a, b) => new Date(b.adicionadoEm) - new Date(a.adicionadoEm))
   )
 
   return { itens, alternar, isFavorito, ordenados }
 })
+
+function extrairMensagemErro(error) {
+  if (error?.data?.detail) return error.data.detail
+
+  const primeiroCampo = error?.data && Object.keys(error.data)[0]
+  if (primeiroCampo) {
+    const valor = error.data[primeiroCampo]
+    return Array.isArray(valor) ? valor[0] : String(valor)
+  }
+
+  return 'Não foi possível concluir a operação.'
+}

@@ -36,31 +36,58 @@
         </small>
       </div>
 
-      <button class="btn btn-success w-100" @click="adicionarAoCarrinho">
-        🛒 Adicionar
+      <button class="btn btn-success w-100" :disabled="adicionando || !podeComprar" @click="adicionarAoCarrinho">
+        {{ textoBotao }}
       </button>
+      <p v-if="mensagem" class="text-danger small mt-2 mb-0">{{ mensagem }}</p>
     </div>
   </div>
 </template>
 
 <script setup>
+import { computed, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useCarrinhoStore, useFavoritosStore } from '@/stores/index.js'
+import { useAuthStore } from '@/stores/auth.js'
 
 const props = defineProps({
   produto: { type: Object, required: true }
 })
 
+const router = useRouter()
 const carrinhoStore  = useCarrinhoStore()
 const favoritosStore = useFavoritosStore()
+const authStore = useAuthStore()
+const adicionando = ref(false)
+const mensagem = ref('')
 
-function adicionarAoCarrinho() {
-  carrinhoStore.adicionar({
-    id:         props.produto.produto_id,
-    nome:       props.produto.nome,
-    preco:      props.produto.preco,
-    fornecedor: props.produto.loja_nome,
-    emoji:      emojiCategoria(props.produto.categoria_nome),
-  })
+const podeComprar = computed(() =>
+  props.produto.ativo !== false && Number(props.produto.estoque || 0) > 0
+)
+
+const textoBotao = computed(() => {
+  if (adicionando.value) return 'Adicionando...'
+  if (props.produto.ativo === false) return 'Produto inativo'
+  if (Number(props.produto.estoque || 0) <= 0) return 'Sem estoque'
+  return '🛒 Adicionar'
+})
+
+async function adicionarAoCarrinho() {
+  mensagem.value = ''
+
+  if (!authStore.estaLogado) {
+    router.push({ name: 'login' })
+    return
+  }
+
+  adicionando.value = true
+  try {
+    await carrinhoStore.adicionar(props.produto.produto_id)
+  } catch (e) {
+    mensagem.value = carrinhoStore.erro
+  } finally {
+    adicionando.value = false
+  }
 }
 
 function formatarPreco(valor) {
