@@ -47,6 +47,7 @@
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
               <li><RouterLink to="/cliente" class="dropdown-item">Meu Perfil</RouterLink></li>
+              <li v-if="temLoja"><RouterLink :to="{ name: 'emprural' }" class="dropdown-item">Minha Loja</RouterLink></li>
               <li><RouterLink to="/pedidos" class="dropdown-item">Meus Pedidos</RouterLink></li>
               <li><RouterLink to="/favoritos" class="dropdown-item">Favoritos</RouterLink></li>
               <li><hr class="dropdown-divider"></li>
@@ -73,24 +74,38 @@
 
 <script setup>
 import { onMounted, ref, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useCarrinhoStore } from '@/stores/index.js'
 import { useAuthStore } from '@/stores/auth.js'
+import { api } from '@/services/api.js'
 
 const router        = useRouter()
+const route         = useRoute()
 const carrinhoStore = useCarrinhoStore()
 const authStore     = useAuthStore()
 const busca         = ref('')
+const temLoja       = ref(false)
 
 onMounted(() => {
-  if (authStore.estaLogado) carrinhoStore.carregar()
+  if (authStore.estaLogado) {
+    carrinhoStore.carregar()
+    carregarStatusLoja()
+  }
 })
 
 watch(() => authStore.estaLogado, (estaLogado) => {
   if (estaLogado) {
     carrinhoStore.carregar()
+    carregarStatusLoja()
   } else {
+    temLoja.value = false
     carrinhoStore.limparLocal()
+  }
+})
+
+watch(() => route.name, (name) => {
+  if (authStore.estaLogado && ['cliente', 'emprural'].includes(name)) {
+    carregarStatusLoja()
   }
 })
 
@@ -98,8 +113,19 @@ function irParaProdutos() {
   router.push({ name: 'produtos', query: { q: busca.value } })
 }
 
+async function carregarStatusLoja() {
+  try {
+    const usuario = await api.usuarios.me()
+    temLoja.value = !!usuario.tem_loja
+  } catch (e) {
+    temLoja.value = false
+    console.error(e)
+  }
+}
+
 function sair() {
   authStore.logout()
+  temLoja.value = false
   carrinhoStore.limparLocal()
   router.push({ name: 'login' })
 }

@@ -7,6 +7,7 @@ class UsuarioSerializer(serializers.ModelSerializer):
 
     password = serializers.CharField(write_only=True)
     idade = serializers.ReadOnlyField()
+    tem_loja = serializers.SerializerMethodField()
 
     class Meta:
         model = Usuario
@@ -18,9 +19,13 @@ class UsuarioSerializer(serializers.ModelSerializer):
             "data_nascimento",
             "genero",
             "is_produtor",
+            "tem_loja",
             "idade",
             "password",
         ]
+
+    def get_tem_loja(self, obj):
+        return obj.lojas.exists()
 
     def create(self, validated_data):
         password = validated_data.pop("password")
