@@ -63,6 +63,14 @@ class CarrinhoAPITests(APITestCase):
         self.assertEqual(carrinho.valor_desconto, Decimal('4.00'))
         self.assertEqual(carrinho.valor_liquido, Decimal('16.00'))
 
+    def test_rejeita_usuario_nao_autenticado(self):
+        self.client.force_authenticate(user=None)
+
+        response = self.client.post('/api/v1/carrinhos/', {'produto': self.produto.produto_id, 'quantidade': 1}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertFalse(CarrinhoProduto.objects.exists())
+
     def test_rejeita_produto_inativo(self):
         self.produto.ativo = False
         self.produto.save(update_fields=['ativo'])
@@ -94,3 +102,34 @@ class CarrinhoAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['loja'], self.loja.loja_id)
+
+    def test_nao_atualiza_item_de_outro_usuario(self):
+        carrinho_outro_usuario = Carrinho.objects.create(usuario=self.outro_cliente, loja=self.loja)
+        item_outro_usuario = CarrinhoProduto.objects.create(
+            carrinho=carrinho_outro_usuario,
+            produto=self.produto,
+            quantidade=1,
+        )
+
+        response = self.client.patch(
+            f'/api/v1/carrinhos/itens/{item_outro_usuario.carrinho_produto_id}/',
+            {'quantidade': 2},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        item_outro_usuario.refresh_from_db()
+        self.assertEqual(item_outro_usuario.quantidade, 1)
+
+    def test_nao_remove_item_de_outro_usuario(self):
+        carrinho_outro_usuario = Carrinho.objects.create(usuario=self.outro_cliente, loja=self.loja)
+        item_outro_usuario = CarrinhoProduto.objects.create(
+            carrinho=carrinho_outro_usuario,
+            produto=self.produto,
+            quantidade=1,
+        )
+
+        response = self.client.delete(f'/api/v1/carrinhos/itens/{item_outro_usuario.carrinho_produto_id}/')
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertTrue(CarrinhoProduto.objects.filter(carrinho_produto_id=item_outro_usuario.carrinho_produto_id).exists())

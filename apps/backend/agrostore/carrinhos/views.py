@@ -74,7 +74,7 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
         item.carrinho.recalcular_totais()
         return Response(CarrinhoProdutoSerializer(item).data)
 
-    @action(detail=False, methods=['delete'], url_path=r'itens/(?P<item_id>[^/.]+)')
+    @atualizar_item.mapping.delete
     @transaction.atomic
     def remover_item(self, request, item_id=None):
         item = self._get_item_do_usuario(request, item_id)

@@ -63,6 +63,24 @@ class PedidoCheckoutTests(APITestCase):
         self.assertFalse(CarrinhoProduto.objects.filter(carrinho_produto_id=item_b.carrinho_produto_id).exists())
         self.assertTrue(CarrinhoProduto.objects.filter(carrinho_produto_id=item_nao_selecionado.carrinho_produto_id).exists())
 
+        pedido_a = Pedido.objects.get(loja=self.loja_a)
+        self.assertEqual(pedido_a.cliente.nome, self.cliente.nome)
+        self.assertEqual(pedido_a.itens.get().nome_produto, self.produto_a.nome)
+
+    def test_rejeita_checkout_sem_autenticacao(self):
+        item = self._adicionar_item(self.produto_a, 1)
+        self.client.force_authenticate(user=None)
+
+        response = self.client.post(
+            '/api/v1/pedidos/',
+            {'carrinho_produto_ids': [item.carrinho_produto_id]},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertFalse(Pedido.objects.exists())
+        self.assertTrue(CarrinhoProduto.objects.filter(carrinho_produto_id=item.carrinho_produto_id).exists())
+
     def test_rejeita_checkout_com_estoque_insuficiente(self):
         item = self._adicionar_item(self.produto_a, 2)
         self.produto_a.estoque = 1
@@ -76,6 +94,74 @@ class PedidoCheckoutTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(Pedido.objects.exists())
+
+    def test_rejeita_checkout_com_produto_inativo(self):
+        item = self._adicionar_item(self.produto_a, 1)
+        self.produto_a.ativo = False
+        self.produto_a.save(update_fields=['ativo'])
+
+        response = self.client.post(
+            '/api/v1/pedidos/',
+            {'carrinho_produto_ids': [item.carrinho_produto_id]},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Pedido.objects.exists())
+        self.assertTrue(CarrinhoProduto.objects.filter(carrinho_produto_id=item.carrinho_produto_id).exists())
+
+    def test_rejeita_checkout_com_loja_inativa(self):
+        item = self._adicionar_item(self.produto_a, 1)
+        self.loja_a.ativa = False
+        self.loja_a.save(update_fields=['ativa'])
+
+        response = self.client.post(
+            '/api/v1/pedidos/',
+            {'carrinho_produto_ids': [item.carrinho_produto_id]},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Pedido.objects.exists())
+        self.assertTrue(CarrinhoProduto.objects.filter(carrinho_produto_id=item.carrinho_produto_id).exists())
+
+    def test_rejeita_checkout_sem_itens_selecionados(self):
+        response = self.client.post('/api/v1/pedidos/', {'carrinho_produto_ids': []}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Pedido.objects.exists())
+
+    def test_rejeita_checkout_com_item_invalido(self):
+        response = self.client.post('/api/v1/pedidos/', {'carrinho_produto_ids': [999999]}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Pedido.objects.exists())
+
+    def test_rejeita_checkout_com_item_de_outro_usuario(self):
+        outro_cliente = Usuario.objects.create_user(
+            cpf='22345678903',
+            email='outro-pedido@example.com',
+            password='senha123',
+            nome='Outro Cliente',
+            data_nascimento='1991-01-01',
+            genero=self.genero,
+        )
+        carrinho_outro_usuario = Carrinho.objects.create(usuario=outro_cliente, loja=self.loja_a)
+        item_outro_usuario = CarrinhoProduto.objects.create(
+            carrinho=carrinho_outro_usuario,
+            produto=self.produto_a,
+            quantidade=1,
+        )
+
+        response = self.client.post(
+            '/api/v1/pedidos/',
+            {'carrinho_produto_ids': [item_outro_usuario.carrinho_produto_id]},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(Pedido.objects.exists())
+        self.assertTrue(CarrinhoProduto.objects.filter(carrinho_produto_id=item_outro_usuario.carrinho_produto_id).exists())
 
     def _criar_produto(self, loja, nome, sku, estoque, preco_venda, preco_desconto):
         produto = Produto.objects.create(
