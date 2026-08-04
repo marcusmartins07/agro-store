@@ -57,6 +57,14 @@ class ProdutoSerializer(serializers.ModelSerializer):
             'desconto',
         ]
 
+    def validate(self, attrs):
+        categoria = attrs.get('categoria')
+        if categoria is not None and not categoria.ativo:
+            raise serializers.ValidationError({
+                'categoria': 'A categoria selecionada está inativa e não pode ser usada em novos cadastros ou alterações.'
+            })
+        return attrs
+
     def get_preco_atual(self, obj):
         return obj.precos.filter(vigencia_fim__isnull=True).last()
 

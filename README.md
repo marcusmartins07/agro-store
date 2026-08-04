@@ -58,3 +58,11 @@ Validação:
 ```powershell
 npm run check
 ```
+
+## Contrato de categorias
+
+- Cada produto possui uma categoria obrigatória; o MVP não usa subcategorias.
+- `GET /api/v1/produtos/?categoria=<id>` filtra produtos por categoria.
+- `GET /api/v1/produtos/categorias/` é público e inclui categorias inativas/sugestões; use `?ativo=true` para obter somente categorias ativas.
+- Produtores autenticados podem enviar sugestões de categoria por `POST /api/v1/produtos/categorias/`; elas sempre nascem inativas.
+- Somente administradores podem alterar ou ativar/inativar categorias. Categorias não podem ser excluídas.

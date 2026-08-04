@@ -23,7 +23,7 @@ class Produto(BaseModel):
     estoque = models.IntegerField(default=0)
     sku = models.CharField(max_length=50, unique=True, blank=True)
     ativo = models.BooleanField(default=True)
-    categoria = models.ForeignKey(Categoria, on_delete=models.SET_NULL, null=True, blank=True)
+    categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT)
 
     def __str__(self):
         return self.nome
