@@ -1,5 +1,5 @@
 <template>
-  <div class="toast-container position-fixed top-0 end-0 p-3" aria-live="polite" aria-atomic="true">
+  <div class="toast-container position-fixed end-0 p-3 notifications-container" aria-live="polite" aria-atomic="true">
     <div
       v-for="notificacao in notificacoesStore.notificacoes"
       :key="notificacao.id"
@@ -26,5 +26,6 @@ const notificacoesStore = useNotificacoesStore()
 
 <style scoped>
 .toast-container { z-index: 1080; }
+.notifications-container { top: 4.5rem; }
 .notification { max-width: 360px; min-width: 280px; pointer-events: auto; }
 </style>
