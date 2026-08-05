@@ -76,7 +76,7 @@
 <script setup>
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { useCarrinhoStore } from '@/stores/index.js'
+import { useCarrinhoStore, useFavoritosStore } from '@/stores/index.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { api } from '@/services/api.js'
 import NotificacoesGlobais from '@/components/NotificacoesGlobais.vue'
@@ -84,6 +84,7 @@ import NotificacoesGlobais from '@/components/NotificacoesGlobais.vue'
 const router        = useRouter()
 const route         = useRoute()
 const carrinhoStore = useCarrinhoStore()
+const favoritosStore = useFavoritosStore()
 const authStore     = useAuthStore()
 const busca         = ref('')
 const temLoja       = ref(false)
@@ -91,6 +92,7 @@ const temLoja       = ref(false)
 onMounted(() => {
   if (authStore.estaLogado) {
     carrinhoStore.carregar()
+    favoritosStore.carregar()
     carregarStatusLoja()
   }
 })
@@ -98,10 +100,12 @@ onMounted(() => {
 watch(() => authStore.estaLogado, (estaLogado) => {
   if (estaLogado) {
     carrinhoStore.carregar()
+    favoritosStore.carregar()
     carregarStatusLoja()
   } else {
     temLoja.value = false
     carrinhoStore.limparLocal()
+    favoritosStore.limparLocal()
   }
 })
 
@@ -129,6 +133,7 @@ function sair() {
   authStore.logout()
   temLoja.value = false
   carrinhoStore.limparLocal()
+  favoritosStore.limparLocal()
   router.push({ name: 'login' })
 }
 </script>

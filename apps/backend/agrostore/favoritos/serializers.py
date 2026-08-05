@@ -1,25 +1,29 @@
 from rest_framework import serializers
+
+from agrostore.produtos.serializers import ProdutoSerializer
+
 from .models import Favorito
 
 
+class ProdutoFavoritoSerializer(ProdutoSerializer):
+    disponivel = serializers.SerializerMethodField()
+
+    class Meta(ProdutoSerializer.Meta):
+        fields = ProdutoSerializer.Meta.fields + ['disponivel']
+
+    def get_disponivel(self, produto):
+        return produto.ativo and produto.loja.ativa and produto.estoque > 0
+
+
 class FavoritoSerializer(serializers.ModelSerializer):
-    produto_nome = serializers.StringRelatedField(source='produto', read_only=True)
-    loja_nome = serializers.StringRelatedField(source='produto.loja', read_only=True)
-    preco = serializers.SerializerMethodField()
+    dados_produto = ProdutoFavoritoSerializer(source='produto', read_only=True)
 
     class Meta:
         model = Favorito
         fields = [
             'favorito_id',
             'produto',
-            'produto_nome',
-            'loja_nome',
-            'preco',
+            'dados_produto',
+            'data_criacao',
         ]
-        read_only_fields = ['usuario']
-
-    def get_preco(self, obj):
-        preco = obj.produto.precos.filter(vigencia_fim__isnull=True).last()
-        if preco:
-            return preco.preco_venda - (preco.preco_desconto or 0)
-        return None
+        read_only_fields = ['usuario', 'data_criacao']

@@ -89,6 +89,11 @@ export const api = {
     }),
     removerItem: (itemId) => request(`/carrinhos/itens/${itemId}/`, { method: 'DELETE' }),
   },
+  favoritos: {
+    listar: () => request('/favoritos/'),
+    adicionar: (produto) => request('/favoritos/', { method: 'POST', body: jsonBody({ produto }) }),
+    remover: (favoritoId) => request(`/favoritos/${favoritoId}/`, { method: 'DELETE' }),
+  },
   pedidos: {
     listar: () => request('/pedidos/'),
     finalizarCarrinho: (carrinhoProdutoIds) => request('/pedidos/', {

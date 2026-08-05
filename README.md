@@ -101,6 +101,16 @@ Público. Cria uma conta de cliente e retorna `access`, `refresh` e um objeto se
 
 Valida CPF, unicidade de CPF/e-mail, celular com 11 dígitos, idade mínima de 16 anos e senha de ao menos oito caracteres. Retorna `400` para dados inválidos ou duplicados.
 
+## Favoritos
+
+Os favoritos são privados e exigem JWT. Cada usuário pode favoritar um produto somente uma vez; produtores também podem usar a funcionalidade.
+
+- `GET /api/v1/favoritos/`: lista somente os favoritos do usuário autenticado, do mais recente ao mais antigo. Cada item inclui `favorito_id`, `data_criacao` e `dados_produto` com as informações completas para exibição, incluindo preço, categoria, loja, estoque, status e disponibilidade.
+- `POST /api/v1/favoritos/`: adiciona um produto aos favoritos. Recebe `{"produto": <produto_id>}` e retorna o favorito criado. Retorna `400` se o produto já estiver favoritado.
+- `DELETE /api/v1/favoritos/{favorito_id}/`: remove um favorito do próprio usuário e retorna `204`. Não permite remover favoritos de outra conta.
+
+Produtos favoritos inativos, sem estoque ou com a loja desativada continuam visíveis na lista, identificados como indisponíveis e sem opção de adicionar ao carrinho.
+
 ## Idioma e notificações
 
 - O backend usa português do Brasil (`pt-br`) para mensagens nativas de validação do Django.

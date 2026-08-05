@@ -123,25 +123,113 @@ export const useCarrinhoStore = defineStore('carrinho', () => {
 
 export const useFavoritosStore = defineStore('favoritos', () => {
   const itens = ref([])
+  const carregando = ref(false)
+  const carregado = ref(false)
+  const erro = ref('')
+  const produtosEmOperacao = ref(new Set())
 
-  function alternar(produto) {
-    const idx = itens.value.findIndex(i => i.id === produto.id)
-    if (idx >= 0) {
-      itens.value.splice(idx, 1)
-    } else {
-      itens.value.push({ ...produto, adicionadoEm: new Date().toISOString() })
+  const ordenados = computed(() =>
+    [...itens.value].sort((a, b) => new Date(b.data_criacao) - new Date(a.data_criacao))
+  )
+
+  function favoritoDoProduto(produtoId) {
+    return itens.value.find(item => item.produto === produtoId)
+  }
+
+  function isFavorito(produtoId) {
+    return Boolean(favoritoDoProduto(produtoId))
+  }
+
+  function isOperando(produtoId) {
+    return produtosEmOperacao.value.has(produtoId)
+  }
+
+  function definirOperacao(produtoId, emOperacao) {
+    const proximos = new Set(produtosEmOperacao.value)
+    if (emOperacao) proximos.add(produtoId)
+    else proximos.delete(produtoId)
+    produtosEmOperacao.value = proximos
+  }
+
+  async function carregar(forcar = false) {
+    if (!localStorage.getItem('access_token')) {
+      limparLocal()
+      return
+    }
+    if (carregando.value || (carregado.value && !forcar)) return
+
+    carregando.value = true
+    erro.value = ''
+    try {
+      itens.value = await api.favoritos.listar()
+      carregado.value = true
+    } catch (e) {
+      erro.value = extrairMensagemErro(e)
+      throw e
+    } finally {
+      carregando.value = false
     }
   }
 
-  function isFavorito(id) {
-    return itens.value.some(i => i.id === id)
+  async function adicionar(produtoId) {
+    if (isOperando(produtoId)) return
+
+    definirOperacao(produtoId, true)
+    erro.value = ''
+    try {
+      const favorito = await api.favoritos.adicionar(produtoId)
+      itens.value.unshift(favorito)
+      carregado.value = true
+    } catch (e) {
+      erro.value = extrairMensagemErro(e)
+      throw e
+    } finally {
+      definirOperacao(produtoId, false)
+    }
   }
 
-  const ordenados = computed(() =>
-    [...itens.value].sort((a, b) => new Date(b.adicionadoEm) - new Date(a.adicionadoEm))
-  )
+  async function remover(produtoId) {
+    const favorito = favoritoDoProduto(produtoId)
+    if (!favorito || isOperando(produtoId)) return
 
-  return { itens, alternar, isFavorito, ordenados }
+    definirOperacao(produtoId, true)
+    erro.value = ''
+    try {
+      await api.favoritos.remover(favorito.favorito_id)
+      itens.value = itens.value.filter(item => item.favorito_id !== favorito.favorito_id)
+    } catch (e) {
+      erro.value = extrairMensagemErro(e)
+      throw e
+    } finally {
+      definirOperacao(produtoId, false)
+    }
+  }
+
+  async function alternar(produtoId) {
+    if (isFavorito(produtoId)) await remover(produtoId)
+    else await adicionar(produtoId)
+  }
+
+  function limparLocal() {
+    itens.value = []
+    carregando.value = false
+    carregado.value = false
+    erro.value = ''
+    produtosEmOperacao.value = new Set()
+  }
+
+  return {
+    itens,
+    carregando,
+    carregado,
+    erro,
+    ordenados,
+    isFavorito,
+    isOperando,
+    carregar,
+    alternar,
+    limparLocal,
+  }
 })
 
 function extrairMensagemErro(error) {
