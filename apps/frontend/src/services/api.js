@@ -56,6 +56,10 @@ const jsonBody = (body) => JSON.stringify(body)
 export const api = {
   produtos: {
     listar: () => request('/produtos/'),
+    listarMeus: () => request('/produtos/meus/'),
+    criar: (body) => request('/produtos/', { method: 'POST', body: jsonBody(body) }),
+    atualizar: (produtoId, body) => request(`/produtos/${produtoId}/`, { method: 'PATCH', body: jsonBody(body) }),
+    criarPreco: (body) => request('/produtos/precos/', { method: 'POST', body: jsonBody(body) }),
   },
   categorias: {
     listar: () => request('/produtos/categorias/?ativo=true'),
@@ -71,6 +75,7 @@ export const api = {
   lojas: {
     criar: (body) => request('/lojas/lojas/', { method: 'POST', body: jsonBody(body) }),
     me: () => request('/lojas/me/'),
+    atualizarMinha: (body) => request('/lojas/me/', { method: 'PATCH', body: jsonBody(body) }),
   },
   carrinhos: {
     listar: () => request('/carrinhos/'),
@@ -89,6 +94,12 @@ export const api = {
     finalizarCarrinho: (carrinhoProdutoIds) => request('/pedidos/', {
       method: 'POST',
       body: jsonBody({ carrinho_produto_ids: carrinhoProdutoIds }),
+    }),
+    listarMinhaLoja: () => request('/pedidos/minha-loja/'),
+    listarStatusDisponiveis: () => request('/pedidos/status-disponiveis/'),
+    atualizarStatus: (pedidoId, status) => request(`/pedidos/${pedidoId}/status/`, {
+      method: 'PATCH',
+      body: jsonBody({ status }),
     }),
   },
 }

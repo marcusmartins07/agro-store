@@ -5,7 +5,7 @@ from rest_framework.test import APITestCase
 
 from agrostore.carrinhos.models import Carrinho, CarrinhoProduto
 from agrostore.lojas.models import Loja
-from agrostore.pedidos.models import Pedido, PedidoProduto, StatusPedido
+from agrostore.pedidos.models import Pedido, PedidoCliente, PedidoProduto, StatusPedido
 from agrostore.produtos.models import Categoria, PrecoProduto, Produto
 from agrostore.usuarios.models import Genero, Usuario
 
@@ -162,6 +162,56 @@ class PedidoCheckoutTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
         self.assertFalse(Pedido.objects.exists())
         self.assertTrue(CarrinhoProduto.objects.filter(carrinho_produto_id=item_outro_usuario.carrinho_produto_id).exists())
+
+    def test_produtor_visualiza_apenas_pedidos_da_propria_loja_com_contato_minimo(self):
+        pedido = Pedido.objects.create(
+            usuario=self.cliente,
+            loja=self.loja_a,
+            status=StatusPedido.objects.get(status='Pendente'),
+        )
+        PedidoProduto.objects.create(
+            pedido=pedido,
+            produto=self.produto_a,
+            nome_produto=self.produto_a.nome,
+            quantidade=1,
+            valor_unitario='5.00',
+            subtotal='4.00',
+        )
+        PedidoCliente.objects.create(
+            pedido=pedido,
+            nome=self.cliente.nome,
+            cpf=self.cliente.cpf,
+            email=self.cliente.email,
+            telefone=self.cliente.telefone,
+            data_nascimento=self.cliente.data_nascimento,
+            genero=str(self.cliente.genero),
+        )
+        self.client.force_authenticate(self.produtor)
+
+        response = self.client.get('/api/v1/pedidos/minha-loja/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]['cliente'], {'nome': self.cliente.nome, 'telefone': self.cliente.telefone})
+
+    def test_produtor_respeita_fluxo_de_status(self):
+        em_preparo = StatusPedido.objects.create(status='Em preparo')
+        pronto = StatusPedido.objects.create(status='Pronto para retirada')
+        pedido = Pedido.objects.create(
+            usuario=self.cliente,
+            loja=self.loja_a,
+            status=StatusPedido.objects.get(status='Pendente'),
+        )
+        self.client.force_authenticate(self.produtor)
+
+        response = self.client.patch(f'/api/v1/pedidos/{pedido.pedido_id}/status/', {'status': pronto.status_pedido_id}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        response = self.client.patch(
+            f'/api/v1/pedidos/{pedido.pedido_id}/status/',
+            {'status': em_preparo.status_pedido_id},
+            format='json',
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
 
     def _criar_produto(self, loja, nome, sku, estoque, preco_venda, preco_desconto):
         produto = Produto.objects.create(

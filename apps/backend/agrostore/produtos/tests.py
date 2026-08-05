@@ -4,7 +4,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from agrostore.lojas.models import Loja
-from agrostore.produtos.models import Categoria, Produto
+from agrostore.produtos.models import Categoria, PrecoProduto, Produto
 from agrostore.usuarios.models import Genero, Usuario
 
 
@@ -190,3 +190,61 @@ class ProdutoCategoriaAPITests(APITestCase):
     def test_model_protege_categoria_com_produtos_vinculados(self):
         with self.assertRaises(ProtectedError):
             self.categoria_ativa.delete()
+
+    def test_cliente_nao_pode_cadastrar_produto(self):
+        self.client.force_authenticate(self.cliente)
+
+        response = self.client.post('/api/v1/produtos/', self.produto_payload(), format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_produtor_lista_apenas_os_proprios_produtos(self):
+        outro_produtor = self.criar_usuario('12345678904', 'outro-produtor@example.com', is_produtor=True)
+        outra_loja = Loja.objects.create(proprietario=outro_produtor, nome='Outra Feira', cnpj='12345678000198')
+        produto_outro = Produto.objects.create(
+            loja=outra_loja,
+            nome='Tomate',
+            sku='TOMATE-001',
+            estoque=8,
+            categoria=self.categoria_ativa,
+        )
+        self.client.force_authenticate(self.produtor)
+
+        response = self.client.get('/api/v1/produtos/meus/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([produto['produto_id'] for produto in response.data], [self.produto.produto_id])
+        self.assertNotIn(produto_outro.produto_id, [produto['produto_id'] for produto in response.data])
+
+    def test_produtor_nao_edita_produto_de_outra_loja(self):
+        outro_produtor = self.criar_usuario('12345678904', 'outro-produtor@example.com', is_produtor=True)
+        outra_loja = Loja.objects.create(proprietario=outro_produtor, nome='Outra Feira', cnpj='12345678000198')
+        produto_outro = Produto.objects.create(
+            loja=outra_loja,
+            nome='Tomate',
+            sku='TOMATE-001',
+            estoque=8,
+            categoria=self.categoria_ativa,
+        )
+        self.client.force_authenticate(self.produtor)
+
+        response = self.client.patch(
+            f'/api/v1/produtos/{produto_outro.produto_id}/',
+            {'estoque': 1},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_produtor_cria_preco_apenas_para_produto_proprio(self):
+        self.client.force_authenticate(self.produtor)
+        PrecoProduto.objects.create(produto=self.produto, preco_venda='10.00')
+
+        response = self.client.post(
+            '/api/v1/produtos/precos/',
+            {'produto': self.produto.produto_id, 'preco_venda': '12.00', 'porcentagem_desconto': 10},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(PrecoProduto.objects.filter(produto=self.produto, vigencia_fim__isnull=True).count(), 1)

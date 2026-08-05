@@ -31,6 +31,12 @@ class PrecoProdutoSerializer(serializers.ModelSerializer):
         ]
 
 
+    def validate_porcentagem_desconto(self, valor):
+        if valor is not None and not 0 <= valor <= 100:
+            raise serializers.ValidationError('Informe um desconto entre 0 e 100%.')
+        return valor
+
+
 class ProdutoSerializer(serializers.ModelSerializer):
     categoria_nome = serializers.StringRelatedField(source='categoria', read_only=True)
     loja_nome = serializers.StringRelatedField(source='loja', read_only=True)  # ← novo
@@ -56,6 +62,7 @@ class ProdutoSerializer(serializers.ModelSerializer):
             'preco_original',
             'desconto',
         ]
+        read_only_fields = ['loja']
 
     def validate(self, attrs):
         categoria = attrs.get('categoria')

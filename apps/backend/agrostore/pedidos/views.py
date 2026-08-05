@@ -3,12 +3,29 @@ from decimal import Decimal
 
 from django.db import transaction
 from rest_framework import permissions, status, viewsets
+from rest_framework.exceptions import MethodNotAllowed, PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from agrostore.carrinhos.models import CarrinhoProduto
 from .models import Pedido, PedidoCliente, PedidoProduto, StatusPedido
-from .serializers import CriarPedidoSerializer, PedidoSerializer
+from .serializers import CriarPedidoSerializer, PedidoProdutorSerializer, PedidoSerializer, StatusPedidoSerializer
+
+
+STATUS_TRANSICOES = {
+    'Pendente': {'Em preparo', 'Cancelado'},
+    'Em preparo': {'Pronto para retirada', 'Cancelado'},
+    'Pronto para retirada': {'Entregue'},
+    'Entregue': set(),
+    'Cancelado': set(),
+}
+
+
+def garantir_status_pedidos():
+    return {
+        nome: StatusPedido.objects.get_or_create(status=nome)[0]
+        for nome in STATUS_TRANSICOES
+    }
 
 
 class PedidoViewSet(viewsets.ModelViewSet):
@@ -17,6 +34,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch']
 
     def get_queryset(self):
+        queryset = Pedido.objects.select_related('loja', 'status').prefetch_related('itens', 'cliente')
+        if self.action in ['minha_loja', 'atualizar_status']:
+            if self.request.user.is_staff:
+                return queryset
+            return queryset.filter(loja__proprietario=self.request.user)
         return Pedido.objects.filter(
             usuario=self.request.user
         ).select_related('loja', 'status').prefetch_related('itens', 'cliente')
@@ -46,7 +68,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 return Response({"detail": erro}, status=status.HTTP_400_BAD_REQUEST)
             itens_por_loja[item.carrinho.loja].append(item)
 
-        status_pendente, _ = StatusPedido.objects.get_or_create(status='Pendente')
+        status_pendente = garantir_status_pedidos()['Pendente']
         pedidos_criados = []
 
         for loja, itens in itens_por_loja.items():
@@ -99,6 +121,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
     @action(detail=True, methods=['patch'], url_path='status')
     def atualizar_status(self, request, pk=None):
+        if not request.user.is_produtor and not request.user.is_staff:
+            raise PermissionDenied('Somente produtores podem atualizar o status de pedidos.')
         pedido = self.get_object()
         status_id = request.data.get('status')
         status_pedido = StatusPedido.objects.filter(status_pedido_id=status_id).first()
@@ -106,9 +130,32 @@ class PedidoViewSet(viewsets.ModelViewSet):
         if not status_pedido:
             return Response({"detail": "Status inválido."}, status=status.HTTP_400_BAD_REQUEST)
 
+        status_atual = pedido.status.status
+        if status_pedido.status not in STATUS_TRANSICOES.get(status_atual, set()):
+            return Response(
+                {"detail": f"Não é possível alterar um pedido de {status_atual} para {status_pedido.status}."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         pedido.status = status_pedido
         pedido.save(update_fields=['status', 'data_atualizacao'])
-        return Response(PedidoSerializer(pedido).data)
+        return Response(PedidoProdutorSerializer(pedido).data)
+
+    @action(detail=False, methods=['get'], url_path='minha-loja')
+    def minha_loja(self, request):
+        if not request.user.is_produtor and not request.user.is_staff:
+            raise PermissionDenied('Somente produtores podem consultar pedidos da loja.')
+        serializer = PedidoProdutorSerializer(self.get_queryset(), many=True)
+        return Response(serializer.data)
+
+    @action(detail=False, methods=['get'], url_path='status-disponiveis')
+    def status_disponiveis(self, request):
+        if not request.user.is_produtor and not request.user.is_staff:
+            raise PermissionDenied('Somente produtores podem consultar os status de pedidos.')
+        return Response(StatusPedidoSerializer(garantir_status_pedidos().values(), many=True).data)
+
+    def partial_update(self, request, *args, **kwargs):
+        raise MethodNotAllowed('PATCH', detail='Use o endpoint de status para atualizar pedidos.')
 
     def _validar_item_checkout(self, item):
         if not item.produto.ativo:

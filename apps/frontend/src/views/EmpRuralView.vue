@@ -1,189 +1,112 @@
 <template>
-  <div>
-    <h2 class="fw-bold mb-4" style="color:#1b5e35;">Minha Loja</h2>
-
-    <!-- Loading -->
-    <div v-if="carregando" class="card border p-4" style="border-color:#d1e7d8 !important; border-radius:14px;">
-      <div class="placeholder-glow d-flex gap-3 align-items-center mb-4">
-        <span class="placeholder rounded-circle" style="width:80px;height:80px;flex-shrink:0;"></span>
-        <div class="flex-grow-1">
-          <span class="placeholder col-5 d-block mb-2" style="height:20px;"></span>
-          <span class="placeholder col-3 d-block"></span>
-        </div>
+  <section>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+      <div>
+        <h1 class="h2 fw-bold mb-1">Área do produtor</h1>
+        <p class="text-body-secondary mb-0">Acompanhe sua loja, produtos e pedidos para retirada.</p>
       </div>
-      <span class="placeholder col-12 d-block mb-2" style="height:40px;"></span>
-      <span class="placeholder col-12 d-block mb-2" style="height:40px;"></span>
-      <span class="placeholder col-12 d-block" style="height:40px;"></span>
+      <RouterLink v-if="loja" :to="{ name: 'produtos-produtor' }" class="btn btn-success">Gerenciar produtos</RouterLink>
     </div>
 
-    <!-- Sem loja -->
-    <div v-else-if="semLoja" class="card border text-center py-5" style="border-color:#d1e7d8 !important; border-radius:14px;">
-      <div class="card-body">
-        <div class="fs-1 mb-3">🏪</div>
-        <h5 class="fw-bold mb-2" style="color:#1b5e35;">Você ainda não tem uma loja</h5>
-        <p class="text-muted mb-4">Crie sua loja para começar a vender na Agro Store.</p>
-        <RouterLink to="/criar-loja" class="btn btn-success rounded-pill px-4 fw-bold">
-          🌾 Criar minha Loja
-        </RouterLink>
-      </div>
+    <div v-if="carregando" class="row g-3">
+      <div v-for="indice in 3" :key="indice" class="col-12 col-md-4"><div class="card p-4 placeholder-glow"><span class="placeholder col-8"></span></div></div>
     </div>
 
-    <!-- Erro -->
-    <div v-else-if="erro" class="alert alert-danger">
-      ⚠️ Não foi possível carregar os dados da loja.
-      <button class="btn btn-sm btn-outline-danger ms-2" @click="carregarLoja">Tentar novamente</button>
+    <div v-else-if="erro" class="alert alert-danger" role="alert">
+      {{ erro }} <button class="btn btn-sm btn-outline-danger ms-2" @click="carregarPainel">Tentar novamente</button>
     </div>
 
-    <!-- Dados da loja -->
-    <div v-else-if="loja" class="row g-4">
+    <div v-else-if="!loja" class="card text-center p-5">
+      <h2 class="h5 fw-bold">Você ainda não possui uma loja</h2>
+      <p class="text-body-secondary">Crie sua loja para cadastrar produtos e receber pedidos.</p>
+      <RouterLink to="/criar-loja" class="btn btn-success align-self-center">Criar minha loja</RouterLink>
+    </div>
 
-      <!-- Card principal -->
-      <div class="col-12 col-lg-4">
-        <div class="card border text-center p-4" style="border-color:#d1e7d8 !important; border-radius:14px;">
-
-          <!-- Imagem ou emoji -->
-          <div class="loja-avatar mx-auto mb-3">
-            <img
-              v-if="loja.imagem_perfil"
-              :src="imagemUrl"
-              class="w-100 h-100 rounded-circle object-fit-cover"
-              @error="imagemComErro = true"
-            />
-            <span v-else class="fs-1">🏪</span>
-          </div>
-
-          <h5 class="fw-bold mb-1" style="color:#1b5e35;">{{ loja.nome }}</h5>
-          <p class="text-muted small mb-1">{{ loja.proprietario_nome }}</p>
-
-          <span class="badge rounded-pill px-3 py-2 mb-4" :class="loja.ativa ? 'badge-ativa' : 'badge-inativa'">
-            {{ loja.ativa ? '✅ Loja Ativa' : '⏸️ Loja Inativa' }}
-          </span>
-
-          <hr style="border-color:#d1e7d8;" />
-
-          <RouterLink to="/criar-loja" class="btn btn-outline-success w-100 btn-sm">
-            ✏️ Editar informações
-          </RouterLink>
-        </div>
+    <template v-else>
+      <div class="row g-3 mb-4">
+        <div class="col-12 col-md-4"><article class="card h-100 p-3"><span class="text-body-secondary small">Produtos ativos</span><strong class="display-6">{{ produtosAtivos }}</strong></article></div>
+        <div class="col-12 col-md-4"><article class="card h-100 p-3"><span class="text-body-secondary small">Produtos inativos</span><strong class="display-6">{{ produtosInativos }}</strong></article></div>
+        <div class="col-12 col-md-4"><article class="card h-100 p-3"><span class="text-body-secondary small">Pedidos em andamento</span><strong class="display-6">{{ pedidosEmAndamento }}</strong></article></div>
       </div>
 
-      <!-- Informações -->
-      <div class="col-12 col-lg-8">
-        <div class="card border" style="border-color:#d1e7d8 !important; border-radius:14px;">
-          <div class="card-body p-4">
-            <h6 class="fw-bold mb-4" style="color:#1b5e35;">Informações da Loja</h6>
-
-            <div class="row g-3">
-
-              <div class="col-12">
-                <label class="form-label small fw-semibold text-muted">Nome da loja</label>
-                <div class="info-field">{{ loja.nome }}</div>
-              </div>
-
-              <div class="col-12">
-                <label class="form-label small fw-semibold text-muted">Descrição</label>
-                <div class="info-field">{{ loja.descricao || '—' }}</div>
-              </div>
-
-              <div class="col-12 col-sm-6">
-                <label class="form-label small fw-semibold text-muted">CNPJ</label>
-                <div class="info-field">{{ formatarCnpj(loja.cnpj) }}</div>
-              </div>
-
-              <div class="col-12 col-sm-6">
-                <label class="form-label small fw-semibold text-muted">Proprietário</label>
-                <div class="info-field">{{ loja.proprietario_nome }}</div>
-              </div>
-
-              <div class="col-12 col-sm-6">
-                <label class="form-label small fw-semibold text-muted">ID da loja</label>
-                <div class="info-field">#{{ loja.loja_id }}</div>
-              </div>
-
-              <div class="col-12 col-sm-6">
-                <label class="form-label small fw-semibold text-muted">Status</label>
-                <div class="info-field">{{ loja.ativa ? 'Ativa' : 'Inativa' }}</div>
-              </div>
-
+      <div class="row g-4">
+        <div class="col-12 col-lg-7">
+          <div class="card h-100"><div class="card-body p-4">
+            <h2 class="h5 fw-bold">Operação da loja</h2>
+            <p class="text-body-secondary">{{ loja.nome }} está {{ loja.ativa ? 'ativa' : 'inativa' }}.</p>
+            <div class="d-flex flex-wrap gap-2">
+              <RouterLink :to="{ name: 'produtos-produtor' }" class="btn btn-success">Meus produtos</RouterLink>
+              <RouterLink :to="{ name: 'pedidos-produtor' }" class="btn btn-outline-success">Pedidos da loja</RouterLink>
             </div>
-          </div>
+          </div></div>
+        </div>
+        <div class="col-12 col-lg-5">
+          <div class="card h-100"><div class="card-body p-4">
+            <h2 class="h5 fw-bold">Configurações da loja</h2>
+            <label for="descricao-loja" class="form-label">Descrição</label>
+            <textarea id="descricao-loja" v-model="descricao" class="form-control mb-3" rows="3" :disabled="salvando"></textarea>
+            <button class="btn btn-outline-success w-100 mb-2" :disabled="salvando" @click="salvarDescricao">Salvar descrição</button>
+            <button v-if="loja.ativa" class="btn btn-outline-danger w-100" :disabled="salvando" @click="desativarLoja">Desativar loja</button>
+            <p v-else class="small text-body-secondary mb-0">A loja está inativa e não aceita novas compras.</p>
+          </div></div>
         </div>
       </div>
-
-    </div>
-  </div>
+    </template>
+  </section>
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
-import { api, BACKEND_URL } from '@/services/api.js'
+import { computed, onMounted, ref } from 'vue'
+import { api } from '@/services/api.js'
+import { useNotificacoesStore } from '@/stores/notificacoes.js'
 
-const loja          = ref(null)
-const carregando    = ref(true)
-const erro          = ref(false)
-const semLoja       = ref(false)
-const imagemComErro = ref(false)
+const loja = ref(null)
+const produtos = ref([])
+const pedidos = ref([])
+const descricao = ref('')
+const carregando = ref(true)
+const salvando = ref(false)
+const erro = ref('')
+const notificacoes = useNotificacoesStore()
+const produtosAtivos = computed(() => produtos.value.filter(produto => produto.ativo).length)
+const produtosInativos = computed(() => produtos.value.filter(produto => !produto.ativo).length)
+const pedidosEmAndamento = computed(() => pedidos.value.filter(pedido => ['Pendente', 'Em preparo'].includes(pedido.status_nome)).length)
 
-const imagemUrl = computed(() => {
-  if (!loja.value?.imagem_perfil || imagemComErro.value) return null
-  // Se já for URL completa, usa direto; senão monta com BASE_URL
-  if (loja.value.imagem_perfil.startsWith('http')) return loja.value.imagem_perfil
-  const caminho = loja.value.imagem_perfil.replace(/^\/?(media\/)?/, '')
-  return `${BACKEND_URL}/media/${caminho}`
-})
-
-async function carregarLoja() {
+async function carregarPainel() {
   carregando.value = true
-  erro.value       = false
-  semLoja.value    = false
+  erro.value = ''
   try {
     loja.value = await api.lojas.me()
-  } catch (e) {
-    // 404 = usuário não tem loja ainda
-    if (e?.status === 404 || e?.message?.includes('404')) {
-      semLoja.value = true
-    } else {
-      erro.value = true
-    }
+    descricao.value = loja.value.descricao || ''
+    ;[produtos.value, pedidos.value] = await Promise.all([api.produtos.listarMeus(), api.pedidos.listarMinhaLoja()])
+  } catch (falha) {
+    if (falha?.status === 404) loja.value = null
+    else erro.value = falha?.data?.detail || 'Não foi possível carregar a área do produtor.'
   } finally {
     carregando.value = false
   }
 }
 
-function formatarCnpj(cnpj) {
-  if (!cnpj) return '—'
-  return cnpj.replace(/\D/g, '')
-    .replace(/(\d{2})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1.$2')
-    .replace(/(\d{3})(\d)/, '$1/$2')
-    .replace(/(\d{4})(\d{1,2})$/, '$1-$2')
+async function salvarDescricao() {
+  salvando.value = true
+  try {
+    loja.value = await api.lojas.atualizarMinha({ descricao: descricao.value })
+    notificacoes.notificar({ tipo: 'success', mensagem: 'Descrição da loja atualizada.', tempo: 4 })
+  } catch (falha) {
+    notificacoes.notificar({ tipo: 'danger', mensagem: falha?.data?.detail || 'Não foi possível atualizar a loja.' })
+  } finally { salvando.value = false }
 }
 
-onMounted(carregarLoja)
+async function desativarLoja() {
+  if (!window.confirm('Desativar a loja impedirá novas compras. Deseja continuar?')) return
+  salvando.value = true
+  try {
+    loja.value = await api.lojas.atualizarMinha({ ativa: false })
+    notificacoes.notificar({ tipo: 'warning', mensagem: 'Loja desativada. Produtos e pedidos foram preservados.' })
+  } catch (falha) {
+    notificacoes.notificar({ tipo: 'danger', mensagem: falha?.data?.detail || 'Não foi possível desativar a loja.' })
+  } finally { salvando.value = false }
+}
+
+onMounted(carregarPainel)
 </script>
-
-<style scoped>
-.loja-avatar {
-  width: 90px; height: 90px;
-  background: #E8F5E9;
-  border-radius: 50%;
-  border: 2px solid #a5d6a7;
-  display: flex; align-items: center; justify-content: center;
-  overflow: hidden;
-}
-.info-field {
-  background: #f8fdf9;
-  border: 1px solid #d1e7d8;
-  border-radius: 8px;
-  padding: 10px 14px;
-  font-size: 14px;
-  color: #1b5e35;
-  font-weight: 500;
-}
-.badge-ativa   { background: #c8e6c9; color: #1b5e35; }
-.badge-inativa { background: #fee2e2; color: #dc2626; }
-.btn-success { background-color: #2E8B57 !important; border-color: #2E8B57 !important; }
-.btn-success:hover { background-color: #1e6b40 !important; }
-.btn-outline-success { color: #2E8B57 !important; border-color: #2E8B57 !important; }
-.btn-outline-success:hover { background-color: #2E8B57 !important; color: #fff !important; }
-</style>

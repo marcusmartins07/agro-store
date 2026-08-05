@@ -1,4 +1,4 @@
-from rest_framework import viewsets, permissions
+from rest_framework import permissions, status, viewsets
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
@@ -31,3 +31,21 @@ class MinhaLojaView(APIView):
 
         serializer = LojaSerializer(loja)
         return Response(serializer.data)
+
+    def patch(self, request):
+        loja = Loja.objects.filter(proprietario=request.user).first()
+        if not loja:
+            return Response({"detail": "Você não possui uma loja cadastrada."}, status=status.HTTP_404_NOT_FOUND)
+
+        campos_permitidos = {'descricao', 'ativa'}
+        campos_enviados = set(request.data.keys())
+        campos_invalidos = campos_enviados - campos_permitidos
+        if campos_invalidos:
+            return Response(
+                {"detail": "Somente descrição e status da loja podem ser alterados nesta área."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        serializer = LojaSerializer(loja, data=request.data, partial=True, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        return Response(LojaSerializer(serializer.save()).data)

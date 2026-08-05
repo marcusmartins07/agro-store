@@ -41,6 +41,12 @@ class PedidoClienteSerializer(serializers.ModelSerializer):
         ]
 
 
+class PedidoClienteProdutorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PedidoCliente
+        fields = ['nome', 'telefone']
+
+
 class PedidoSerializer(serializers.ModelSerializer):
     itens = PedidoProdutoSerializer(many=True, read_only=True)
     cliente = PedidoClienteSerializer(read_only=True)
@@ -62,6 +68,10 @@ class PedidoSerializer(serializers.ModelSerializer):
             'cliente',
         ]
         read_only_fields = ['valor_bruto', 'valor_desconto', 'valor_liquido']
+
+
+class PedidoProdutorSerializer(PedidoSerializer):
+    cliente = PedidoClienteProdutorSerializer(read_only=True)
 
 
 class CriarPedidoSerializer(serializers.Serializer):

@@ -67,6 +67,19 @@ npm run check
 - Produtores autenticados podem enviar sugestões de categoria por `POST /api/v1/produtos/categorias/`; elas sempre nascem inativas.
 - Somente administradores podem alterar ou ativar/inativar categorias. Categorias não podem ser excluídas.
 
+## Operação do produtor
+
+Os endpoints abaixo exigem JWT de um produtor com loja cadastrada. O backend sempre limita produtos e pedidos à loja do usuário autenticado.
+
+- `GET /api/v1/produtos/meus/`: lista todos os produtos da loja, inclusive inativos.
+- `POST /api/v1/produtos/` e `PATCH /api/v1/produtos/{id}/`: cadastra ou altera produtos da própria loja.
+- `POST /api/v1/produtos/precos/`: registra um novo preço vigente, encerrando automaticamente o preço anterior. Recebe `produto`, `preco_venda` e, opcionalmente, `porcentagem_desconto` entre 0 e 100.
+- `GET /api/v1/pedidos/minha-loja/`: lista pedidos da loja com itens, valores e somente nome/telefone do cliente.
+- `GET /api/v1/pedidos/status-disponiveis/` e `PATCH /api/v1/pedidos/{id}/status/`: consulta e atualiza o status pelo fluxo `Pendente → Em preparo → Pronto para retirada → Entregue`, com cancelamento permitido antes da retirada.
+- `PATCH /api/v1/lojas/me/`: altera apenas `descricao` e `ativa`. Uma loja inativa preserva o histórico e não aceita novas compras.
+
+Cada produtor pode cadastrar somente uma loja. Imagem de loja e alertas configuráveis de estoque permanecem como evoluções futuras.
+
 ## Cadastro de clientes
 
 ### `POST /api/v1/usuarios/cadastro/`

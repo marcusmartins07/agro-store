@@ -20,6 +20,9 @@ class LojaSerializer(serializers.ModelSerializer):
         read_only_fields = ['proprietario']  # sempre vem do usuário logado
 
     def validate(self, data):
-        if not self.context['request'].user.is_produtor:
+        usuario = self.context['request'].user
+        if not usuario.is_produtor:
             raise serializers.ValidationError("Usuário precisa ser produtor para criar uma loja.")
+        if not self.instance and usuario.lojas.exists():
+            raise serializers.ValidationError("Cada produtor pode possuir somente uma loja.")
         return data
