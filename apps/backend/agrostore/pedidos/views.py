@@ -81,6 +81,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 nome=usuario.nome,
                 cpf=usuario.cpf,
                 email=usuario.email,
+                telefone=usuario.telefone,
                 data_nascimento=usuario.data_nascimento,
                 genero=str(usuario.genero),
             )

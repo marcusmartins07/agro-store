@@ -62,11 +62,11 @@ export const api = {
   },
   auth: {
     login: (cpf, password) => request('/usuarios/login/', { method: 'POST', body: jsonBody({ cpf, password }) }, false),
+    cadastrar: (body) => request('/usuarios/cadastro/', { method: 'POST', body: jsonBody(body) }, false),
     refresh: (refresh) => request('/usuarios/token/refresh/', { method: 'POST', body: jsonBody({ refresh }) }, false),
   },
   usuarios: {
     me: () => request('/usuarios/me'),
-    tornarProdutor: (id) => request(`/usuarios/usuarios/${id}/`, { method: 'PATCH', body: jsonBody({ is_produtor: true }) }),
   },
   lojas: {
     criar: (body) => request('/lojas/lojas/', { method: 'POST', body: jsonBody(body) }),

@@ -10,7 +10,7 @@ from agrostore.usuarios.models import Genero, Usuario
 
 class ProdutoCategoriaAPITests(APITestCase):
     def setUp(self):
-        self.genero = Genero.objects.create(id_genero='M', genero='Masculino')
+        self.genero, _ = Genero.objects.get_or_create(id_genero='M', defaults={'genero': 'Masculino'})
         self.produtor = self.criar_usuario('12345678901', 'produtor@example.com', is_produtor=True)
         self.cliente = self.criar_usuario('12345678902', 'cliente@example.com')
         self.administrador = self.criar_usuario('12345678903', 'admin@example.com', is_staff=True)

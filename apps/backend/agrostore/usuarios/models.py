@@ -39,6 +39,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     data_nascimento = models.DateField()
     genero = models.ForeignKey(Genero, on_delete=models.RESTRICT)
+    telefone = models.CharField(max_length=11, null=True, blank=True)
     is_produtor = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)

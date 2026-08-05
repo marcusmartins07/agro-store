@@ -1,5 +1,6 @@
 <template>
   <div>
+    <NotificacoesGlobais />
     <!-- NAVBAR -->
     <nav class="navbar navbar-expand-lg bg-white border-bottom shadow-sm sticky-top">
       <div class="container">
@@ -78,6 +79,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useCarrinhoStore } from '@/stores/index.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { api } from '@/services/api.js'
+import NotificacoesGlobais from '@/components/NotificacoesGlobais.vue'
 
 const router        = useRouter()
 const route         = useRoute()

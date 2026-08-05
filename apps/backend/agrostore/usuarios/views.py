@@ -1,22 +1,30 @@
-from rest_framework import viewsets, permissions
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .models import Usuario
-from .serializers import UsuarioSerializer, LoginSerializer
+from .serializers import CadastroClienteSerializer, LoginSerializer, UsuarioPerfilSerializer
 
 
-class UsuarioViewSet(viewsets.ModelViewSet):
-    queryset = Usuario.objects.all()
-    serializer_class = UsuarioSerializer
+def resposta_autenticacao(user, response_status=200):
+    refresh = RefreshToken.for_user(user)
+    return Response(
+        {
+            'refresh': str(refresh),
+            'access': str(refresh.access_token),
+            'usuario': UsuarioPerfilSerializer(user).data,
+        },
+        status=response_status,
+    )
 
-    def get_permissions(self):
-        if self.action == 'create':
-            return [AllowAny()]
-        return [IsAuthenticated()]
+
+class CadastroClienteView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        serializer = CadastroClienteSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        return resposta_autenticacao(serializer.save(), 201)
 
 
 class LoginView(APIView):
@@ -25,19 +33,11 @@ class LoginView(APIView):
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-
-        user = serializer.validated_data["user"]
-        refresh = RefreshToken.for_user(user)
-
-        return Response({
-            "refresh": str(refresh),
-            "access": str(refresh.access_token),
-        })
+        return resposta_autenticacao(serializer.validated_data['user'])
 
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
-        serializer = UsuarioSerializer(request.user)
-        return Response(serializer.data)
+        return Response(UsuarioPerfilSerializer(request.user).data)

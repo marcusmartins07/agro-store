@@ -51,6 +51,7 @@ class PedidoCliente(BaseModel):
     nome = models.CharField(max_length=150)
     cpf = models.CharField(max_length=11)
     email = models.EmailField()
+    telefone = models.CharField(max_length=11, null=True, blank=True)
     data_nascimento = models.DateField()
     genero = models.CharField(max_length=55)
 

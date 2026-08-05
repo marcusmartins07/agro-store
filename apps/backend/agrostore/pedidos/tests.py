@@ -12,7 +12,7 @@ from agrostore.usuarios.models import Genero, Usuario
 
 class PedidoCheckoutTests(APITestCase):
     def setUp(self):
-        self.genero = Genero.objects.create(id_genero='F', genero='Feminino')
+        self.genero, _ = Genero.objects.get_or_create(id_genero='F', defaults={'genero': 'Feminino'})
         self.cliente = Usuario.objects.create_user(
             cpf='22345678901',
             email='cliente-pedido@example.com',

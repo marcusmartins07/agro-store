@@ -10,14 +10,24 @@ export const useAuthStore = defineStore('auth', () => {
 
   const estaLogado = computed(() => !!accessToken.value)
 
+  function salvarSessao(dados) {
+    accessToken.value = dados.access
+    refreshToken.value = dados.refresh
+    usuario.value = dados.usuario || null
+
+    localStorage.setItem('access_token', dados.access)
+    localStorage.setItem('refresh_token', dados.refresh)
+    if (dados.usuario) localStorage.setItem('usuario', JSON.stringify(dados.usuario))
+  }
+
   async function login(cpf, password) {
     const dados = await api.auth.login(cpf, password)
+    salvarSessao(dados)
+  }
 
-    accessToken.value  = dados.access
-    refreshToken.value = dados.refresh
-
-    localStorage.setItem('access_token',  dados.access)
-    localStorage.setItem('refresh_token', dados.refresh)
+  async function cadastrar(dadosCadastro) {
+    const dados = await api.auth.cadastrar(dadosCadastro)
+    salvarSessao(dados)
   }
 
   function logout() {
@@ -29,5 +39,5 @@ export const useAuthStore = defineStore('auth', () => {
     localStorage.removeItem('usuario')
   }
 
-  return { accessToken, refreshToken, usuario, estaLogado, login, logout }
+  return { accessToken, refreshToken, usuario, estaLogado, login, cadastrar, logout }
 })

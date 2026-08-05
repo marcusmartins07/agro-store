@@ -35,6 +35,7 @@ class PedidoClienteSerializer(serializers.ModelSerializer):
             'nome',
             'cpf',
             'email',
+            'telefone',
             'data_nascimento',
             'genero',
         ]

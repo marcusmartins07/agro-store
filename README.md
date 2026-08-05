@@ -66,3 +66,29 @@ npm run check
 - `GET /api/v1/produtos/categorias/` é público e inclui categorias inativas/sugestões; use `?ativo=true` para obter somente categorias ativas.
 - Produtores autenticados podem enviar sugestões de categoria por `POST /api/v1/produtos/categorias/`; elas sempre nascem inativas.
 - Somente administradores podem alterar ou ativar/inativar categorias. Categorias não podem ser excluídas.
+
+## Cadastro de clientes
+
+### `POST /api/v1/usuarios/cadastro/`
+
+Público. Cria uma conta de cliente e retorna `access`, `refresh` e um objeto seguro em `usuario`.
+
+```json
+{
+  "nome": "Nome do cliente",
+  "cpf": "52998224725",
+  "email": "cliente@exemplo.com",
+  "telefone": "51999990000",
+  "data_nascimento": "2000-05-10",
+  "genero": "M",
+  "password": "SenhaForte123",
+  "password_confirmacao": "SenhaForte123"
+}
+```
+
+Valida CPF, unicidade de CPF/e-mail, celular com 11 dígitos, idade mínima de 16 anos e senha de ao menos oito caracteres. Retorna `400` para dados inválidos ou duplicados.
+
+## Idioma e notificações
+
+- O backend usa português do Brasil (`pt-br`) para mensagens nativas de validação do Django.
+- O frontend possui notificações globais de `success`, `info`, `warning` e `danger`; sem tempo informado, permanecem até fechamento manual ou atualização da página.
