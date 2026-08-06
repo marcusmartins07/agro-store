@@ -62,7 +62,7 @@ class ProdutoSerializer(serializers.ModelSerializer):
             'preco_original',
             'desconto',
         ]
-        read_only_fields = ['loja']
+        read_only_fields = ['loja', 'sku']
 
     def validate(self, attrs):
         categoria = attrs.get('categoria')

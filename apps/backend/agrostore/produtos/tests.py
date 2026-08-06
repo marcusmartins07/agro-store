@@ -51,6 +51,27 @@ class ProdutoCategoriaAPITests(APITestCase):
         payload.update(overrides)
         return payload
 
+    def test_criacao_gera_sku_com_ids_preenchidos_por_zeros(self):
+        self.client.force_authenticate(self.produtor)
+
+        response = self.client.post(
+            '/api/v1/produtos/',
+            self.produto_payload(sku='SKU-MANUAL-IGNORADO'),
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        sku_esperado = f'{self.loja.loja_id:04d}{self.categoria_ativa.categoria_id:04d}{response.data["produto_id"]:06d}'
+        self.assertEqual(response.data['sku'], sku_esperado)
+
+    def test_sku_permanece_inalterado_apos_edicao(self):
+        sku_original = self.produto.sku
+        self.produto.categoria = self.categoria_inativa
+        self.produto.save(update_fields=['categoria'])
+        self.produto.refresh_from_db()
+
+        self.assertEqual(self.produto.sku, sku_original)
+
     def test_criacao_exige_categoria(self):
         self.client.force_authenticate(self.produtor)
         payload = self.produto_payload()

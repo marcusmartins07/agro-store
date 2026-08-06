@@ -80,6 +80,10 @@ Os endpoints abaixo exigem JWT de um produtor com loja cadastrada. O backend sem
 
 Cada produtor pode cadastrar somente uma loja. Imagem de loja e alertas configuráveis de estoque permanecem como evoluções futuras.
 
+### SKU de produtos
+
+O backend gera automaticamente o SKU de produtos novos e não aceita alteração manual. O valor tem 14 dígitos, sem separadores, na ordem `id_loja` (4 dígitos), `id_categoria` (4 dígitos) e `id_produto` (6 dígitos). Por exemplo, os identificadores `1`, `1` e `1` resultam em `00010001000001`. Produtos cadastrados antes desta regra mantêm seus SKUs atuais.
+
 ## Cadastro de clientes
 
 ### `POST /api/v1/usuarios/cadastro/`

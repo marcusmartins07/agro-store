@@ -1,4 +1,4 @@
-from django.db import models
+from django.db import models, transaction
 from decimal import Decimal
 from django.utils import timezone
 from agrostore.main.models import BaseModel
@@ -21,12 +21,35 @@ class Produto(BaseModel):
     descricao = models.TextField(blank=True)
     codigo_barras = models.CharField(max_length=13, blank=True)
     estoque = models.IntegerField(default=0)
-    sku = models.CharField(max_length=50, unique=True, blank=True)
+    sku = models.CharField(max_length=50, unique=True, blank=True, null=True)
     ativo = models.BooleanField(default=True)
     categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT)
 
     def __str__(self):
         return self.nome
+
+    def gerar_sku(self):
+        componentes = (
+            ('loja', self.loja_id, 4),
+            ('categoria', self.categoria_id, 4),
+            ('produto', self.produto_id, 6),
+        )
+
+        for nome, valor, tamanho in componentes:
+            if valor is None or valor > (10 ** tamanho) - 1:
+                raise ValueError(f'Identificador de {nome} excede o limite de {tamanho} dígitos para o SKU.')
+
+        return ''.join(f'{valor:0{tamanho}d}' for _, valor, tamanho in componentes)
+
+    def save(self, *args, **kwargs):
+        if not self._state.adding:
+            return super().save(*args, **kwargs)
+
+        self.sku = None
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            self.sku = self.gerar_sku()
+            super().save(update_fields=['sku'])
 
 
 class PrecoProduto(BaseModel):
