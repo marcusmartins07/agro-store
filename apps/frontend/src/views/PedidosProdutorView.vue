@@ -1,6 +1,6 @@
 <template>
   <section>
-    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4"><div><h1 class="h2 fw-bold mb-1">Pedidos da loja</h1><p class="text-body-secondary mb-0">Prepare os pedidos para retirada presencial.</p></div><RouterLink :to="{ name: 'emprural' }" class="btn btn-outline-success">Voltar ao painel</RouterLink></div>
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4"><div><h1 class="h2 fw-bold mb-1">Pedidos da loja</h1><p class="text-body-secondary mb-0">Prepare os pedidos para retirada presencial.</p></div><RouterLink :to="{ name: 'minha-loja' }" class="btn btn-outline-success">Voltar ao painel</RouterLink></div>
     <div v-if="carregando" class="card p-4 text-body-secondary">Carregando pedidos...</div>
     <div v-else-if="erro" class="alert alert-danger">{{ erro }} <button class="btn btn-sm btn-outline-danger ms-2" @click="carregar">Tentar novamente</button></div>
     <div v-else-if="pedidos.length === 0" class="card text-center p-5"><h2 class="h5 fw-bold">Nenhum pedido para esta loja</h2><p class="text-body-secondary mb-0">Os pedidos recebidos aparecerão aqui.</p></div>

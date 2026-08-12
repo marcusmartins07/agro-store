@@ -16,7 +16,7 @@
           <span class="badge rounded-pill px-3 py-2 mb-4" :class="usuario.is_produtor ? 'text-bg-success' : 'text-bg-secondary'">
             {{ usuario.is_produtor ? 'Produtor rural' : 'Cliente' }}
           </span>
-          <div v-if="usuario.is_produtor"><hr><RouterLink to="/vendedor" class="btn btn-outline-primary w-100">Gerenciar minha loja</RouterLink></div>
+          <div v-if="usuario.is_produtor"><hr><RouterLink :to="{ name: 'minha-loja' }" class="btn btn-outline-primary w-100">Gerenciar minha loja</RouterLink></div>
         </div>
       </div>
       <div class="col-12 col-lg-8"><div class="card border h-100"><div class="card-body p-4">

@@ -48,7 +48,7 @@
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
               <li><RouterLink to="/cliente" class="dropdown-item">Meu Perfil</RouterLink></li>
-              <li v-if="temLoja"><RouterLink :to="{ name: 'emprural' }" class="dropdown-item">Minha Loja</RouterLink></li>
+              <li v-if="temLoja"><RouterLink :to="{ name: 'minha-loja' }" class="dropdown-item">Minha Loja</RouterLink></li>
               <li><RouterLink to="/pedidos" class="dropdown-item">Meus Pedidos</RouterLink></li>
               <li><RouterLink to="/favoritos" class="dropdown-item">Favoritos</RouterLink></li>
               <li><hr class="dropdown-divider"></li>
@@ -110,7 +110,7 @@ watch(() => authStore.estaLogado, (estaLogado) => {
 })
 
 watch(() => route.name, (name) => {
-  if (authStore.estaLogado && ['cliente', 'emprural'].includes(name)) {
+  if (authStore.estaLogado && ['cliente', 'minha-loja'].includes(name)) {
     carregarStatusLoja()
   }
 })
