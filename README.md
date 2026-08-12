@@ -80,6 +80,14 @@ Os endpoints abaixo exigem JWT de um produtor com loja cadastrada. O backend sem
 
 Cada produtor pode cadastrar somente uma loja. Imagem de loja e alertas configuráveis de estoque permanecem como evoluções futuras.
 
+## Cancelamento de pedidos
+
+O cliente autenticado pode cancelar somente seus próprios pedidos com status `Pendente`.
+
+- `PATCH /api/v1/pedidos/{id}/cancelar/`: não recebe payload e retorna o pedido atualizado com status `Cancelado`.
+- Retorna `400` se o pedido não estiver pendente e `404` se o pedido não pertencer ao cliente autenticado.
+- O cancelamento preserva o pedido no histórico e restaura o estoque de seus itens. Cancelamentos permitidos pelo produtor também restauram o estoque.
+
 ### SKU de produtos
 
 O backend gera automaticamente o SKU de produtos novos e não aceita alteração manual. O valor tem 14 dígitos, sem separadores, na ordem `id_loja` (4 dígitos), `id_categoria` (4 dígitos) e `id_produto` (6 dígitos). Por exemplo, os identificadores `1`, `1` e `1` resultam em `00010001000001`. Produtos cadastrados antes desta regra mantêm seus SKUs atuais.

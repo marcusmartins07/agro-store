@@ -106,5 +106,6 @@ export const api = {
       method: 'PATCH',
       body: jsonBody({ status }),
     }),
+    cancelar: (pedidoId) => request(`/pedidos/${pedidoId}/cancelar/`, { method: 'PATCH' }),
   },
 }

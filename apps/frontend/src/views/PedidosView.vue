@@ -67,6 +67,16 @@
               </div>
             </div>
           </div>
+
+          <div v-if="pedido.status_nome === 'Pendente'" class="d-flex justify-content-end mt-3">
+            <button
+              class="btn btn-outline-danger"
+              :disabled="cancelando === pedido.pedido_id"
+              @click="cancelarPedido(pedido)"
+            >
+              {{ cancelando === pedido.pedido_id ? 'Cancelando...' : 'Cancelar pedido' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -77,11 +87,14 @@
 import { onMounted, ref } from 'vue'
 import { api } from '@/services/api.js'
 import { useAuthStore } from '@/stores/auth.js'
+import { useNotificacoesStore } from '@/stores/notificacoes.js'
 
 const authStore = useAuthStore()
 const pedidos = ref([])
 const carregando = ref(false)
 const erro = ref('')
+const cancelando = ref(null)
+const notificacoes = useNotificacoesStore()
 
 onMounted(async () => {
   if (!authStore.estaLogado) return
@@ -98,6 +111,24 @@ onMounted(async () => {
 
 function formatarPreco(valor) {
   return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+async function cancelarPedido(pedido) {
+  if (!window.confirm('Cancelar este pedido?')) return
+
+  cancelando.value = pedido.pedido_id
+  try {
+    await api.pedidos.cancelar(pedido.pedido_id)
+    notificacoes.notificar({ tipo: 'success', mensagem: 'Pedido cancelado com sucesso.', tempo: 4 })
+    pedidos.value = await api.pedidos.listar()
+  } catch (falha) {
+    notificacoes.notificar({
+      tipo: 'danger',
+      mensagem: falha?.data?.detail || 'Não foi possível cancelar o pedido.',
+    })
+  } finally {
+    cancelando.value = null
+  }
 }
 </script>
 
