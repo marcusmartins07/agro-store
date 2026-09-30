@@ -80,6 +80,15 @@ Os endpoints abaixo exigem JWT de um produtor com loja cadastrada. O backend sem
 
 Cada produtor pode cadastrar somente uma loja. Imagem de loja e alertas configuráveis de estoque permanecem como evoluções futuras.
 
+## Retirada na feira
+
+A retirada dos pedidos é presencial, em um dia e horário únicos para toda a plataforma (não varia por loja/produtor):
+
+- Todos os sábados, das 6h às 12h.
+- Rua Major Lúcio Meireles, nº 61, Centro, Camaquã (junto ao prédio nos fundos da Igreja Imaculada / escritório da Emater).
+
+Essa informação é exibida ao cliente no carrinho e nos pedidos (`apps/frontend/src/data/feira.js`) apenas para orientação.
+
 ## Cancelamento de pedidos
 
 O cliente autenticado pode cancelar somente seus próprios pedidos com status `Pendente`.
