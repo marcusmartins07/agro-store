@@ -1,17 +1,5 @@
 <template>
   <div>
-    <!-- Cabeçalho -->
-    <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-4">
-      <div>
-        <h1 class="fw-bold mb-1" style="color: #1b5e35;">Nosso Mercado</h1>
-        <p class="text-muted mb-0">Encontre o melhor da produção rural local.</p>
-      </div>
-      <div class="input-group" style="max-width: 240px;">
-        <span class="input-group-text bg-white">🔍</span>
-        <input v-model="busca" type="text" class="form-control" placeholder="Pesquisar produtos..." />
-      </div>
-    </div>
-
     <!-- ERRO -->
     <div v-if="erro" class="alert alert-danger d-flex align-items-center gap-2" role="alert">
       <span>⚠️</span>
@@ -61,15 +49,6 @@
             </div>
           </div>
         </div>
-
-        <!-- Ofertas -->
-        <div class="card border" style="background: #fffde7; border-color: #fde68a !important; border-radius: 12px;">
-          <div class="card-body p-3">
-            <p class="fw-bold small mb-1" style="color: #856404;">Ofertas do Dia</p>
-            <p class="small mb-2" style="color: #92740a;">Assine nossa newsletter e receba ofertas exclusivas.</p>
-            <button class="btn btn-success btn-sm w-100">Saber mais</button>
-          </div>
-        </div>
       </div>
 
       <!-- GRID -->
@@ -103,10 +82,6 @@
 
         <!-- Resultado -->
         <template v-else>
-          <p class="text-muted small mb-3">
-            {{ produtosFiltrados.length }} produto(s) encontrado(s)
-            <span v-if="busca"> para "<strong>{{ busca }}</strong>"</span>
-          </p>
           <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
             <div class="col" v-for="produto in produtosFiltrados" :key="produto.produto_id">
               <ProductCard :produto="produto" />
@@ -121,15 +96,20 @@
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import ProductCard from '@/components/ProductCard.vue'
 import { api } from '@/services/api.js'
+
+const route  = useRoute()
+const router = useRouter()
 
 // ── Estado ──────────────────────────────────────────────────────────────────
 const produtos        = ref([])
 const categorias      = ref([])
 const carregando      = ref(true)
 const erro            = ref(false)
-const busca           = ref('')
+// Termo vem da busca do header (/?q=termo)
+const busca           = computed(() => (route.query.q || '').toString())
 const categoriaAtiva  = ref('Todos')
 const ordem           = ref('relevancia')
 
@@ -195,7 +175,7 @@ const produtosFiltrados = computed(() => {
 })
 
 function limparFiltros() {
-  busca.value = ''
+  if (route.query.q) router.replace({ name: 'produtos' })
   categoriaAtiva.value = 'Todos'
   ordem.value = 'relevancia'
 }
