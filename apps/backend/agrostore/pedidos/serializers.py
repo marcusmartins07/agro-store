@@ -64,10 +64,11 @@ class PedidoSerializer(serializers.ModelSerializer):
             'valor_bruto',
             'valor_desconto',
             'valor_liquido',
+            'data_criacao',
             'itens',
             'cliente',
         ]
-        read_only_fields = ['valor_bruto', 'valor_desconto', 'valor_liquido']
+        read_only_fields = ['valor_bruto', 'valor_desconto', 'valor_liquido', 'data_criacao']
 
 
 class PedidoProdutorSerializer(PedidoSerializer):

@@ -28,7 +28,7 @@ class LojaAPITests(APITestCase):
         response = self.client.post('/api/v1/lojas/lojas/', segunda, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
-    def test_produtor_atualiza_apenas_descricao_e_status_da_loja(self):
+    def test_produtor_atualiza_apenas_nome_descricao_e_status_da_loja(self):
         self.client.post('/api/v1/lojas/lojas/', {'nome': 'Feira Central', 'cnpj': '98765432000199'}, format='json')
 
         response = self.client.patch('/api/v1/lojas/me/', {'descricao': 'Produtos da estação', 'ativa': False}, format='json')
@@ -37,5 +37,12 @@ class LojaAPITests(APITestCase):
         self.assertEqual(response.data['descricao'], 'Produtos da estação')
         self.assertFalse(response.data['ativa'])
 
-        response = self.client.patch('/api/v1/lojas/me/', {'nome': 'Outro nome'}, format='json')
+        response = self.client.patch('/api/v1/lojas/me/', {'nome': 'Sítio Boa Terra'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['nome'], 'Sítio Boa Terra')
+
+        response = self.client.patch('/api/v1/lojas/me/', {'nome': ''}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        response = self.client.patch('/api/v1/lojas/me/', {'cnpj': '98765432000198'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

@@ -192,6 +192,27 @@ class PedidoCheckoutTests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data[0]['cliente'], {'nome': self.cliente.nome, 'telefone': self.cliente.telefone})
+        self.assertIsNotNone(response.data[0]['data_criacao'])
+
+    def test_cliente_lista_pedidos_com_data_de_criacao(self):
+        Pedido.objects.create(usuario=self.cliente, loja=self.loja_a, status=StatusPedido.objects.get(status='Pendente'))
+
+        response = self.client.get('/api/v1/pedidos/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertIn('data_criacao', response.data[0])
+        self.assertIsNotNone(response.data[0]['data_criacao'])
+
+    def test_alteracao_do_perfil_preserva_snapshot_do_cliente_no_pedido(self):
+        item = self._adicionar_item(self.produto_a, 1)
+        checkout = self.client.post('/api/v1/pedidos/', {'carrinho_produto_ids': [item.carrinho_produto_id]}, format='json')
+        nome_original = self.cliente.nome
+
+        response = self.client.patch('/api/v1/usuarios/me/', {'nome': 'Nome Novo'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        pedido = Pedido.objects.get(pedido_id=checkout.data[0]['pedido_id'])
+        self.assertEqual(pedido.cliente.nome, nome_original)
 
     def test_produtor_respeita_fluxo_de_status(self):
         em_preparo = StatusPedido.objects.create(status='Em preparo')

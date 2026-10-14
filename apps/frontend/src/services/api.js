@@ -56,6 +56,7 @@ const jsonBody = (body) => JSON.stringify(body)
 export const api = {
   produtos: {
     listar: () => request('/produtos/'),
+    obter: (produtoId) => request(`/produtos/${produtoId}/`),
     listarMeus: () => request('/produtos/meus/'),
     criar: (body) => request('/produtos/', { method: 'POST', body: jsonBody(body) }),
     atualizar: (produtoId, body) => request(`/produtos/${produtoId}/`, { method: 'PATCH', body: jsonBody(body) }),
@@ -75,7 +76,8 @@ export const api = {
     refresh: (refresh) => request('/usuarios/token/refresh/', { method: 'POST', body: jsonBody({ refresh }) }, false),
   },
   usuarios: {
-    me: () => request('/usuarios/me'),
+    me: () => request('/usuarios/me/'),
+    atualizar: (body) => request('/usuarios/me/', { method: 'PATCH', body: jsonBody(body) }),
   },
   lojas: {
     criar: (body) => request('/lojas/lojas/', { method: 'POST', body: jsonBody(body) }),
@@ -93,6 +95,9 @@ export const api = {
       body: jsonBody({ quantidade }),
     }),
     removerItem: (itemId) => request(`/carrinhos/itens/${itemId}/`, { method: 'DELETE' }),
+  },
+  avaliacoes: {
+    listarPorProduto: (produtoId) => request(`/avaliacoes/?produto=${encodeURIComponent(produtoId)}`),
   },
   favoritos: {
     listar: () => request('/favoritos/'),

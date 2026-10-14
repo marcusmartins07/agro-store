@@ -2,49 +2,53 @@
   <section>
     <div class="d-flex justify-content-between align-items-end flex-wrap gap-3 mb-4">
       <div>
-        <h1 class="fw-bold mb-1 titulo">Meus Favoritos</h1>
-        <p class="text-muted mb-0">Produtos salvos para consultar e comprar depois.</p>
+        <h1 class="fw-semibold mb-1">Favoritos</h1>
+        <p class="text-body-secondary mb-0">Produtos salvos para consultar e comprar depois.</p>
       </div>
-      <RouterLink to="/" class="btn btn-outline-success">Ver catálogo</RouterLink>
+      <RouterLink :to="{ name: 'produtos' }" class="btn btn-outline-primary rounded-pill px-4">Ver catálogo</RouterLink>
     </div>
 
-    <div v-if="!authStore.estaLogado" class="card border text-center py-5 painel">
+    <div v-if="!authStore.estaLogado" class="card rounded-4 text-center py-5">
       <div class="card-body">
-        <div class="fs-1 mb-3">♡</div>
-        <h4 class="fw-bold mb-2 titulo">Entre para ver seus favoritos</h4>
-        <p class="text-muted mb-3">Salve produtos para encontrá-los facilmente em sua próxima visita.</p>
-        <RouterLink :to="{ name: 'login', query: { retorno: route.fullPath } }" class="btn btn-success">Entrar</RouterLink>
+        <span class="icone-estado mb-3"><IconeSvg nome="coracao" :tamanho="32" /></span>
+        <h2 class="h4 fw-semibold mb-2">Entre para ver seus favoritos</h2>
+        <p class="text-body-secondary mb-3">Salve produtos para encontrá-los facilmente em sua próxima visita.</p>
+        <RouterLink :to="{ name: 'login', query: { retorno: route.fullPath } }" class="btn btn-primary rounded-pill px-4">Entrar</RouterLink>
       </div>
     </div>
 
-    <div v-else-if="favoritosStore.carregando" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
-      <div v-for="n in 3" :key="n" class="col">
-        <div class="card border h-100 painel placeholder-glow">
-          <div class="placeholder w-100 d-block" style="height:160px;"></div>
-          <div class="card-body"><span class="placeholder col-8"></span></div>
+    <div v-else-if="favoritosStore.carregando" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4">
+      <span class="visually-hidden" role="status">Carregando favoritos...</span>
+      <div v-for="n in 3" :key="n" class="col" aria-hidden="true">
+        <div class="card h-100 rounded-4 overflow-hidden placeholder-glow">
+          <div class="ratio ratio-1x1"><span class="placeholder"></span></div>
+          <div class="card-body p-3 p-lg-4"><span class="placeholder col-8 d-block"></span></div>
         </div>
       </div>
     </div>
 
-    <div v-else-if="favoritosStore.erro" class="alert alert-danger" role="alert">
-      <strong>Não foi possível carregar os favoritos.</strong> {{ favoritosStore.erro }}
-      <button class="btn btn-sm btn-outline-danger ms-2" @click="carregarNovamente">Tentar novamente</button>
+    <div v-else-if="favoritosStore.erro" class="alert alert-danger d-flex flex-wrap align-items-center gap-2" role="alert">
+      <span><strong>Não foi possível carregar os favoritos.</strong> {{ favoritosStore.erro }}</span>
+      <button type="button" class="btn btn-sm btn-outline-danger" @click="carregarNovamente">Tentar novamente</button>
     </div>
 
-    <div v-else-if="favoritosStore.ordenados.length === 0" class="card border text-center py-5 painel">
+    <div v-else-if="favoritosStore.ordenados.length === 0" class="card rounded-4 text-center py-5">
       <div class="card-body">
-        <div class="fs-1 mb-3">♡</div>
-        <h4 class="fw-bold mb-2 titulo">Nenhum favorito ainda</h4>
-        <p class="text-muted mb-3">Use o coração no catálogo para salvar os produtos que mais gostar.</p>
-        <RouterLink to="/" class="btn btn-success">Explorar produtos</RouterLink>
+        <span class="icone-estado mb-3"><IconeSvg nome="coracao" :tamanho="32" /></span>
+        <h2 class="h4 fw-semibold mb-2">Nenhum favorito ainda</h2>
+        <p class="text-body-secondary mb-3">Use o coração no catálogo para salvar os produtos de que mais gostar.</p>
+        <RouterLink :to="{ name: 'produtos' }" class="btn btn-primary rounded-pill px-4">Explorar produtos</RouterLink>
       </div>
     </div>
 
-    <div v-else class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-3">
-      <div v-for="favorito in favoritosStore.ordenados" :key="favorito.favorito_id" class="col">
-        <ProductCard :produto="favorito.dados_produto" />
+    <template v-else>
+      <h2 class="visually-hidden">Produtos favoritados</h2>
+      <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 g-4">
+        <div v-for="favorito in favoritosStore.ordenados" :key="favorito.favorito_id" class="col">
+          <ProductCard :produto="favorito.dados_produto" />
+        </div>
       </div>
-    </div>
+    </template>
   </section>
 </template>
 
@@ -52,6 +56,7 @@
 import { onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 
+import IconeSvg from '@/components/IconeSvg.vue'
 import ProductCard from '@/components/ProductCard.vue'
 import { useAuthStore } from '@/stores/auth.js'
 import { useFavoritosStore } from '@/stores/index.js'
@@ -68,8 +73,3 @@ function carregarNovamente() {
   favoritosStore.carregar(true)
 }
 </script>
-
-<style scoped>
-.titulo { color: #1b5e35; }
-.painel { border-color: #d1e7d8 !important; border-radius: 14px; }
-</style>

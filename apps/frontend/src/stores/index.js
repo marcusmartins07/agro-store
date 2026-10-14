@@ -232,7 +232,7 @@ export const useFavoritosStore = defineStore('favoritos', () => {
   }
 })
 
-function extrairMensagemErro(error) {
+export function extrairMensagemErro(error) {
   if (error?.data?.detail) return error.data.detail
 
   const primeiroCampo = error?.data && Object.keys(error.data)[0]

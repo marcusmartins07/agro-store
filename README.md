@@ -74,9 +74,15 @@ Os endpoints abaixo exigem JWT de um produtor com loja cadastrada. O backend sem
 - `GET /api/v1/produtos/meus/`: lista todos os produtos da loja, inclusive inativos.
 - `POST /api/v1/produtos/` e `PATCH /api/v1/produtos/{id}/`: cadastra ou altera produtos da própria loja.
 - `POST /api/v1/produtos/precos/`: registra um novo preço vigente, encerrando automaticamente o preço anterior. Recebe `produto`, `preco_venda` e, opcionalmente, `porcentagem_desconto` entre 0 e 100.
-- `GET /api/v1/pedidos/minha-loja/`: lista pedidos da loja com itens, valores e somente nome/telefone do cliente.
+- `GET /api/v1/pedidos/minha-loja/`: lista pedidos da loja com itens, valores, data de criação (`data_criacao`) e somente nome/telefone do cliente.
 - `GET /api/v1/pedidos/status-disponiveis/` e `PATCH /api/v1/pedidos/{id}/status/`: consulta e atualiza o status pelo fluxo `Pendente → Em preparo → Pronto para retirada → Entregue`, com cancelamento permitido antes da retirada.
-- `PATCH /api/v1/lojas/me/`: altera apenas `descricao` e `ativa`. Uma loja inativa preserva o histórico e não aceita novas compras.
+- `PATCH /api/v1/lojas/me/`: altera apenas `nome`, `descricao` e `ativa`; outros campos (como `cnpj`) retornam `400`. Uma loja inativa preserva o histórico e não aceita novas compras.
+
+Produtos não são excluídos: para tirá-los do catálogo, o produtor altera `ativo` para `false`, preservando o histórico dos pedidos.
+
+No frontend, a área do produtor fica em `/minha-loja`, com as abas Painel, Pedidos, Produtos e Minha loja. Os indicadores do painel (vendas do mês, ticket médio, vendas dos últimos 7 dias e produtos mais vendidos) são calculados a partir dos pedidos não cancelados, apenas para exibição.
+
+Na aba Produtos, a desativação é confirmada em um modal (`ModalConfirmacao.vue`) que informa que o produto sai do catálogo e que os pedidos são preservados; a reativação é imediata.
 
 Cada produtor pode cadastrar somente uma loja. Imagem de loja e alertas configuráveis de estoque permanecem como evoluções futuras.
 
@@ -121,6 +127,12 @@ Público. Cria uma conta de cliente e retorna `access`, `refresh` e um objeto se
 ```
 
 Valida CPF, unicidade de CPF/e-mail, celular com 11 dígitos, idade mínima de 16 anos e senha de ao menos oito caracteres. Retorna `400` para dados inválidos ou duplicados.
+
+## Perfil do usuário
+
+- `GET /api/v1/usuarios/me/`: retorna os dados do usuário autenticado, incluindo `is_produtor`, `tem_loja` e `idade`.
+- `PATCH /api/v1/usuarios/me/`: altera `nome`, `email`, `telefone`, `data_nascimento` e `genero`, com as mesmas validações do cadastro (e-mail único, celular com 11 dígitos e idade mínima de 16 anos). CPF e papéis (`is_produtor`, `is_staff`) não podem ser alterados e retornam `400`.
+- Pedidos já realizados mantêm o snapshot dos dados do cliente; alterar o perfil não muda o histórico.
 
 ## Favoritos
 

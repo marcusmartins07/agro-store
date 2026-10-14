@@ -24,6 +24,43 @@ def cpf_valido(cpf):
     return True
 
 
+def validar_telefone(valor):
+    telefone = somente_digitos(valor)
+    if len(telefone) != 11:
+        raise serializers.ValidationError('Informe um celular brasileiro com 11 dígitos.')
+    return telefone
+
+
+def validar_genero(valor):
+    opcoes = {'M': 'Masculino', 'F': 'Feminino', 'I': 'Indefinido'}
+    descricao = opcoes.get(valor)
+    if not descricao:
+        raise serializers.ValidationError('Informe uma opção de gênero válida.')
+    genero = Genero.objects.filter(id_genero=valor).first()
+    genero = genero or Genero.objects.filter(genero=descricao).first()
+    if not genero:
+        raise serializers.ValidationError('A opção de gênero não está disponível.')
+    return genero
+
+
+def validar_data_nascimento(valor):
+    hoje = date.today()
+    idade = hoje.year - valor.year - ((hoje.month, hoje.day) < (valor.month, valor.day))
+    if valor > hoje or idade < 16:
+        raise serializers.ValidationError('É necessário ter pelo menos 16 anos para criar uma conta.')
+    return valor
+
+
+def validar_email_unico(valor, usuario_atual=None):
+    email = Usuario.objects.normalize_email(valor).lower()
+    usuarios = Usuario.objects.filter(email__iexact=email)
+    if usuario_atual is not None:
+        usuarios = usuarios.exclude(pk=usuario_atual.pk)
+    if usuarios.exists():
+        raise serializers.ValidationError('Já existe uma conta cadastrada com este e-mail.')
+    return email
+
+
 class UsuarioPerfilSerializer(serializers.ModelSerializer):
     idade = serializers.ReadOnlyField()
     tem_loja = serializers.SerializerMethodField()
@@ -73,34 +110,16 @@ class CadastroClienteSerializer(serializers.ModelSerializer):
         return cpf
 
     def validate_telefone(self, valor):
-        telefone = somente_digitos(valor)
-        if len(telefone) != 11:
-            raise serializers.ValidationError('Informe um celular brasileiro com 11 dígitos.')
-        return telefone
+        return validar_telefone(valor)
 
     def validate_email(self, valor):
-        email = Usuario.objects.normalize_email(valor).lower()
-        if Usuario.objects.filter(email__iexact=email).exists():
-            raise serializers.ValidationError('Já existe uma conta cadastrada com este e-mail.')
-        return email
+        return validar_email_unico(valor)
 
     def validate_genero(self, valor):
-        opcoes = {'M': 'Masculino', 'F': 'Feminino', 'I': 'Indefinido'}
-        descricao = opcoes.get(valor)
-        if not descricao:
-            raise serializers.ValidationError('Informe uma opção de gênero válida.')
-        genero = Genero.objects.filter(id_genero=valor).first()
-        genero = genero or Genero.objects.filter(genero=descricao).first()
-        if not genero:
-            raise serializers.ValidationError('A opção de gênero não está disponível.')
-        return genero
+        return validar_genero(valor)
 
     def validate_data_nascimento(self, valor):
-        hoje = date.today()
-        idade = hoje.year - valor.year - ((hoje.month, hoje.day) < (valor.month, valor.day))
-        if valor > hoje or idade < 16:
-            raise serializers.ValidationError('É necessário ter pelo menos 16 anos para criar uma conta.')
-        return valor
+        return validar_data_nascimento(valor)
 
     def validate(self, attrs):
         if attrs['password'] != attrs['password_confirmacao']:
@@ -122,6 +141,31 @@ class CadastroClienteSerializer(serializers.ModelSerializer):
         validated_data.pop('password_confirmacao')
         password = validated_data.pop('password')
         return Usuario.objects.create_user(password=password, **validated_data)
+
+
+class UsuarioAtualizacaoSerializer(serializers.ModelSerializer):
+    """Dados pessoais editáveis no perfil. CPF e papéis do usuário não são alterados por aqui."""
+
+    # Declarado sem o UniqueValidator automático para usar a mensagem de validar_email_unico
+    email = serializers.EmailField(max_length=254)
+    telefone = serializers.CharField(max_length=15)
+    genero = serializers.CharField(max_length=2)
+
+    class Meta:
+        model = Usuario
+        fields = ['nome', 'email', 'telefone', 'data_nascimento', 'genero']
+
+    def validate_telefone(self, valor):
+        return validar_telefone(valor)
+
+    def validate_email(self, valor):
+        return validar_email_unico(valor, usuario_atual=self.instance)
+
+    def validate_genero(self, valor):
+        return validar_genero(valor)
+
+    def validate_data_nascimento(self, valor):
+        return validar_data_nascimento(valor)
 
 
 class LoginSerializer(serializers.Serializer):

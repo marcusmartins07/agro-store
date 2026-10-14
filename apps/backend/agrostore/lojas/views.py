@@ -37,12 +37,12 @@ class MinhaLojaView(APIView):
         if not loja:
             return Response({"detail": "Você não possui uma loja cadastrada."}, status=status.HTTP_404_NOT_FOUND)
 
-        campos_permitidos = {'descricao', 'ativa'}
+        campos_permitidos = {'nome', 'descricao', 'ativa'}
         campos_enviados = set(request.data.keys())
         campos_invalidos = campos_enviados - campos_permitidos
         if campos_invalidos:
             return Response(
-                {"detail": "Somente descrição e status da loja podem ser alterados nesta área."},
+                {"detail": "Somente nome, descrição e status da loja podem ser alterados nesta área."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 

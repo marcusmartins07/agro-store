@@ -95,3 +95,63 @@ class CadastroClienteTests(APITestCase):
     def test_endpoint_de_solicitacao_de_produtor_nao_esta_exposto(self):
         response = self.client.post('/api/v1/usuarios/me/solicitacao-produtor/', format='json')
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+
+class AtualizacaoPerfilTests(APITestCase):
+    url_perfil = '/api/v1/usuarios/me/'
+
+    def setUp(self):
+        self.genero, _ = Genero.objects.get_or_create(id_genero='M', defaults={'genero': 'Masculino'})
+        Genero.objects.get_or_create(id_genero='F', defaults={'genero': 'Feminino'})
+        self.usuario = Usuario.objects.create_user(
+            cpf='52998224725', email='perfil@example.com', password='SenhaForte123', nome='Cliente Perfil',
+            telefone='51999990000', data_nascimento=date(2000, 1, 1), genero=self.genero,
+        )
+        self.client.force_authenticate(self.usuario)
+
+    def test_atualiza_dados_pessoais_normalizados(self):
+        dados = {
+            'nome': 'Cliente Atualizado', 'email': 'NOVO@Example.com', 'telefone': '(51) 98888-7777',
+            'data_nascimento': '1995-03-20', 'genero': 'F',
+        }
+        response = self.client.patch(self.url_perfil, dados, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['nome'], 'Cliente Atualizado')
+        self.assertEqual(response.data['genero'], 'F')
+        self.usuario.refresh_from_db()
+        self.assertEqual(self.usuario.email, 'novo@example.com')
+        self.assertEqual(self.usuario.telefone, '51988887777')
+
+    def test_mantem_o_proprio_email_sem_acusar_duplicidade(self):
+        response = self.client.patch(self.url_perfil, {'email': 'perfil@example.com', 'nome': 'Outro Nome'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+    def test_rejeita_cpf_e_campos_de_privilegio(self):
+        for campo, valor in (('cpf', '11144477735'), ('is_produtor', True), ('is_staff', True)):
+            response = self.client.patch(self.url_perfil, {campo: valor}, format='json')
+            self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+        self.usuario.refresh_from_db()
+        self.assertEqual(self.usuario.cpf, '52998224725')
+        self.assertFalse(self.usuario.is_produtor)
+        self.assertFalse(self.usuario.is_staff)
+
+    def test_rejeita_email_de_outro_usuario_e_menor_de_16_anos(self):
+        Usuario.objects.create_user(
+            cpf='11144477735', email='outro@example.com', password='SenhaForte123', nome='Outro',
+            data_nascimento=date(2000, 1, 1), genero=self.genero,
+        )
+        response = self.client.patch(self.url_perfil, {'email': 'OUTRO@example.com'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['email'][0], 'Já existe uma conta cadastrada com este e-mail.')
+
+        nascimento = date.today() - timedelta(days=15 * 365)
+        response = self.client.patch(self.url_perfil, {'data_nascimento': nascimento.isoformat()}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('data_nascimento', response.data)
+
+    def test_exige_autenticacao(self):
+        self.client.force_authenticate(user=None)
+        response = self.client.patch(self.url_perfil, {'nome': 'Sem login'}, format='json')
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
