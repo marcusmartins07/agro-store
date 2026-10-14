@@ -1,5 +1,9 @@
 import { spawn } from 'node:child_process'
+import { carregarEnv } from './env.mjs'
 import { getPythonCommand } from './python-command.mjs'
+
+// Os testes ficam sempre no SQLite local para não criar bancos de teste no Supabase.
+if (process.argv[2] !== 'test') carregarEnv()
 
 const child = spawn(
   getPythonCommand(),

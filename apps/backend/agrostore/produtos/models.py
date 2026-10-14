@@ -1,8 +1,22 @@
-from django.db import models, transaction
+import uuid
 from decimal import Decimal
+from pathlib import Path
+
+from django.core.validators import FileExtensionValidator
+from django.db import models, transaction
 from django.utils import timezone
+
 from agrostore.main.models import BaseModel
 from agrostore.lojas.models import Loja
+
+
+EXTENSOES_IMAGEM_PRODUTO = ['jpg', 'jpeg', 'png', 'webp']
+
+
+def caminho_imagem_produto(produto, nome_arquivo):
+    # Nome aleatório evita colisões e não expõe o nome original do arquivo enviado.
+    extensao = Path(nome_arquivo).suffix.lower()
+    return f'produtos/{uuid.uuid4().hex}{extensao}'
 
 
 class Categoria(BaseModel):
@@ -24,6 +38,11 @@ class Produto(BaseModel):
     sku = models.CharField(max_length=50, unique=True, blank=True, null=True)
     ativo = models.BooleanField(default=True)
     categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT)
+    imagem = models.FileField(
+        upload_to=caminho_imagem_produto,
+        blank=True,
+        validators=[FileExtensionValidator(EXTENSOES_IMAGEM_PRODUTO)],
+    )
 
     def __str__(self):
         return self.nome

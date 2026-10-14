@@ -2,6 +2,21 @@ from rest_framework import serializers
 from .models import Produto, PrecoProduto, Categoria
 
 
+TAMANHO_MAXIMO_IMAGEM_PRODUTO = 5 * 1024 * 1024
+ASSINATURAS_IMAGEM = (
+    b'\xff\xd8\xff',  # JPEG
+    b'\x89PNG\r\n\x1a\n',  # PNG
+)
+
+
+def arquivo_e_imagem(arquivo):
+    arquivo.seek(0)
+    cabecalho = arquivo.read(12)
+    arquivo.seek(0)
+    e_webp = cabecalho[:4] == b'RIFF' and cabecalho[8:12] == b'WEBP'
+    return e_webp or cabecalho.startswith(ASSINATURAS_IMAGEM)
+
+
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Categoria
@@ -61,8 +76,24 @@ class ProdutoSerializer(serializers.ModelSerializer):
             'preco',
             'preco_original',
             'desconto',
+            'imagem',
         ]
         read_only_fields = ['loja', 'sku']
+
+    def validate_imagem(self, imagem):
+        if imagem.size > TAMANHO_MAXIMO_IMAGEM_PRODUTO:
+            raise serializers.ValidationError('A imagem deve ter no máximo 5 MB.')
+        if not arquivo_e_imagem(imagem):
+            raise serializers.ValidationError('Envie uma imagem JPG, PNG ou WEBP válida.')
+        return imagem
+
+    def update(self, instance, validated_data):
+        imagem_anterior = instance.imagem.name if 'imagem' in validated_data else ''
+        produto = super().update(instance, validated_data)
+
+        if imagem_anterior and imagem_anterior != produto.imagem.name:
+            produto.imagem.storage.delete(imagem_anterior)
+        return produto
 
     def validate(self, attrs):
         categoria = attrs.get('categoria')

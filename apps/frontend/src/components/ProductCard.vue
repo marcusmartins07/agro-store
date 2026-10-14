@@ -1,7 +1,8 @@
 <template>
   <div class="card h-100 border product-card">
     <div class="card-img-top product-img position-relative">
-      <span class="emoji">{{ emojiCategoria(produto.categoria_nome) }}</span>
+      <img v-if="produto.imagem" :src="produto.imagem" :alt="produto.nome" class="w-100 h-100 object-fit-cover" loading="lazy">
+      <span v-else class="emoji">{{ emojiCategoria(produto.categoria_nome) }}</span>
 
       <span v-if="Number(produto.desconto) > 0" class="badge position-absolute top-0 start-0 m-2 desconto-badge">
         -{{ produto.desconto }}%

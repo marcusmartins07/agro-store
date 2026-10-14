@@ -59,6 +59,11 @@ export const api = {
     listarMeus: () => request('/produtos/meus/'),
     criar: (body) => request('/produtos/', { method: 'POST', body: jsonBody(body) }),
     atualizar: (produtoId, body) => request(`/produtos/${produtoId}/`, { method: 'PATCH', body: jsonBody(body) }),
+    enviarImagem: (produtoId, arquivo) => {
+      const formData = new FormData()
+      formData.append('imagem', arquivo)
+      return request(`/produtos/${produtoId}/`, { method: 'PATCH', body: formData })
+    },
     criarPreco: (body) => request('/produtos/precos/', { method: 'POST', body: jsonBody(body) }),
   },
   categorias: {
