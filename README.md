@@ -80,6 +80,23 @@ Os endpoints abaixo exigem JWT de um produtor com loja cadastrada. O backend sem
 
 Cada produtor pode cadastrar somente uma loja. Imagem de loja e alertas configuráveis de estoque permanecem como evoluções futuras.
 
+## Retirada na feira
+
+A retirada dos pedidos é presencial, em um dia e horário únicos para toda a plataforma (não varia por loja/produtor):
+
+- Todos os sábados, das 6h às 12h.
+- Rua Major Lúcio Meireles, nº 61, Centro, Camaquã (junto ao prédio nos fundos da Igreja Imaculada / escritório da Emater).
+
+Essa informação é exibida ao cliente no carrinho e nos pedidos (`apps/frontend/src/data/feira.js`) apenas para orientação.
+
+## Cancelamento de pedidos
+
+O cliente autenticado pode cancelar somente seus próprios pedidos com status `Pendente`.
+
+- `PATCH /api/v1/pedidos/{id}/cancelar/`: não recebe payload e retorna o pedido atualizado com status `Cancelado`.
+- Retorna `400` se o pedido não estiver pendente e `404` se o pedido não pertencer ao cliente autenticado.
+- O cancelamento preserva o pedido no histórico e restaura o estoque de seus itens. Cancelamentos permitidos pelo produtor também restauram o estoque.
+
 ### SKU de produtos
 
 O backend gera automaticamente o SKU de produtos novos e não aceita alteração manual. O valor tem 14 dígitos, sem separadores, na ordem `id_loja` (4 dígitos), `id_categoria` (4 dígitos) e `id_produto` (6 dígitos). Por exemplo, os identificadores `1`, `1` e `1` resultam em `00010001000001`. Produtos cadastrados antes desta regra mantêm seus SKUs atuais.

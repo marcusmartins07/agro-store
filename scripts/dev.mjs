@@ -1,5 +1,8 @@
 import { spawn } from 'node:child_process'
+import { carregarEnv } from './env.mjs'
 import { getPythonCommand } from './python-command.mjs'
+
+carregarEnv()
 
 const isWindows = process.platform === 'win32'
 const npmCommand = isWindows ? 'npm.cmd' : 'npm'

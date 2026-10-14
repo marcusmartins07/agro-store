@@ -213,6 +213,79 @@ class PedidoCheckoutTests(APITestCase):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_cliente_cancela_pedido_pendente_e_restaura_estoque(self):
+        item = self._adicionar_item(self.produto_a, 2)
+        checkout = self.client.post(
+            '/api/v1/pedidos/',
+            {'carrinho_produto_ids': [item.carrinho_produto_id]},
+            format='json',
+        )
+        pedido_id = checkout.data[0]['pedido_id']
+
+        response = self.client.patch(f'/api/v1/pedidos/{pedido_id}/cancelar/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status_nome'], 'Cancelado')
+        self.produto_a.refresh_from_db()
+        self.assertEqual(self.produto_a.estoque, 10)
+
+        response = self.client.patch(f'/api/v1/pedidos/{pedido_id}/cancelar/')
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.produto_a.refresh_from_db()
+        self.assertEqual(self.produto_a.estoque, 10)
+
+    def test_cliente_nao_cancela_pedido_de_outro_usuario(self):
+        pedido = Pedido.objects.create(
+            usuario=self.cliente,
+            loja=self.loja_a,
+            status=StatusPedido.objects.get(status='Pendente'),
+        )
+        outro_cliente = Usuario.objects.create_user(
+            cpf='22345678904',
+            email='outro-cancelamento@example.com',
+            password='senha123',
+            nome='Outro Cliente',
+            data_nascimento='1991-01-01',
+            genero=self.genero,
+        )
+        self.client.force_authenticate(outro_cliente)
+
+        response = self.client.patch(f'/api/v1/pedidos/{pedido.pedido_id}/cancelar/')
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_cliente_nao_cancela_pedido_em_preparo(self):
+        pedido = Pedido.objects.create(
+            usuario=self.cliente,
+            loja=self.loja_a,
+            status=StatusPedido.objects.create(status='Em preparo'),
+        )
+
+        response = self.client.patch(f'/api/v1/pedidos/{pedido.pedido_id}/cancelar/')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_cancelamento_do_produtor_restaura_estoque(self):
+        item = self._adicionar_item(self.produto_a, 2)
+        checkout = self.client.post(
+            '/api/v1/pedidos/',
+            {'carrinho_produto_ids': [item.carrinho_produto_id]},
+            format='json',
+        )
+        pedido_id = checkout.data[0]['pedido_id']
+        status_cancelado = StatusPedido.objects.get(status='Cancelado')
+        self.client.force_authenticate(self.produtor)
+
+        response = self.client.patch(
+            f'/api/v1/pedidos/{pedido_id}/status/',
+            {'status': status_cancelado.status_pedido_id},
+            format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.produto_a.refresh_from_db()
+        self.assertEqual(self.produto_a.estoque, 10)
+
     def _criar_produto(self, loja, nome, sku, estoque, preco_venda, preco_desconto):
         produto = Produto.objects.create(
             loja=loja,

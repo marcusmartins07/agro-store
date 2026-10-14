@@ -1,10 +1,16 @@
+import shutil
+import tempfile
+
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
 from django.db.models.deletion import ProtectedError
+from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from agrostore.lojas.models import Loja
 from agrostore.produtos.models import Categoria, PrecoProduto, Produto
+from agrostore.produtos.serializers import TAMANHO_MAXIMO_IMAGEM_PRODUTO
 from agrostore.usuarios.models import Genero, Usuario
 
 
@@ -269,3 +275,88 @@ class ProdutoCategoriaAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(PrecoProduto.objects.filter(produto=self.produto, vigencia_fim__isnull=True).count(), 1)
+
+
+MEDIA_ROOT_TESTES = tempfile.mkdtemp()
+PNG_VALIDO = b'\x89PNG\r\n\x1a\n' + b'\x00' * 32
+
+
+@override_settings(MEDIA_ROOT=MEDIA_ROOT_TESTES)
+class ProdutoImagemAPITests(APITestCase):
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(MEDIA_ROOT_TESTES, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        genero, _ = Genero.objects.get_or_create(id_genero='M', defaults={'genero': 'Masculino'})
+        self.produtor = Usuario.objects.create_user(
+            cpf='12345678901',
+            email='produtor@example.com',
+            password='senha123',
+            nome='produtor',
+            data_nascimento='1990-01-01',
+            genero=genero,
+            is_produtor=True,
+        )
+        loja = Loja.objects.create(proprietario=self.produtor, nome='Feira Verde', cnpj='12345678000199')
+        categoria = Categoria.objects.create(nome='Frutas')
+        self.produto = Produto.objects.create(loja=loja, nome='Maçã', estoque=10, categoria=categoria)
+        self.url_produto = f'/api/v1/produtos/{self.produto.produto_id}/'
+
+    def enviar_imagem(self, nome_arquivo='maca.png', conteudo=PNG_VALIDO):
+        self.client.force_authenticate(self.produtor)
+        arquivo = SimpleUploadedFile(nome_arquivo, conteudo, content_type='image/png')
+        return self.client.patch(self.url_produto, {'imagem': arquivo}, format='multipart')
+
+    def test_produtor_envia_imagem_do_produto(self):
+        response = self.enviar_imagem()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.produto.refresh_from_db()
+        self.assertTrue(self.produto.imagem.name.startswith('produtos/'))
+        self.assertNotIn('maca', self.produto.imagem.name)
+        self.assertTrue(response.data['imagem'].endswith(self.produto.imagem.name))
+
+    def test_imagem_com_conteudo_invalido_e_rejeitada(self):
+        response = self.enviar_imagem(conteudo=b'nao sou uma imagem')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('imagem', response.data)
+
+    def test_imagem_com_extensao_nao_permitida_e_rejeitada(self):
+        response = self.enviar_imagem(nome_arquivo='maca.gif')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('imagem', response.data)
+
+    def test_imagem_acima_do_limite_e_rejeitada(self):
+        response = self.enviar_imagem(conteudo=PNG_VALIDO + b'\x00' * TAMANHO_MAXIMO_IMAGEM_PRODUTO)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('imagem', response.data)
+
+    def test_troca_de_imagem_remove_arquivo_anterior(self):
+        self.enviar_imagem()
+        self.produto.refresh_from_db()
+        imagem_anterior = self.produto.imagem.name
+
+        response = self.enviar_imagem()
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.produto.refresh_from_db()
+        self.assertNotEqual(self.produto.imagem.name, imagem_anterior)
+        self.assertFalse(self.produto.imagem.storage.exists(imagem_anterior))
+        self.assertTrue(self.produto.imagem.storage.exists(self.produto.imagem.name))
+
+    def test_edicao_sem_imagem_mantem_imagem_atual(self):
+        self.enviar_imagem()
+        self.produto.refresh_from_db()
+        imagem_atual = self.produto.imagem.name
+
+        response = self.client.patch(self.url_produto, {'estoque': 3}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.imagem.name, imagem_atual)
+        self.assertTrue(self.produto.imagem.storage.exists(imagem_atual))

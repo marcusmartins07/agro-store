@@ -5,7 +5,6 @@
     <nav class="navbar navbar-expand-lg bg-white border-bottom shadow-sm sticky-top">
       <div class="container">
         <RouterLink to="/" class="navbar-brand d-flex align-items-center gap-2 fw-bold text-success">
-          <div class="logo-icon">🌿</div>
           Agro Store
         </RouterLink>
 
@@ -23,12 +22,11 @@
         </div>
 
         <div class="d-flex align-items-center gap-2">
-          <RouterLink to="/" class="btn btn-link text-secondary text-decoration-none d-none d-lg-inline">
-            Catálogo
-          </RouterLink>
-
           <RouterLink to="/carrinho" class="btn btn-outline-secondary rounded-circle position-relative p-2 lh-1">
-            🛒
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M0 1.5A.5.5 0 0 1 .5 1H2a.5.5 0 0 1 .485.379L2.89 3H14.5a.5.5 0 0 1 .49.598l-1 5a.5.5 0 0 1-.465.401l-9.397.472L4.415 11H13a.5.5 0 0 1 0 1H4a.5.5 0 0 1-.491-.408L2.01 3.607 1.61 2H.5a.5.5 0 0 1-.5-.5M3.102 4l.84 4.479 9.144-.459L13.89 4zM5 12a2 2 0 1 0 0 4 2 2 0 0 0 0-4m7 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4m-7 1a1 1 0 1 1 0 2 1 1 0 0 1 0-2m7 0a1 1 0 1 1 0 2 1 1 0 0 1 0-2" />
+            </svg>
+            <span class="visually-hidden">Carrinho</span>
             <span
               v-if="carrinhoStore.totalItens > 0"
               class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-success"
@@ -48,7 +46,7 @@
             </button>
             <ul class="dropdown-menu dropdown-menu-end">
               <li><RouterLink to="/cliente" class="dropdown-item">Meu Perfil</RouterLink></li>
-              <li v-if="temLoja"><RouterLink :to="{ name: 'emprural' }" class="dropdown-item">Minha Loja</RouterLink></li>
+              <li v-if="temLoja"><RouterLink :to="{ name: 'minha-loja' }" class="dropdown-item">Minha Loja</RouterLink></li>
               <li><RouterLink to="/pedidos" class="dropdown-item">Meus Pedidos</RouterLink></li>
               <li><RouterLink to="/favoritos" class="dropdown-item">Favoritos</RouterLink></li>
               <li><hr class="dropdown-divider"></li>
@@ -110,7 +108,7 @@ watch(() => authStore.estaLogado, (estaLogado) => {
 })
 
 watch(() => route.name, (name) => {
-  if (authStore.estaLogado && ['cliente', 'emprural'].includes(name)) {
+  if (authStore.estaLogado && ['cliente', 'minha-loja'].includes(name)) {
     carregarStatusLoja()
   }
 })
@@ -139,13 +137,6 @@ function sair() {
 </script>
 
 <style scoped>
-.logo-icon {
-  width: 30px; height: 30px;
-  background: #2E8B57;
-  border-radius: 8px;
-  display: flex; align-items: center; justify-content: center;
-  font-size: 16px;
-}
 .nav-link.active {
   color: #2E8B57 !important;
   border-bottom: 2px solid #2E8B57;

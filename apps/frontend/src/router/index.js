@@ -19,12 +19,12 @@ const routes = [
   { path: '/carrinho',     name: 'carrinho',    component: CarrinhoView   },
   { path: '/favoritos',    name: 'favoritos',   component: FavoritosView  },
   { path: '/pedidos',      name: 'pedidos',     component: PedidosView    },
-  { path: '/loja/:id',     name: 'loja',        component: LojaView       },
   { path: '/avaliacoes/:id', name: 'avaliacoes', component: AvaliacoesView },
   { path: '/cliente',      name: 'cliente',     component: ClienteView    },
-  { path: '/vendedor',     name: 'emprural',    component: EmpRuralView, meta: { produtor: true } },
-  { path: '/vendedor/produtos', name: 'produtos-produtor', component: ProdutosProdutorView, meta: { produtor: true, loja: true } },
-  { path: '/vendedor/pedidos', name: 'pedidos-produtor', component: PedidosProdutorView, meta: { produtor: true, loja: true } },
+  { path: '/loja',         name: 'minha-loja',  component: EmpRuralView, meta: { produtor: true } },
+  { path: '/loja/produtos', name: 'produtos-produtor', component: ProdutosProdutorView, meta: { produtor: true, loja: true } },
+  { path: '/loja/pedidos', name: 'pedidos-produtor', component: PedidosProdutorView, meta: { produtor: true, loja: true } },
+  { path: '/loja/:id',     name: 'loja',        component: LojaView       },
   { path: '/login',        name: 'login',       component: LoginView      },
   { path: '/criar-loja',   name: 'criar-loja',  component: CriarLojaView  },
 ]
@@ -47,7 +47,7 @@ router.beforeEach(async (to) => {
     const usuario = await api.usuarios.me()
     authStore.atualizarUsuario(usuario)
     if (!usuario.is_produtor) return { name: 'produtos' }
-    if (to.matched.some(route => route.meta.loja) && !usuario.tem_loja) return { name: 'emprural' }
+    if (to.matched.some(route => route.meta.loja) && !usuario.tem_loja) return { name: 'minha-loja' }
   } catch {
     return { name: 'login', query: { retorno: to.fullPath } }
   }

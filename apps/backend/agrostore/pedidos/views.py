@@ -2,12 +2,14 @@ from collections import defaultdict
 from decimal import Decimal
 
 from django.db import transaction
+from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import MethodNotAllowed, PermissionDenied
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from agrostore.carrinhos.models import CarrinhoProduto
+from agrostore.produtos.models import Produto
 from .models import Pedido, PedidoCliente, PedidoProduto, StatusPedido
 from .serializers import CriarPedidoSerializer, PedidoProdutorSerializer, PedidoSerializer, StatusPedidoSerializer
 
@@ -120,10 +122,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
         return Response(PedidoSerializer(pedidos_criados, many=True).data, status=status.HTTP_201_CREATED)
 
     @action(detail=True, methods=['patch'], url_path='status')
+    @transaction.atomic
     def atualizar_status(self, request, pk=None):
         if not request.user.is_produtor and not request.user.is_staff:
             raise PermissionDenied('Somente produtores podem atualizar o status de pedidos.')
-        pedido = self.get_object()
+        pedido = self._obter_pedido_para_atualizacao(pk)
         status_id = request.data.get('status')
         status_pedido = StatusPedido.objects.filter(status_pedido_id=status_id).first()
 
@@ -137,9 +140,23 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        pedido.status = status_pedido
-        pedido.save(update_fields=['status', 'data_atualizacao'])
+        self._atualizar_status_pedido(pedido, status_pedido)
         return Response(PedidoProdutorSerializer(pedido).data)
+
+    @action(detail=True, methods=['patch'], url_path='cancelar')
+    @transaction.atomic
+    def cancelar(self, request, pk=None):
+        pedido = self._obter_pedido_para_atualizacao(pk, usuario=request.user)
+        status_cancelado = garantir_status_pedidos()['Cancelado']
+
+        if pedido.status.status != 'Pendente':
+            return Response(
+                {'detail': 'Somente pedidos pendentes podem ser cancelados pelo cliente.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        self._atualizar_status_pedido(pedido, status_cancelado)
+        return Response(PedidoSerializer(pedido).data)
 
     @action(detail=False, methods=['get'], url_path='minha-loja')
     def minha_loja(self, request):
@@ -178,3 +195,21 @@ class PedidoViewSet(viewsets.ModelViewSet):
             valor_desconto += (preco.preco_desconto or Decimal('0.00')) * item.quantidade
 
         return valor_bruto, valor_desconto
+
+    def _obter_pedido_para_atualizacao(self, pedido_id, usuario=None):
+        queryset = Pedido.objects.select_for_update().prefetch_related('itens')
+        if usuario is not None:
+            queryset = queryset.filter(usuario=usuario)
+        elif not self.request.user.is_staff:
+            queryset = queryset.filter(loja__proprietario=self.request.user)
+        return get_object_or_404(queryset, pedido_id=pedido_id)
+
+    def _atualizar_status_pedido(self, pedido, status_cancelado):
+        if status_cancelado.status == 'Cancelado':
+            for item in pedido.itens.all():
+                produto = Produto.objects.select_for_update().get(produto_id=item.produto_id)
+                produto.estoque += item.quantidade
+                produto.save(update_fields=['estoque', 'data_atualizacao'])
+
+        pedido.status = status_cancelado
+        pedido.save(update_fields=['status', 'data_atualizacao'])

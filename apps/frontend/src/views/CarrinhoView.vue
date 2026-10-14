@@ -91,6 +91,8 @@
               <span>Total</span><span>{{ formatarPreco(totalSelecionado) }}</span>
             </div>
 
+            <p class="small text-muted mb-3">📍 {{ textoRetirada() }}</p>
+
             <button class="btn btn-success w-100 fw-bold py-2" :disabled="finalizando || totalSelecionados === 0" @click="finalizarPedido">
               {{ finalizando ? 'Finalizando...' : 'Finalizar Pedido' }}
             </button>
@@ -107,6 +109,7 @@ import { computed, onMounted, ref, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.js'
 import { useCarrinhoStore } from '@/stores/index.js'
+import { textoRetirada } from '@/data/feira.js'
 
 const router = useRouter()
 const authStore = useAuthStore()

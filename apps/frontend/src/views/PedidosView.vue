@@ -19,12 +19,14 @@
     <div v-else-if="pedidos.length === 0" class="card border text-center py-5 pedidos-card">
       <div class="card-body">
         <h5 class="fw-bold mb-2" style="color:#1b5e35;">Nenhum pedido encontrado</h5>
-        <p class="text-muted mb-3">Finalize um carrinho para acompanhar a retirada presencial.</p>
+        <p class="text-muted mb-3">Finalize um carrinho para acompanhar a retirada. {{ textoRetirada() }}</p>
         <RouterLink to="/" class="btn btn-success rounded-pill px-4">Ver produtos</RouterLink>
       </div>
     </div>
 
     <div v-else class="d-grid gap-3">
+      <p class="small text-muted mb-0">📍 {{ textoRetirada() }}</p>
+
       <div v-for="pedido in pedidos" :key="pedido.pedido_id" class="card border pedidos-card">
         <div class="card-body">
           <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
@@ -67,6 +69,16 @@
               </div>
             </div>
           </div>
+
+          <div v-if="pedido.status_nome === 'Pendente'" class="d-flex justify-content-end mt-3">
+            <button
+              class="btn btn-outline-danger"
+              :disabled="cancelando === pedido.pedido_id"
+              @click="cancelarPedido(pedido)"
+            >
+              {{ cancelando === pedido.pedido_id ? 'Cancelando...' : 'Cancelar pedido' }}
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -77,11 +89,15 @@
 import { onMounted, ref } from 'vue'
 import { api } from '@/services/api.js'
 import { useAuthStore } from '@/stores/auth.js'
+import { useNotificacoesStore } from '@/stores/notificacoes.js'
+import { textoRetirada } from '@/data/feira.js'
 
 const authStore = useAuthStore()
 const pedidos = ref([])
 const carregando = ref(false)
 const erro = ref('')
+const cancelando = ref(null)
+const notificacoes = useNotificacoesStore()
 
 onMounted(async () => {
   if (!authStore.estaLogado) return
@@ -98,6 +114,24 @@ onMounted(async () => {
 
 function formatarPreco(valor) {
   return Number(valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+}
+
+async function cancelarPedido(pedido) {
+  if (!window.confirm('Cancelar este pedido?')) return
+
+  cancelando.value = pedido.pedido_id
+  try {
+    await api.pedidos.cancelar(pedido.pedido_id)
+    notificacoes.notificar({ tipo: 'success', mensagem: 'Pedido cancelado com sucesso.', tempo: 4 })
+    pedidos.value = await api.pedidos.listar()
+  } catch (falha) {
+    notificacoes.notificar({
+      tipo: 'danger',
+      mensagem: falha?.data?.detail || 'Não foi possível cancelar o pedido.',
+    })
+  } finally {
+    cancelando.value = null
+  }
 }
 </script>
 
