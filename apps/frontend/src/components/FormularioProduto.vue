@@ -7,13 +7,24 @@
   >
     <div class="offcanvas-header border-bottom">
       <h2 id="titulo-formulario-produto" class="offcanvas-title h4 fw-semibold">
-        {{ produtoEditado ? 'Editar produto' : 'Novo produto' }}
+        {{ ajuste ? 'Ajustar imagem' : produtoEditado ? 'Editar produto' : 'Novo produto' }}
       </h2>
       <button type="button" class="btn-close" aria-label="Fechar" :disabled="salvando" @click="fechar"></button>
     </div>
 
     <div class="offcanvas-body">
-      <form id="formulario-produto" novalidate @submit.prevent="salvar">
+      <!-- Editor dentro do próprio painel: um modal por cima desligaria o focus trap do offcanvas no Bootstrap -->
+      <EditorEnquadramento
+        v-if="ajuste"
+        :src="ajuste.src"
+        :enquadramento-inicial="ajuste.enquadramento"
+        :nome-arquivo="ajuste.nomeArquivo"
+        :erro-externo="ajuste.erro"
+        @aplicar="aplicarAjuste"
+        @cancelar="fecharAjuste"
+      />
+
+      <form v-show="!ajuste" id="formulario-produto" novalidate @submit.prevent="salvar">
         <p class="small text-body-secondary">Campos com <span class="text-danger">*</span> são obrigatórios.</p>
 
         <div class="mb-3">
@@ -80,6 +91,15 @@
               <div class="position-relative">
                 <img :src="imagem.src" :alt="`Imagem ${indice + 1} do produto`" class="imagem-preview rounded-2">
                 <span v-if="imagem.chave === chavePrincipal" class="badge text-bg-primary selo-principal">Principal</span>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-remover-imagem"
+                  :aria-label="`Remover imagem ${indice + 1}`"
+                  title="Remover imagem"
+                  @click="removerImagem(indice)"
+                >
+                  <IconeSvg nome="lixeira" :tamanho="14" />
+                </button>
               </div>
               <div class="d-flex justify-content-between mt-1">
                 <button
@@ -104,19 +124,20 @@
                 <button
                   type="button"
                   class="btn btn-sm btn-acao"
+                  :aria-label="`Ajustar enquadramento da imagem ${indice + 1}`"
+                  title="Ajustar enquadramento"
+                  @click="abrirAjuste(indice)"
+                >
+                  <IconeSvg nome="recortar" :tamanho="14" />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-acao"
                   :disabled="indice === imagens.length - 1"
                   :aria-label="`Mover imagem ${indice + 1} para a direita`"
                   @click="moverImagem(indice, 1)"
                 >
                   <IconeSvg nome="seta-direita" :tamanho="14" />
-                </button>
-                <button
-                  type="button"
-                  class="btn btn-sm btn-acao text-danger"
-                  :aria-label="`Remover imagem ${indice + 1}`"
-                  @click="removerImagem(indice)"
-                >
-                  <IconeSvg nome="lixeira" :tamanho="14" />
                 </button>
               </div>
             </li>
@@ -198,7 +219,7 @@
       </form>
     </div>
 
-    <div class="d-flex justify-content-end gap-2 p-3 border-top">
+    <div v-if="!ajuste" class="d-flex justify-content-end gap-2 p-3 border-top">
       <button type="button" class="btn btn-outline-secondary rounded-pill px-4" :disabled="salvando" @click="fechar">Cancelar</button>
       <button type="submit" form="formulario-produto" class="btn btn-primary rounded-pill px-4" :disabled="salvando">
         <span v-if="salvando" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
@@ -209,12 +230,14 @@
 </template>
 
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
 // Mesmo módulo importado em main.js: reaproveita a instância do Bootstrap sem duplicar seus eventos
 import bootstrap from 'bootstrap/dist/js/bootstrap.bundle.min.js'
+import EditorEnquadramento from '@/components/EditorEnquadramento.vue'
 import IconeSvg from '@/components/IconeSvg.vue'
 import { useProdutorStore } from '@/stores/produtor.js'
 import { formatarPreco } from '@/utils/formatacao.js'
+import { carregarImagemParaEdicao } from '@/utils/imagem.js'
 
 // Limite exibido no formulário; o backend é quem garante o máximo de imagens por produto
 const LIMITE_IMAGENS = 5
@@ -229,10 +252,13 @@ const form = ref(formVazio())
 const erros = ref({})
 const erroGeral = ref('')
 const salvando = ref(false)
-// Cada item: { chave, src, id } para imagens já salvas ou { chave, src, arquivo } para novas
+// Cada item: { chave, src, id } para imagens já salvas ou { chave, src, arquivo } para novas.
+// Novas que passaram pelo editor guardam também srcOriginal (sem recorte), nomeOriginal e o enquadramento escolhido.
 const imagens = ref([])
 const chavePrincipal = ref(null)
 const imagensRemovidas = ref([])
+// Imagem aberta no editor: { chave, src, enquadramento, nomeArquivo, erro, srcBaixada }
+const ajuste = ref(null)
 let contadorImagensNovas = 0
 let offcanvas = null
 let gatilho = null
@@ -269,6 +295,7 @@ onBeforeUnmount(() => {
   } else {
     instancia.dispose()
   }
+  descartarAjuste()
   liberarPreviews()
 })
 
@@ -303,12 +330,14 @@ function fechar() {
 
 // Aberto por código, o offcanvas não devolve o foco sozinho; volta para o botão que o abriu
 function aoFechar() {
+  descartarAjuste()
   liberarPreviews()
   if (gatilho?.isConnected) gatilho.focus()
   gatilho = null
 }
 
 function carregarImagens(imagensSalvas) {
+  descartarAjuste()
   liberarPreviews()
   imagens.value = imagensSalvas.map(imagem => ({ chave: `salva-${imagem.id}`, id: imagem.id, src: imagem.imagem }))
   chavePrincipal.value = imagens.value.find((_, indice) => imagensSalvas[indice].e_principal)?.chave ?? null
@@ -345,16 +374,93 @@ function moverImagem(indice, direcao) {
 function removerImagem(indice) {
   const [removida] = imagens.value.splice(indice, 1)
   if (removida.id) imagensRemovidas.value.push(removida.id)
-  else URL.revokeObjectURL(removida.src)
+  else liberarUrls(removida)
 
   if (removida.chave === chavePrincipal.value) chavePrincipal.value = imagens.value[0]?.chave ?? null
   if (erros.value.imagens) erros.value = { ...erros.value, imagens: '' }
 }
 
-function liberarPreviews() {
-  for (const imagem of imagens.value) {
-    if (imagem.arquivo) URL.revokeObjectURL(imagem.src)
+// Novas imagens reabrem a partir do arquivo original; as já salvas são baixadas para o editor
+async function abrirAjuste(indice) {
+  const item = imagens.value[indice]
+  ajuste.value = {
+    chave: item.chave,
+    src: item.id ? null : item.srcOriginal ?? item.src,
+    enquadramento: item.enquadramento ?? null,
+    nomeArquivo: item.nomeOriginal ?? item.arquivo?.name ?? nomeDaUrl(item.src),
+    erro: '',
+    srcBaixada: null,
   }
+  await nextTick()
+  // O formulário costuma estar rolado até as imagens; o editor começa do topo do painel
+  painel.value.querySelector('.offcanvas-body').scrollTop = 0
+  painel.value.querySelector('.editor-enquadramento [tabindex], .editor-enquadramento button')?.focus({ preventScroll: true })
+  if (!item.id) return
+
+  const chave = item.chave
+  try {
+    const srcBaixada = await carregarImagemParaEdicao(item.src)
+    if (ajuste.value?.chave !== chave) return URL.revokeObjectURL(srcBaixada)
+    ajuste.value = { ...ajuste.value, src: srcBaixada, srcBaixada }
+  } catch (falha) {
+    if (ajuste.value?.chave === chave) ajuste.value = { ...ajuste.value, erro: falha.message }
+  }
+}
+
+// Uma imagem salva não pode ter o arquivo trocado no backend: é substituída por uma nova na mesma posição
+// ao salvar o produto, mantendo a marcação de principal
+function aplicarAjuste({ arquivo, enquadramento }) {
+  const indice = imagens.value.findIndex(imagem => imagem.chave === ajuste.value.chave)
+  const item = imagens.value[indice]
+  const src = URL.createObjectURL(arquivo)
+
+  if (item.id) {
+    contadorImagensNovas += 1
+    const novaChave = `nova-${contadorImagensNovas}`
+    imagens.value.splice(indice, 1, {
+      chave: novaChave, arquivo, src, srcOriginal: ajuste.value.srcBaixada, enquadramento, nomeOriginal: ajuste.value.nomeArquivo,
+    })
+    imagensRemovidas.value.push(item.id)
+    if (chavePrincipal.value === item.chave) chavePrincipal.value = novaChave
+  } else {
+    if (item.srcOriginal) URL.revokeObjectURL(item.src)
+    imagens.value.splice(indice, 1, {
+      ...item, arquivo, src, srcOriginal: item.srcOriginal ?? item.src, enquadramento, nomeOriginal: item.nomeOriginal ?? item.arquivo.name,
+    })
+  }
+
+  ajuste.value = null
+  devolverFocoAoAjuste(indice)
+}
+
+function fecharAjuste() {
+  const indice = imagens.value.findIndex(imagem => imagem.chave === ajuste.value.chave)
+  descartarAjuste()
+  devolverFocoAoAjuste(indice)
+}
+
+function descartarAjuste() {
+  if (ajuste.value?.srcBaixada) URL.revokeObjectURL(ajuste.value.srcBaixada)
+  ajuste.value = null
+}
+
+async function devolverFocoAoAjuste(indice) {
+  await nextTick()
+  painel.value.querySelector(`[aria-label="Ajustar enquadramento da imagem ${indice + 1}"]`)?.focus()
+}
+
+function nomeDaUrl(url) {
+  return decodeURIComponent(url.split('?')[0].split('/').pop() || 'imagem')
+}
+
+function liberarUrls(imagem) {
+  for (const url of [imagem.src, imagem.srcOriginal]) {
+    if (url?.startsWith('blob:')) URL.revokeObjectURL(url)
+  }
+}
+
+function liberarPreviews() {
+  for (const imagem of imagens.value) liberarUrls(imagem)
 }
 
 function validar() {
@@ -429,7 +535,7 @@ defineExpose({ abrir })
   font-size: 0.65rem;
 }
 .btn-acao {
-  padding: 0.15rem 0.3rem;
+  padding: 0.15rem 0.2rem;
   line-height: 1;
   border: 0;
   color: var(--cor-texto);
@@ -437,7 +543,22 @@ defineExpose({ abrir })
 .btn-acao:hover:not(:disabled) {
   background-color: var(--cor-apoio);
 }
-.btn-acao:focus-visible {
+.btn-remover-imagem {
+  position: absolute;
+  top: 0.25rem;
+  right: 0.25rem;
+  padding: 0.15rem 0.25rem;
+  line-height: 1;
+  border: 0;
+  color: var(--bs-danger);
+  background-color: var(--cor-superficie);
+}
+.btn-remover-imagem:hover {
+  color: var(--bs-danger);
+  background-color: var(--cor-apoio);
+}
+.btn-acao:focus-visible,
+.btn-remover-imagem:focus-visible {
   outline: 2px solid var(--cor-foco);
   outline-offset: 1px;
 }
