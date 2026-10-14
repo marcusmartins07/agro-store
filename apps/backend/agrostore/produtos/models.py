@@ -38,6 +38,7 @@ class Produto(BaseModel):
     sku = models.CharField(max_length=50, unique=True, blank=True, null=True)
     ativo = models.BooleanField(default=True)
     categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT)
+    # Legado: substituído por ImagemProduto e não usado pela API. A remoção do campo depende de autorização.
     imagem = models.FileField(
         upload_to=caminho_imagem_produto,
         blank=True,
@@ -69,6 +70,50 @@ class Produto(BaseModel):
             super().save(*args, **kwargs)
             self.sku = self.gerar_sku()
             super().save(update_fields=['sku'])
+
+
+class ImagemProduto(BaseModel):
+    LIMITE_POR_PRODUTO = 5
+
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='imagens')
+    imagem = models.FileField(
+        upload_to=caminho_imagem_produto,
+        validators=[FileExtensionValidator(EXTENSOES_IMAGEM_PRODUTO)],
+    )
+    ordem = models.PositiveSmallIntegerField(default=0)
+    e_principal = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['ordem', 'id']
+        constraints = [
+            models.UniqueConstraint(
+                fields=['produto'],
+                condition=models.Q(e_principal=True),
+                name='imagem_principal_unica_por_produto',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.produto.nome} - imagem {self.ordem + 1}'
+
+    def definir_como_principal(self):
+        with transaction.atomic():
+            ImagemProduto.objects.filter(produto_id=self.produto_id, e_principal=True).exclude(pk=self.pk).update(e_principal=False)
+            self.e_principal = True
+            self.save(update_fields=['e_principal', 'data_atualizacao'])
+
+    def excluir(self):
+        # A próxima imagem pela ordem assume como principal; o arquivo só sai do storage depois da exclusão no banco.
+        nome_arquivo = self.imagem.name
+        storage = self.imagem.storage
+        with transaction.atomic():
+            era_principal = self.e_principal
+            self.delete()
+            if era_principal:
+                proxima = ImagemProduto.objects.filter(produto_id=self.produto_id).first()
+                if proxima:
+                    proxima.definir_como_principal()
+        storage.delete(nome_arquivo)
 
 
 class PrecoProduto(BaseModel):

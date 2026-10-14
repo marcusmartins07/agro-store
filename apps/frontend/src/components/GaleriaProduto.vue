@@ -10,7 +10,7 @@
         <img v-if="slideAtual.tipo === 'imagem'" :src="slideAtual.src" :alt="slideAtual.alt" class="object-fit-cover">
         <div v-else class="imagem-placeholder text-center p-4">
           <IconeSvg nome="imagem" :tamanho="56" />
-          <span class="fw-semibold">{{ slideAtual.tipo === 'ilustrativa' ? 'Imagem ilustrativa' : 'Sem foto cadastrada' }}</span>
+          <span class="fw-semibold">Sem foto cadastrada</span>
         </div>
       </div>
 
@@ -52,7 +52,7 @@ import { computed, ref, watch } from 'vue'
 import IconeSvg from '@/components/IconeSvg.vue'
 
 const props = defineProps({
-  // Cada slide: { tipo: 'imagem' | 'sem-foto' | 'ilustrativa', src?, alt }
+  // Cada slide: { tipo: 'imagem' | 'sem-foto', src?, alt }
   slides: { type: Array, required: true },
   nomeProduto: { type: String, required: true },
 })

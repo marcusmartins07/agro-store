@@ -174,7 +174,7 @@ function abrirFormulario(produto = null) {
 function aoSalvar({ editado, erroImagem }) {
   const mensagem = editado ? 'Produto atualizado.' : 'Produto cadastrado.'
   notificacoes.notificar(erroImagem
-    ? { tipo: 'warning', mensagem: `${mensagem} A imagem não foi enviada: ${erroImagem}`, tempo: 8 }
+    ? { tipo: 'warning', mensagem: `${mensagem} Nem todas as imagens foram salvas: ${erroImagem}`, tempo: 8 }
     : { tipo: 'success', mensagem, tempo: 4 })
 }
 

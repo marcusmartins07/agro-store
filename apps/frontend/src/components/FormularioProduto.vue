@@ -71,21 +71,74 @@
         </div>
 
         <div class="mb-3">
-          <label for="produto-imagem" class="form-label">Imagem do produto</label>
-          <div class="d-flex align-items-center gap-3">
-            <img v-if="previewImagem" :src="previewImagem" alt="Pré-visualização da imagem do produto" class="imagem-preview rounded-3 border">
-            <span v-else class="imagem-preview imagem-placeholder rounded-3" aria-hidden="true"><IconeSvg nome="imagem" :tamanho="22" /></span>
-            <input
-              id="produto-imagem"
-              ref="campoImagem"
-              type="file"
-              class="form-control"
-              accept="image/jpeg,image/png,image/webp"
-              aria-describedby="ajuda-produto-imagem"
-              @change="selecionarImagem"
-            >
+          <label for="produto-imagem" class="form-label">
+            Imagens do produto <span class="text-body-secondary fw-normal">({{ imagens.length }} de {{ LIMITE_IMAGENS }})</span>
+          </label>
+
+          <ul v-if="imagens.length" class="list-unstyled d-flex flex-wrap gap-2 mb-2">
+            <li v-for="(imagem, indice) in imagens" :key="imagem.chave" class="cartao-imagem rounded-3 border p-1">
+              <div class="position-relative">
+                <img :src="imagem.src" :alt="`Imagem ${indice + 1} do produto`" class="imagem-preview rounded-2">
+                <span v-if="imagem.chave === chavePrincipal" class="badge text-bg-primary selo-principal">Principal</span>
+              </div>
+              <div class="d-flex justify-content-between mt-1">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-acao"
+                  :disabled="indice === 0"
+                  :aria-label="`Mover imagem ${indice + 1} para a esquerda`"
+                  @click="moverImagem(indice, -1)"
+                >
+                  <IconeSvg nome="seta-esquerda" :tamanho="14" />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-acao"
+                  :class="{ 'text-primary': imagem.chave === chavePrincipal }"
+                  :aria-label="`Definir imagem ${indice + 1} como principal`"
+                  :aria-pressed="imagem.chave === chavePrincipal"
+                  @click="chavePrincipal = imagem.chave"
+                >
+                  <IconeSvg nome="estrela" :tamanho="14" :preenchido="imagem.chave === chavePrincipal" />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-acao"
+                  :disabled="indice === imagens.length - 1"
+                  :aria-label="`Mover imagem ${indice + 1} para a direita`"
+                  @click="moverImagem(indice, 1)"
+                >
+                  <IconeSvg nome="seta-direita" :tamanho="14" />
+                </button>
+                <button
+                  type="button"
+                  class="btn btn-sm btn-acao text-danger"
+                  :aria-label="`Remover imagem ${indice + 1}`"
+                  @click="removerImagem(indice)"
+                >
+                  <IconeSvg nome="lixeira" :tamanho="14" />
+                </button>
+              </div>
+            </li>
+          </ul>
+
+          <input
+            id="produto-imagem"
+            ref="campoImagem"
+            type="file"
+            multiple
+            class="form-control"
+            :class="{ 'is-invalid': erros.imagens }"
+            accept="image/jpeg,image/png,image/webp"
+            :disabled="imagens.length >= LIMITE_IMAGENS"
+            aria-describedby="ajuda-produto-imagem erro-produto-imagem"
+            @change="selecionarImagens"
+          >
+          <div id="erro-produto-imagem" class="invalid-feedback">{{ erros.imagens }}</div>
+          <div id="ajuda-produto-imagem" class="form-text">
+            Opcional. Até {{ LIMITE_IMAGENS }} imagens JPG, PNG ou WEBP com até 5 MB cada.
+            A imagem principal (<IconeSvg nome="estrela" :tamanho="12" preenchido />) aparece no catálogo.
           </div>
-          <div id="ajuda-produto-imagem" class="form-text">Opcional. JPG, PNG ou WEBP com até 5 MB.</div>
         </div>
 
         <fieldset class="bg-apoio rounded-4 p-3 mb-3">
@@ -163,6 +216,9 @@ import IconeSvg from '@/components/IconeSvg.vue'
 import { useProdutorStore } from '@/stores/produtor.js'
 import { formatarPreco } from '@/utils/formatacao.js'
 
+// Limite exibido no formulário; o backend é quem garante o máximo de imagens por produto
+const LIMITE_IMAGENS = 5
+
 const emit = defineEmits(['salvo'])
 
 const produtorStore = useProdutorStore()
@@ -173,8 +229,11 @@ const form = ref(formVazio())
 const erros = ref({})
 const erroGeral = ref('')
 const salvando = ref(false)
-const arquivoImagem = ref(null)
-const previewImagem = ref('')
+// Cada item: { chave, src, id } para imagens já salvas ou { chave, src, arquivo } para novas
+const imagens = ref([])
+const chavePrincipal = ref(null)
+const imagensRemovidas = ref([])
+let contadorImagensNovas = 0
 let offcanvas = null
 let gatilho = null
 
@@ -210,7 +269,7 @@ onBeforeUnmount(() => {
   } else {
     instancia.dispose()
   }
-  limparImagem()
+  liberarPreviews()
 })
 
 function formVazio() {
@@ -233,8 +292,7 @@ function abrir(produto = null) {
     : formVazio()
   erros.value = {}
   erroGeral.value = ''
-  limparImagem()
-  previewImagem.value = produto?.imagem || ''
+  carregarImagens(produto?.imagens || [])
   if (campoImagem.value) campoImagem.value.value = ''
   offcanvas.show()
 }
@@ -245,21 +303,58 @@ function fechar() {
 
 // Aberto por código, o offcanvas não devolve o foco sozinho; volta para o botão que o abriu
 function aoFechar() {
-  limparImagem()
+  liberarPreviews()
   if (gatilho?.isConnected) gatilho.focus()
   gatilho = null
 }
 
-function selecionarImagem(evento) {
-  const arquivo = evento.target.files?.[0]
-  limparImagem()
-  arquivoImagem.value = arquivo || null
-  previewImagem.value = arquivo ? URL.createObjectURL(arquivo) : produtoEditado.value?.imagem || ''
+function carregarImagens(imagensSalvas) {
+  liberarPreviews()
+  imagens.value = imagensSalvas.map(imagem => ({ chave: `salva-${imagem.id}`, id: imagem.id, src: imagem.imagem }))
+  chavePrincipal.value = imagens.value.find((_, indice) => imagensSalvas[indice].e_principal)?.chave ?? null
+  imagensRemovidas.value = []
 }
 
-function limparImagem() {
-  if (previewImagem.value.startsWith('blob:')) URL.revokeObjectURL(previewImagem.value)
-  arquivoImagem.value = null
+function selecionarImagens(evento) {
+  const arquivos = Array.from(evento.target.files || [])
+  const vagas = LIMITE_IMAGENS - imagens.value.length
+  evento.target.value = ''
+
+  erros.value = { ...erros.value, imagens: '' }
+  const excedentes = arquivos.length - vagas
+  if (excedentes > 0) {
+    const resto = excedentes === 1 ? '1 não foi adicionada' : `${excedentes} não foram adicionadas`
+    erros.value.imagens = `Cada produto pode ter até ${LIMITE_IMAGENS} imagens; ${resto}.`
+  }
+
+  for (const arquivo of arquivos.slice(0, vagas)) {
+    contadorImagensNovas += 1
+    imagens.value.push({ chave: `nova-${contadorImagensNovas}`, arquivo, src: URL.createObjectURL(arquivo) })
+  }
+  if (!chavePrincipal.value) chavePrincipal.value = imagens.value[0]?.chave ?? null
+}
+
+function moverImagem(indice, direcao) {
+  const lista = [...imagens.value]
+  const destino = indice + direcao
+  ;[lista[indice], lista[destino]] = [lista[destino], lista[indice]]
+  imagens.value = lista
+}
+
+// Ao remover a principal, a primeira restante assume, como faz o backend
+function removerImagem(indice) {
+  const [removida] = imagens.value.splice(indice, 1)
+  if (removida.id) imagensRemovidas.value.push(removida.id)
+  else URL.revokeObjectURL(removida.src)
+
+  if (removida.chave === chavePrincipal.value) chavePrincipal.value = imagens.value[0]?.chave ?? null
+  if (erros.value.imagens) erros.value = { ...erros.value, imagens: '' }
+}
+
+function liberarPreviews() {
+  for (const imagem of imagens.value) {
+    if (imagem.arquivo) URL.revokeObjectURL(imagem.src)
+  }
 }
 
 function validar() {
@@ -297,7 +392,7 @@ async function salvar() {
       },
       precoVenda: form.value.precoVenda,
       desconto: form.value.desconto,
-      arquivoImagem: arquivoImagem.value,
+      imagens: { itens: imagens.value, chavePrincipal: chavePrincipal.value, removidas: imagensRemovidas.value },
       produtoExistente: produtoEditado.value,
     })
     emit('salvo', { editado: !!produtoEditado.value, erroImagem })
@@ -318,9 +413,32 @@ defineExpose({ abrir })
   --bs-offcanvas-width: min(34rem, 100vw);
 }
 .imagem-preview {
-  width: 4.5rem;
-  height: 4.5rem;
+  display: block;
+  width: 5.5rem;
+  height: 5.5rem;
   object-fit: cover;
-  flex-shrink: 0;
+}
+.cartao-imagem {
+  width: 6.25rem;
+  background-color: var(--cor-superficie);
+}
+.selo-principal {
+  position: absolute;
+  top: 0.25rem;
+  left: 0.25rem;
+  font-size: 0.65rem;
+}
+.btn-acao {
+  padding: 0.15rem 0.3rem;
+  line-height: 1;
+  border: 0;
+  color: var(--cor-texto);
+}
+.btn-acao:hover:not(:disabled) {
+  background-color: var(--cor-apoio);
+}
+.btn-acao:focus-visible {
+  outline: 2px solid var(--cor-foco);
+  outline-offset: 1px;
 }
 </style>

@@ -133,7 +133,7 @@ export const useProdutorStore = defineStore('produtor', () => {
     if (novoStatus === 'Cancelado') await recarregarProdutos()
   }
 
-  async function salvarProduto({ dados, precoVenda, desconto, arquivoImagem, produtoExistente }) {
+  async function salvarProduto({ dados, precoVenda, desconto, imagens, produtoExistente }) {
     let produtoId
     try {
       if (produtoExistente) {
@@ -150,17 +150,64 @@ export const useProdutorStore = defineStore('produtor', () => {
       throw new Error(extrairMensagemErro(falha))
     }
 
-    let erroImagem = ''
-    if (arquivoImagem) {
-      try {
-        await api.produtos.enviarImagem(produtoId, arquivoImagem)
-      } catch (falha) {
-        erroImagem = extrairMensagemErro(falha)
-      }
-    }
+    const erroImagem = imagens ? await sincronizarImagens(produtoId, imagens, produtoExistente?.imagens || []) : ''
 
     await recarregarProdutos()
     return { erroImagem }
+  }
+
+  // Aplica no backend a lista montada no formulário: exclusões, envios, imagem principal e ordem.
+  // Cada falha é acumulada para que o produto salvo não seja perdido por causa de uma imagem.
+  async function sincronizarImagens(produtoId, { itens, chavePrincipal, removidas }, imagensAtuais) {
+    const falhas = []
+    const idsPorChave = {}
+
+    for (const imagemId of removidas) {
+      try {
+        await api.produtos.removerImagem(produtoId, imagemId)
+      } catch (falha) {
+        falhas.push(extrairMensagemErro(falha))
+      }
+    }
+
+    for (const item of itens) {
+      if (item.id) {
+        idsPorChave[item.chave] = item.id
+        continue
+      }
+      try {
+        const enviada = await api.produtos.enviarImagem(produtoId, item.arquivo, item.chave === chavePrincipal)
+        idsPorChave[item.chave] = enviada.id
+      } catch (falha) {
+        falhas.push(`${item.arquivo.name}: ${extrairMensagemErro(falha)}`)
+      }
+    }
+
+    const principalAtual = imagensAtuais.find(imagem => imagem.e_principal)?.id
+    const itemPrincipal = itens.find(item => item.chave === chavePrincipal)
+    if (itemPrincipal?.id && itemPrincipal.id !== principalAtual) {
+      try {
+        await api.produtos.definirImagemPrincipal(produtoId, itemPrincipal.id)
+      } catch (falha) {
+        falhas.push(extrairMensagemErro(falha))
+      }
+    }
+
+    // O backend acrescenta envios novos no fim; só reordena quando a ordem escolhida for diferente disso
+    const ordemDesejada = itens.map(item => idsPorChave[item.chave]).filter(Boolean)
+    const ordemResultante = [
+      ...imagensAtuais.map(imagem => imagem.id).filter(id => ordemDesejada.includes(id)),
+      ...itens.filter(item => !item.id).map(item => idsPorChave[item.chave]).filter(Boolean),
+    ]
+    if (!falhas.length && ordemDesejada.join() !== ordemResultante.join()) {
+      try {
+        await api.produtos.reordenarImagens(produtoId, ordemDesejada)
+      } catch (falha) {
+        falhas.push(extrairMensagemErro(falha))
+      }
+    }
+
+    return falhas.join(' ')
   }
 
   async function alternarAtivo(produto) {

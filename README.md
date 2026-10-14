@@ -80,6 +80,20 @@ Os endpoints abaixo exigem JWT de um produtor com loja cadastrada. O backend sem
 
 Produtos não são excluídos: para tirá-los do catálogo, o produtor altera `ativo` para `false`, preservando o histórico dos pedidos.
 
+### Imagens do produto
+
+Cada produto pode ter até 5 imagens (JPG, PNG ou WEBP, até 5 MB cada), com exatamente uma principal quando houver imagem. A resposta de produto traz `imagens` (lista `{ id, imagem, ordem, e_principal }` em ordem de exibição) e `imagem`, com a URL da principal ou `null`.
+
+| Método e URL | Autenticação | Descrição |
+| --- | --- | --- |
+| `GET /api/v1/produtos/{id}/imagens/` | Pública | Lista as imagens de um produto visível no catálogo; o dono e administradores também veem as de produtos inativos. |
+| `POST /api/v1/produtos/{id}/imagens/` | Dono ou admin | `multipart/form-data` com `imagem` e, opcionalmente, `e_principal=true`. A primeira imagem vira principal e as novas entram no fim da ordem. Retorna `201`. |
+| `PATCH /api/v1/produtos/{id}/imagens/{imagem_id}/` | Dono ou admin | `{ "e_principal": true }` define a principal e desmarca a anterior. O arquivo não pode ser trocado. |
+| `DELETE /api/v1/produtos/{id}/imagens/{imagem_id}/` | Dono ou admin | Exclui a imagem e remove o arquivo do storage; se era a principal, a próxima pela ordem assume. Retorna `204`. |
+| `POST /api/v1/produtos/{id}/imagens/reordenar/` | Dono ou admin | `{ "imagens": [3, 1, 2] }` com todos os IDs do produto na nova ordem. Retorna a lista atualizada. |
+
+Erros: `400` para arquivo inválido ou acima de 5 MB, sexta imagem, tentativa de trocar o arquivo, desmarcar a principal diretamente ou lista de reordenação incompleta; `401` sem autenticação; `404` quando o produto não pertence à loja do usuário ou não está visível.
+
 No frontend, a área do produtor fica em `/minha-loja`, com as abas Painel, Pedidos, Produtos e Minha loja. Os indicadores do painel (vendas do mês, ticket médio, vendas dos últimos 7 dias e produtos mais vendidos) são calculados a partir dos pedidos não cancelados, apenas para exibição.
 
 Na aba Produtos, a desativação é confirmada em um modal (`ModalConfirmacao.vue`) que informa que o produto sai do catálogo e que os pedidos são preservados; a reativação é imediata.

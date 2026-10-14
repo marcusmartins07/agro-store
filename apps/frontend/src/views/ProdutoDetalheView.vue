@@ -157,7 +157,6 @@ import GaleriaProduto from '@/components/GaleriaProduto.vue'
 import IconeSvg from '@/components/IconeSvg.vue'
 import SeletorQuantidade from '@/components/SeletorQuantidade.vue'
 import { textoRetirada } from '@/data/feira.js'
-import { montarGaleriaProduto } from '@/data/mockGaleria.js'
 import { api } from '@/services/api.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { useCarrinhoStore, useFavoritosStore } from '@/stores/index.js'
@@ -184,7 +183,17 @@ const adicionando = ref(false)
 
 // ── Produto ──────────────────────────────────────────────────────────────────
 const produtoId = computed(() => route.params.id)
-const galeria = computed(() => (produto.value ? montarGaleriaProduto(produto.value) : []))
+// A galeria começa pela imagem principal e segue a ordem definida pelo produtor
+const galeria = computed(() => {
+  if (!produto.value) return []
+  const imagens = [...(produto.value.imagens || [])].sort((a, b) => Number(b.e_principal) - Number(a.e_principal))
+  if (!imagens.length) return [{ tipo: 'sem-foto', alt: `${produto.value.nome} sem foto cadastrada` }]
+  return imagens.map((imagem, indice) => ({
+    tipo: 'imagem',
+    src: imagem.imagem,
+    alt: `${produto.value.nome} — imagem ${indice + 1} de ${imagens.length}`,
+  }))
+})
 const estoqueDisponivel = computed(() => Math.max(1, Number(produto.value?.estoque || 0)))
 
 const podeComprar = computed(() =>

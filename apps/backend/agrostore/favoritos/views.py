@@ -14,7 +14,7 @@ class FavoritoViewSet(viewsets.ModelViewSet):
             'produto',
             'produto__categoria',
             'produto__loja',
-        ).prefetch_related('produto__precos').order_by('-data_criacao')
+        ).prefetch_related('produto__precos', 'produto__imagens').order_by('-data_criacao')
 
     def perform_create(self, serializer):
         usuario = self.request.user
