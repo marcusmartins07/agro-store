@@ -1,0 +1,46 @@
+%% Figura 9 - Diagrama de Atividades I - Geração de Pedido pelo Cliente
+%% Aproximação de diagrama de atividades com flowchart.
+%% Conferido em: carrinhos/views.py (create, atualizar_item), carrinhos/serializers.py,
+%% carrinhos/services.py (ajustar_carrinhos_ao_estoque) e pedidos/views.py (create, _validar_item_checkout).
+flowchart TD
+    INI((" ")) --> A1["Acessar catálogo"]
+    A1 --> A2["Sistema lista produtos ativos, de loja ativa e com estoque maior que zero"]
+    A2 --> A3["Selecionar produto e informar quantidade"]
+    A3 --> D1{"Cliente autenticado?"}
+    D1 -- Não --> A4["Informar que é preciso entrar na conta"]
+    A4 --> FIM1(((" ")))
+    D1 -- Sim --> D2{"Produto e loja ativos?"}
+    D2 -- Não --> A5["Recusar a inclusão"]
+    D2 -- Sim --> D3{"Produto já está no carrinho?"}
+    D3 -- Sim --> A6["Somar a quantidade à já registrada"]
+    D3 -- Não --> A7["Usar a quantidade informada"]
+    A6 --> D4{"Quantidade final até o estoque?"}
+    A7 --> D4
+    D4 -- Não --> A8["Recusar: estoque insuficiente"]
+    D4 -- Sim --> A9["Gravar o item no carrinho da loja e recalcular os totais"]
+    A5 --> A10
+    A8 --> A10
+    A9 --> A10["Abrir carrinho"]
+    A10 --> D5{"Alterar carrinho?"}
+    D5 -- Sim --> A11["Alterar quantidade de 1 até o estoque ou remover item"]
+    A11 --> A10
+    D5 -- Não --> A12["Selecionar itens e confirmar a compra"]
+    A12 --> A13["Travar os produtos envolvidos, em ordem fixa"]
+    A13 --> D6{"Todos os itens válidos?"}
+    D6 -- Não --> A14["Recusar a finalização inteira e informar o produto"]
+    A14 --> A10
+    D6 -- Sim --> A15["Agrupar itens por loja"]
+    A15 --> A16["Para cada loja: calcular valores e criar pedido com status Pendente"]
+    A16 --> A17["Gravar snapshot do cliente e dos itens"]
+    A17 --> A18["Baixar o estoque de cada produto"]
+    A18 --> A19["Remover do carrinho os itens finalizados"]
+    A19 --> A20["Reduzir ao novo estoque os carrinhos de outros clientes, podendo chegar a zero"]
+    A20 --> A21["Exibir a confirmação com os pedidos criados"]
+    A21 --> FIM2(((" ")))
+
+    N1["Item inválido: não pertence ao cliente, produto ou loja inativos, quantidade zero (Sem estoque), estoque insuficiente ou sem preço vigente"]:::nota
+    D6 -.- N1
+    N2["Da trava dos produtos até o ajuste dos carrinhos, tudo ocorre em uma única transação"]:::nota
+    A13 -.- N2
+
+    classDef nota fill:#fffbe6,stroke:#c9a400,stroke-dasharray:3 3

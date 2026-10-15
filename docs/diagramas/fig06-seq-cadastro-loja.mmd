@@ -1,0 +1,31 @@
+%% Figura 6 - Diagrama de Sequência III - Cadastro de Loja pelo Produtor
+%% Conferido em: lojas/views.py (LojaViewSet) e lojas/serializers.py (LojaSerializer.validate).
+%% O envio da imagem da loja não aparece: imagem_perfil é somente leitura até a BE-018 (RN-018).
+sequenceDiagram
+    autonumber
+    actor P as Produtor
+    participant F as Frontend
+    participant A as API/Backend
+    participant B as Banco de dados
+
+    P->>F: Informa nome, descrição e CNPJ da loja
+    F->>A: POST /api/v1/lojas/lojas/ com token JWT
+
+    alt Sem token válido
+        A-->>F: 401 Não autenticado
+    else Autenticado
+        A->>B: Consulta lojas do usuário e CNPJ
+        B-->>A: Resultado da consulta
+        alt CNPJ já cadastrado
+            A-->>F: 400 Já existe loja com este CNPJ
+        else Usuário não é produtor
+            A-->>F: 400 Usuário precisa ser produtor para criar uma loja
+        else Produtor já possui loja (RN-013)
+            A-->>F: 400 Cada produtor pode possuir somente uma loja
+        else Dados válidos
+            A->>B: Grava a loja ativa, vinculada ao produtor autenticado
+            B-->>A: Loja criada
+            A-->>F: 201 com os dados da loja
+            F-->>P: Exibe a loja cadastrada
+        end
+    end

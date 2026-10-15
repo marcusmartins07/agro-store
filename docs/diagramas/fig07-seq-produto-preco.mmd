@@ -1,0 +1,37 @@
+%% Figura 7 - Diagrama de Sequência IV - Cadastro de Produto e Definição de Preço
+%% Conferido em: produtos/views.py (ProdutoViewSet, PrecoProdutoViewSet), produtos/serializers.py,
+%% produtos/models.py (Produto.save, gerar_sku e PrecoProduto.save) e frontend stores/produtor.js (salvarProduto).
+%% As imagens são enviadas depois do produto salvo (ver Figura 11).
+sequenceDiagram
+    autonumber
+    actor P as Produtor
+    participant F as Frontend
+    participant A as API/Backend
+    participant B as Banco de dados
+
+    P->>F: Informa nome, descrição, categoria, código de barras, estoque, preço e desconto
+    F->>A: POST /api/v1/produtos/ com token JWT
+    alt Estoque negativo ou categoria inativa
+        A-->>F: 400 com a mensagem do campo
+    else Não é produtor ou não possui loja
+        A-->>F: 403 com a orientação correspondente
+    else Dados válidos
+        A->>B: Grava o produto vinculado à loja do produtor
+        A->>A: Gera o SKU com loja (4), categoria (4) e produto (6 dígitos)
+        A->>B: Grava o SKU na mesma transação
+        B-->>A: Produto criado
+        A-->>F: 201 com o produto e o SKU
+        F->>A: POST /api/v1/produtos/precos/ com preço de venda e percentual de desconto
+        alt Desconto fora de 0 a 100
+            A-->>F: 400 Informe um desconto entre 0 e 100 por cento
+        else Produto de outra loja
+            A-->>F: 403 Não pode alterar o preço de outra loja
+        else Preço válido
+            A->>B: Encerra a vigência do preço anterior
+            A->>A: Calcula o valor do desconto a partir do percentual
+            A->>B: Grava o novo preço vigente
+            B-->>A: Preço gravado
+            A-->>F: 201 com o preço
+            F-->>P: Exibe o produto com o preço atual
+        end
+    end

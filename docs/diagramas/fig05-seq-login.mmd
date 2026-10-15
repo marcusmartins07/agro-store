@@ -1,0 +1,25 @@
+%% Figura 5 - Diagrama de Sequência II - Acesso ao Sistema
+%% Conferido em: usuarios/views.py (LoginView), usuarios/serializers.py (LoginSerializer) e settings.py (SIMPLE_JWT).
+sequenceDiagram
+    autonumber
+    actor U as Usuário
+    participant F as Frontend
+    participant A as API/Backend
+    participant B as Banco de dados
+
+    U->>F: Informa CPF e senha
+    F->>A: POST /api/v1/usuarios/login/
+    A->>A: Mantém somente os dígitos do CPF
+    A->>B: Busca o usuário pelo CPF
+    B-->>A: Dados do usuário
+    A->>A: Confere a senha com o hash armazenado e se a conta está ativa
+
+    alt Credenciais inválidas
+        A-->>F: 400 CPF ou senha inválidos
+        F-->>U: Exibe a mensagem de erro
+    else Credenciais válidas
+        A->>A: Gera token de acesso (120 min) e de renovação (1 dia)
+        A-->>F: 200 com tokens e dados do perfil
+        F->>F: Guarda a sessão
+        F-->>U: Libera as áreas do seu perfil
+    end

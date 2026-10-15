@@ -1,0 +1,47 @@
+%% Figura 12 - Diagrama de Sequência VII - Avaliação de Item Entregue
+%% Conferido em: frontend views/PedidosView.vue, avaliacoes/views.py, avaliacoes/serializers.py
+%% (validate_pedido_produto, comentario max_length=500, abreviar_nome) e avaliacoes/admin.py.
+sequenceDiagram
+    autonumber
+    actor C as Cliente
+    participant F as Frontend
+    participant A as API/Backend
+    participant B as Banco de dados
+    actor V as Visitante
+    actor AD as Administrador
+
+    C->>F: Abre Meus pedidos
+    F->>A: GET /api/v1/pedidos/ com token JWT
+    A->>B: Busca os pedidos do cliente com os itens e as avaliações
+    B-->>A: Pedidos
+    A-->>F: 200 com os pedidos
+    F-->>C: Exibe Avaliar nos itens de pedidos Entregue ainda sem avaliação
+    C->>F: Clica em Avaliar e informa nota de 1 a 5 e comentário opcional
+    F->>A: POST /api/v1/avaliacoes/ com o item, a nota e o comentário
+    A->>B: Consulta o pedido do item e avaliações existentes
+    B-->>A: Resultado da consulta
+
+    alt Item não pertence a pedido do cliente
+        A-->>F: 400 Este item não pertence ao seu pedido
+    else Pedido não está Entregue
+        A-->>F: 400 Só é possível avaliar pedidos entregues
+    else Item já avaliado
+        A-->>F: 400 Este item já foi avaliado
+    else Comentário com mais de 500 caracteres ou nota fora de 1 a 5
+        A-->>F: 400 com a mensagem do campo
+    else Dados válidos
+        A->>B: Grava a avaliação com o cliente e o produto do item
+        B-->>A: Avaliação criada
+        A-->>F: 201 com a avaliação
+        F-->>C: Marca o item como Avaliado
+    end
+    Note over A: Erros de campos diferentes voltam juntos na mesma resposta
+
+    V->>F: Abre o detalhe do produto
+    F->>A: GET /api/v1/avaliacoes/?produto={id}
+    A-->>F: 200 com notas, comentários e nome abreviado do autor
+    F-->>V: Exibe as avaliações, por exemplo Maria S.
+
+    Note over AD,B: Moderação somente pelo painel administrativo
+    AD->>A: Consulta e exclui avaliações (sem criar nem editar)
+    A->>B: Exclui a avaliação

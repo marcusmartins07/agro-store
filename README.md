@@ -10,6 +10,7 @@ Monorepo com API Django e aplicação web Vue.
 - Carrinho salvo no backend, com ajuste automático da quantidade quando o estoque diminui.
 - Finalização do carrinho com um pedido por loja, baixa de estoque e snapshot de cliente e produtos.
 - Cancelamento de pedidos pendentes pelo cliente, com restauração do estoque.
+- Avaliação de produtos comprados: na tela "Meus pedidos" (`/pedidos`), o cliente avalia cada item de pedido entregue (nota de 1 a 5 e comentário opcional). A rota antiga `/avaliacoes/:id` redireciona para `/pedidos`. Detalhes em [Avaliações](#avaliações-rn-010).
 - Favoritos, perfil do usuário e cadastro de clientes.
 - Área do produtor (`/minha-loja`): painel de indicadores, pedidos, produtos, preços, imagens e dados da loja.
 - Informação de retirada presencial na feira (sem pagamento online, entrega ou frete no MVP).
@@ -291,7 +292,59 @@ O cliente autenticado pode cancelar somente seus próprios pedidos com status `P
 - Retorna `400` se o pedido não estiver pendente e `404` se o pedido não pertencer ao cliente autenticado.
 - O cancelamento preserva o pedido no histórico e restaura o estoque de seus itens. Cancelamentos permitidos pelo produtor também restauram o estoque.
 
-### SKU de produtos
+## Vínculo do pedido com o cliente
+
+O dono de um pedido é identificado pelo registro `PedidoCliente` (tabela `pedidos_pedidocliente`, relação um-para-um com `Pedido`, acessível por `pedido.cliente`). A tabela `Pedido` não possui mais o campo `usuario`.
+
+- `PedidoCliente.usuario` é uma chave estrangeira obrigatória para o usuário (`related_name='pedidos_cliente'`) e convive com o snapshot do cliente no momento da compra: nome, CPF, e-mail, telefone, data de nascimento e gênero.
+- No checkout (`POST /api/v1/pedidos/`), o `PedidoCliente` é criado logo após o `Pedido`, na mesma transação. Se qualquer etapa falhar, nada é gravado.
+- "Meus pedidos", detalhe e cancelamento filtram por `cliente__usuario`; a avaliação de produto confere a titularidade do pedido pelo mesmo caminho. O produtor continua filtrado por `loja__proprietario`.
+- O contrato JSON da API não mudou: nenhum payload expõe `usuario`.
+- Exclusão bloqueada: `PedidoCliente.usuario` e `Pedido.loja` usam `PROTECT`. Não é possível excluir um usuário que tenha pedidos como cliente, nem uma loja que tenha pedidos; o Django lança `ProtectedError` (no Admin, a exclusão é recusada com a lista dos pedidos). Isso preserva o histórico de pedidos. Para retirar o acesso, desative o usuário ou a loja.
+- As demais chaves estrangeiras não protegem: `PedidoProduto.produto` e as chaves de `Avaliacao` (`usuario`, `produto` e `pedido_produto`) usam `CASCADE`. Por isso produtos não são excluídos (são desativados) e avaliações só saem por moderação no Admin.
+
+## Banco de dados e migrations
+
+O banco é definido por `DATABASE_URL`. Com a variável vazia, o backend usa SQLite local; com `postgresql://...`, usa PostgreSQL (Supabase em produção). O modelo lógico está em `docs/modelo-logico.sql`.
+
+> **Alerta:** o `.env` da raiz pode conter um `DATABASE_URL` apontando para o Supabase. Rodar `migrate` com essa variável preenchida aplica as migrations **em produção**. No desenvolvimento, execute os comandos com `DATABASE_URL=` vazio (use o `.env.example` como base; ele traz a variável vazia).
+
+### Migrations do vínculo do cliente (pedidos 0003 a 0005)
+
+Movem o usuário de `Pedido` para `PedidoCliente`, em três migrations separadas e reversíveis:
+
+1. `0003_pedidocliente_usuario` (schema): adiciona `PedidoCliente.usuario` como campo nulo.
+2. `0004_copiar_usuario_para_pedidocliente` (dados): copia o usuário de cada pedido e **interrompe** se existir pedido sem `pedido_cliente`. Tem operação reversa.
+3. `0005_remover_pedido_usuario` (schema): torna `PedidoCliente.usuario` obrigatório e remove `Pedido.usuario`.
+
+Elas ficam separadas por compatibilidade com PostgreSQL: misturar alteração de dados e de schema na mesma transação causa o erro "pending trigger events".
+
+### Procedimento para aplicar no Supabase
+
+Estado: **ainda não aplicado**. Aplique somente com autorização.
+
+1. Faça backup (`pg_dump` ou painel do Supabase).
+2. Rode as consultas somente leitura:
+   ```sql
+   SELECT app, name FROM django_migrations WHERE app IN ('pedidos','lojas','usuarios','produtos') ORDER BY app, id;
+
+   SELECT COUNT(*) FROM pedidos_pedido p
+   LEFT JOIN pedidos_pedidocliente pc ON pc.pedido_id = p.pedido_id
+   WHERE pc.pedido_cliente_id IS NULL;
+   ```
+   A segunda consulta deve retornar `0`; caso contrário, a migration 0004 será interrompida e os pedidos órfãos devem ser tratados antes.
+3. Pare o backend publicado.
+4. Aplique um app por vez, rodando `--plan` antes de cada um: primeiro as pendentes de `lojas`, `usuarios` e `produtos`; `pedidos` por último.
+   ```powershell
+   python apps/backend/manage.py migrate lojas --plan
+   python apps/backend/manage.py migrate lojas
+   # repita para usuarios e produtos; por fim:
+   python apps/backend/manage.py migrate pedidos --plan
+   python apps/backend/manage.py migrate pedidos
+   ```
+5. Publique o código novo junto com a migration, pois o código antigo depende de `Pedido.usuario`.
+
+## SKU de produtos
 
 O backend gera automaticamente o SKU de produtos novos e não aceita alteração manual. O valor tem 14 dígitos, sem separadores, na ordem `id_loja` (4 dígitos), `id_categoria` (4 dígitos) e `id_produto` (6 dígitos). Por exemplo, os identificadores `1`, `1` e `1` resultam em `00010001000001`. Produtos cadastrados antes desta regra mantêm seus SKUs atuais.
 
@@ -331,6 +384,62 @@ Os favoritos são privados e exigem JWT. Cada usuário pode favoritar um produto
 - `DELETE /api/v1/favoritos/{favorito_id}/`: remove um favorito do próprio usuário e retorna `204`. Não permite remover favoritos de outra conta.
 
 Produtos favoritos inativos, sem estoque ou com a loja desativada continuam visíveis na lista, identificados como indisponíveis e sem opção de adicionar ao carrinho.
+
+## Avaliações (RN-010)
+
+Somente o dono de um pedido `Entregue` avalia seus itens, uma vez por item. A avaliação não pode ser editada nem removida pela API: não há `PUT`, `PATCH` nem `DELETE` em `/api/v1/avaliacoes/`.
+
+### Criar avaliação
+
+- Método: POST
+- URL: `/api/v1/avaliacoes/`
+- Autenticação: JWT (qualquer usuário autenticado, dono do pedido)
+
+Payload esperado (`comentario` é opcional, até 500 caracteres; `nota` é inteira de 1 a 5):
+
+```json
+{ "pedido_produto": 15, "nota": 5, "comentario": "Mel excelente." }
+```
+
+Resposta esperada (`201`): produto e usuário são vinculados pelo backend.
+
+```json
+{
+  "avaliacao_id": 4,
+  "pedido_produto": 15,
+  "produto": 12,
+  "produto_nome": "Mel de laranjeira",
+  "usuario_nome": "Maria S.",
+  "nota": 5,
+  "comentario": "Mel excelente."
+}
+```
+
+Possíveis erros (`400`, na ordem das validações do `pedido_produto`):
+- "Este item não pertence ao seu pedido." (também quando o id não existe)
+- "Só é possível avaliar pedidos entregues."
+- "Este item já foi avaliado."
+- "O comentário deve ter no máximo 500 caracteres."
+- 400 — nota fora de 1 a 5 ou ausente (mensagens padrão do DRF).
+- 401 — sem autenticação.
+
+### Listar avaliações
+
+- Método: GET
+- URL: `/api/v1/avaliacoes/?produto=<id>`
+- Autenticação: pública
+
+Resposta esperada (`200`): lista no mesmo formato acima. `usuario_nome` é abreviado (primeiro nome e inicial do último sobrenome, como "Maria S."); o nome completo não é exposto. Avaliações de produto ou loja inativos continuam listadas. Sem `produto`, retorna todas as avaliações.
+
+### Campo `avaliacao` nos itens de pedido
+
+Cada item de pedido traz o campo somente leitura `avaliacao`, que vale `null` (item ainda não avaliado) ou `{ "avaliacao_id": 4, "nota": 5, "comentario": "..." }`. Aparece nos itens de `GET /api/v1/pedidos/`, `GET /api/v1/pedidos/{id}/`, `GET /api/v1/pedidos/minha-loja/` e nas respostas de `PATCH /api/v1/pedidos/{id}/status/`, `PATCH /api/v1/pedidos/{id}/cancelar/` e `POST /api/v1/pedidos/` (checkout).
+
+### Moderação e exclusões no Admin do Django
+
+- Pedidos (e seus itens, cliente e status) ficam somente para consulta: sem incluir, editar ou excluir, inclusive o status. A troca de status é feita pela API (RN-019).
+- Avaliações são moderadas apenas por exclusão (não há inclusão nem edição). Após a exclusão, o item de pedido pode ser avaliado de novo.
+- Usuário ou loja com pedidos não podem ser excluídos; usa-se a desativação.
 
 ## Idioma e notificações
 
