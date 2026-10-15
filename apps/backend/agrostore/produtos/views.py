@@ -1,9 +1,14 @@
+from django.db import transaction
+from django.db.models import Max, Q
+from django.shortcuts import get_object_or_404
 from rest_framework import permissions, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
-from .models import Produto, PrecoProduto, Categoria
-from .serializers import ProdutoSerializer, PrecoProdutoSerializer, CategoriaSerializer
+
+from agrostore.carrinhos.services import ajustar_carrinhos_ao_estoque
+from .models import Produto, PrecoProduto, Categoria, ImagemProduto
+from .serializers import ProdutoSerializer, PrecoProdutoSerializer, CategoriaSerializer, ImagemProdutoSerializer
 
 
 class CategoriaViewSet(viewsets.ModelViewSet):
@@ -64,7 +69,7 @@ class PrecoProdutoViewSet(viewsets.ModelViewSet):
 
 
 class ProdutoViewSet(viewsets.ModelViewSet):
-    queryset = Produto.objects.select_related('categoria', 'loja').prefetch_related('precos').all()
+    queryset = Produto.objects.select_related('categoria', 'loja').prefetch_related('precos', 'imagens').all()
     serializer_class = ProdutoSerializer
     http_method_names = ['get', 'post', 'patch']
 
@@ -84,6 +89,9 @@ class ProdutoViewSet(viewsets.ModelViewSet):
             return queryset.filter(loja__proprietario=self.request.user)
 
         queryset = queryset.filter(ativo=True, loja__ativa=True)
+        if self.action == 'list':
+            # RN-017: produto sem estoque sai da listagem do catálogo, mas o detalhe continua acessível.
+            queryset = queryset.filter(estoque__gt=0)
         return self._filtrar_categoria(queryset)
 
     def _filtrar_categoria(self, queryset):
@@ -110,9 +118,96 @@ class ProdutoViewSet(viewsets.ModelViewSet):
             raise PermissionDenied('Cadastre uma loja antes de cadastrar produtos.')
         serializer.save(loja=loja)
 
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            Produto.objects.select_for_update().get(pk=serializer.instance.pk)
+            estoque_alterado = 'estoque' in serializer.validated_data
+            if not estoque_alterado:
+                # Recarrega o estoque travado para não desfazer a baixa de um checkout concorrente.
+                serializer.instance.refresh_from_db(fields=['estoque'])
+            produto = serializer.save()
+            if estoque_alterado:
+                ajustar_carrinhos_ao_estoque(produto)
+
     @action(detail=False, methods=['get'], url_path='meus')
     def meus(self, request):
         if not request.user.is_produtor and not request.user.is_staff:
             raise PermissionDenied('Somente produtores podem consultar seus produtos.')
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        return Response(serializer.data)
+
+
+class ImagemProdutoViewSet(viewsets.ModelViewSet):
+    serializer_class = ImagemProdutoSerializer
+    http_method_names = ['get', 'post', 'patch', 'delete', 'head', 'options']
+
+    def get_permissions(self):
+        if self.action in ['list', 'retrieve']:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated()]
+
+    def get_produto(self):
+        # Leitura segue a visibilidade do catálogo; escrita fica restrita ao dono da loja (ou administrador).
+        if not hasattr(self, '_produto'):
+            produtos = Produto.objects.select_related('loja')
+            usuario = self.request.user
+
+            if not usuario.is_staff:
+                if self.action in ['list', 'retrieve']:
+                    visiveis = Q(ativo=True, loja__ativa=True)
+                    if usuario.is_authenticated:
+                        visiveis |= Q(loja__proprietario=usuario)
+                    produtos = produtos.filter(visiveis)
+                else:
+                    produtos = produtos.filter(loja__proprietario=usuario)
+
+            self._produto = get_object_or_404(produtos, pk=self.kwargs['produto_pk'])
+        return self._produto
+
+    def get_queryset(self):
+        return ImagemProduto.objects.filter(produto=self.get_produto())
+
+    def perform_create(self, serializer):
+        produto = self.get_produto()
+        tornar_principal = serializer.validated_data.pop('e_principal', False)
+
+        with transaction.atomic():
+            # Trava o produto para que envios simultâneos não ultrapassem o limite de imagens.
+            Produto.objects.select_for_update().get(pk=produto.pk)
+            imagens = ImagemProduto.objects.filter(produto=produto)
+            if imagens.count() >= ImagemProduto.LIMITE_POR_PRODUTO:
+                raise serializers.ValidationError(
+                    {'imagem': f'Cada produto pode ter no máximo {ImagemProduto.LIMITE_POR_PRODUTO} imagens.'}
+                )
+
+            ultima_ordem = imagens.aggregate(Max('ordem'))['ordem__max']
+            tornar_principal = tornar_principal or not imagens.filter(e_principal=True).exists()
+            imagem = serializer.save(produto=produto, ordem=0 if ultima_ordem is None else ultima_ordem + 1)
+            if tornar_principal:
+                imagem.definir_como_principal()
+
+    def perform_update(self, serializer):
+        tornar_principal = serializer.validated_data.pop('e_principal', False)
+        imagem = serializer.save()
+        if tornar_principal:
+            imagem.definir_como_principal()
+
+    def perform_destroy(self, instance):
+        instance.excluir()
+
+    @action(detail=False, methods=['post'])
+    def reordenar(self, request, produto_pk=None):
+        imagens = list(self.get_queryset())
+        nova_ordem = request.data.get('imagens')
+        ids_validos = isinstance(nova_ordem, list) and all(type(imagem_id) is int for imagem_id in nova_ordem)
+
+        if not ids_validos or sorted(nova_ordem) != sorted(imagem.id for imagem in imagens):
+            raise serializers.ValidationError({'imagens': 'Envie a lista com todas as imagens do produto, na nova ordem.'})
+
+        posicoes = {imagem_id: posicao for posicao, imagem_id in enumerate(nova_ordem)}
+        for imagem in imagens:
+            imagem.ordem = posicoes[imagem.id]
+        ImagemProduto.objects.bulk_update(imagens, ['ordem'])
+
         serializer = self.get_serializer(self.get_queryset(), many=True)
         return Response(serializer.data)

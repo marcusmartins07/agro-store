@@ -1,5 +1,6 @@
 from rest_framework import serializers
 
+from agrostore.avaliacoes.models import Avaliacao
 from .models import Pedido, PedidoCliente, PedidoProduto, StatusPedido
 
 
@@ -12,7 +13,15 @@ class StatusPedidoSerializer(serializers.ModelSerializer):
         ]
 
 
+class AvaliacaoItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Avaliacao
+        fields = ['avaliacao_id', 'nota', 'comentario']
+
+
 class PedidoProdutoSerializer(serializers.ModelSerializer):
+    avaliacao = AvaliacaoItemSerializer(read_only=True)
+
     class Meta:
         model = PedidoProduto
         fields = [
@@ -23,6 +32,7 @@ class PedidoProdutoSerializer(serializers.ModelSerializer):
             'valor_unitario',
             'valor_desconto',
             'subtotal',
+            'avaliacao',
         ]
         read_only_fields = ['nome_produto', 'valor_unitario', 'valor_desconto', 'subtotal']
 
@@ -64,10 +74,11 @@ class PedidoSerializer(serializers.ModelSerializer):
             'valor_bruto',
             'valor_desconto',
             'valor_liquido',
+            'data_criacao',
             'itens',
             'cliente',
         ]
-        read_only_fields = ['valor_bruto', 'valor_desconto', 'valor_liquido']
+        read_only_fields = ['valor_bruto', 'valor_desconto', 'valor_liquido', 'data_criacao']
 
 
 class PedidoProdutorSerializer(PedidoSerializer):

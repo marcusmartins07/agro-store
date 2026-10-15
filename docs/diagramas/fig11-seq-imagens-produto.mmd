@@ -1,0 +1,49 @@
+%% Figura 11 - Diagrama de Sequência VI - Imagens do Produto (RN-016)
+%% Conferido em: frontend utils/imagem.js (recortarQuadrado), components/FormularioProduto.vue,
+%% stores/produtor.js (sincronizarImagens), produtos/views.py (ImagemProdutoViewSet),
+%% produtos/serializers.py (ImagemProdutoSerializer) e produtos/models.py (ImagemProduto).
+sequenceDiagram
+    autonumber
+    actor P as Produtor
+    participant F as Frontend
+    participant A as API/Backend
+    participant B as Banco de dados
+    participant S as Storage de arquivos
+
+    P->>F: Escolhe fotos no formulário do produto (até 5)
+    opt Ajustar enquadramento
+        P->>F: Abre o editor e ajusta a posição e o zoom (1x a 3x)
+        F->>F: Gera o recorte quadrado no navegador (Canvas, WEBP ou JPEG)
+    end
+    P->>F: Salva o produto
+    F->>A: POST /api/v1/produtos/{id}/imagens/ com o arquivo e a marcação de principal
+
+    alt Arquivo fora de JPG, PNG ou WEBP, ou acima de 5 MB
+        A-->>F: 400 com a mensagem de recusa
+    else Não é o dono do produto nem administrador
+        A-->>F: 404 Produto não encontrado
+    else Arquivo válido
+        A->>B: Trava o produto e conta as imagens
+        alt Produto já tem 5 imagens
+            A-->>F: 400 Cada produto pode ter no máximo 5 imagens
+        else Abaixo do limite
+            A->>S: Grava o arquivo com nome aleatório
+            A->>B: Grava a imagem no fim da ordem
+            opt Primeira imagem ou marcada como principal
+                A->>B: Desmarca a principal anterior e marca a nova
+            end
+            A-->>F: 201 com a imagem
+        end
+    end
+
+    Note over P,S: Exclusão de imagem
+    P->>F: Remove uma imagem e salva
+    F->>A: DELETE /api/v1/produtos/{id}/imagens/{imagem}/
+    A->>B: Exclui o registro
+    opt A imagem excluída era a principal
+        A->>B: Promove a próxima imagem pela ordem
+    end
+    A->>S: Remove o arquivo
+    A-->>F: 204 Sem conteúdo
+    F-->>P: Exibe as imagens atualizadas
+    Note over F,A: Uma imagem salva não é substituída: ajustar o recorte dela gera um novo envio e a exclusão da anterior

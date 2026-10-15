@@ -71,7 +71,7 @@ export const useCarrinhoStore = defineStore('carrinho', () => {
       await api.carrinhos.atualizarItem(itemId, quantidade)
       await carregar()
     } catch (e) {
-      erro.value = extrairMensagemErro(e)
+      await recarregarAposFalha(e)
       throw e
     }
   }
@@ -94,9 +94,17 @@ export const useCarrinhoStore = defineStore('carrinho', () => {
       await carregar()
       return pedidos
     } catch (e) {
-      erro.value = extrairMensagemErro(e)
+      await recarregarAposFalha(e)
       throw e
     }
+  }
+
+  // O estoque pode ter mudado desde o último carregamento (RN-017): recarrega o carrinho para exibir
+  // as quantidades gravadas pelo backend, preservando a mensagem da falha original.
+  async function recarregarAposFalha(falha) {
+    const mensagem = extrairMensagemErro(falha)
+    await carregar().catch(() => {})
+    erro.value = mensagem
   }
 
   function limparLocal() {
@@ -232,7 +240,7 @@ export const useFavoritosStore = defineStore('favoritos', () => {
   }
 })
 
-function extrairMensagemErro(error) {
+export function extrairMensagemErro(error) {
   if (error?.data?.detail) return error.data.detail
 
   const primeiroCampo = error?.data && Object.keys(error.data)[0]

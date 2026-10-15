@@ -5,27 +5,89 @@
 }
 
 :root {
-  --green:        #2E8B57;
-  --green-dark:   #1e6b40;
-  --green-light:  #E8F5E9;
-  --green-mid:    #c8e6c9;
-  --green-text:   #1b5e35;
-  --tag-bg:       #a5d6a7;
-  --tag-text:     #1b5e35;
-  --white:        #ffffff;
-  --gray:         #6b7280;
-  --gray-light:   #f3f4f6;
-  --border:       #d1e7d8;
-  --star:         #f59e0b;
-  --danger:       #dc2626;
-  --font:         'Segoe UI', system-ui, -apple-system, sans-serif;
+  /* Paleta do guia visual (protótipo convertido de oklch para hex) */
+  --cor-fundo:             #fbf6ec;
+  --cor-superficie:        #fffdf9;
+  --cor-texto:             #2c1e13;
+  --cor-texto-secundario:  #706052;
+  --cor-primaria:          #225a31;
+  --cor-primaria-hover:    #134924;
+  --cor-primaria-texto:    #fbf8f1;
+  --cor-apoio:             #f2ebd9;
+  --cor-apoio-texto:       #1a3520;
+  --cor-neutra:            #eee7d9;
+  --cor-destaque:          #ea6f2f; /* somente elementos gráficos (estrelas, coração) */
+  --cor-destaque-forte:    #bd4600; /* badges com texto: contraste 5,2:1 com branco */
+  --cor-borda:             #e2dacc;
+  --cor-foco:              #488055;
+  --cor-hero-fim:          #54803a;
+  --danger:                #dc2626;
+
+  /* Selos de status do pedido: texto escuro sobre tom claro (contraste entre 6,6:1 e 7,6:1) */
+  --status-pendente-fundo:  #fcefd2;
+  --status-pendente-texto:  #7a4500;
+  --status-preparo-fundo:   #e2ecf8;
+  --status-preparo-texto:   #1d4f87;
+  --status-pronto-fundo:    #dcefed;
+  --status-pronto-texto:    #0f5249;
+  --status-entregue-fundo:  #e1f0e3;
+  --status-entregue-texto:  #1f5a2e;
+  --status-cancelado-fundo: #fbe3df;
+  --status-cancelado-texto: #9a1f17;
+
+  --fonte-titulo: 'Fraunces', Georgia, 'Times New Roman', serif;
+  --fonte-texto:  'DM Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --sombra-suave:   0 2px 10px -4px rgba(44, 30, 19, 0.18);
+  --sombra-elevada: 0 18px 40px -16px rgba(34, 90, 49, 0.4);
+
+  /* Legado: aliases para telas que ainda usam os nomes antigos */
+  --green:       var(--cor-primaria);
+  --green-dark:  var(--cor-primaria);
+  --green-light: var(--cor-fundo);
+  --green-mid:   var(--cor-apoio);
+  --green-text:  var(--cor-texto);
+  --tag-bg:      var(--cor-apoio);
+  --tag-text:    var(--cor-apoio-texto);
+  --white:       var(--cor-superficie);
+  --gray:        var(--cor-texto-secundario);
+  --gray-light:  var(--cor-neutra);
+  --border:      var(--cor-borda);
+  --star:        var(--cor-destaque);
+  --font:        var(--fonte-texto);
+
+  /* Bootstrap */
+  --bs-body-font-family:      var(--fonte-texto);
+  --bs-body-bg:               var(--cor-fundo);
+  --bs-body-bg-rgb:           251, 246, 236;
+  --bs-body-color:            var(--cor-texto);
+  --bs-body-color-rgb:        44, 30, 19;
+  --bs-secondary-color:       var(--cor-texto-secundario);
+  --bs-secondary-bg:          var(--cor-neutra);
+  --bs-tertiary-bg:           var(--cor-apoio);
+  --bs-border-color:          var(--cor-borda);
+  --bs-primary:               #225a31;
+  --bs-primary-rgb:           34, 90, 49;
+  --bs-link-color:            var(--cor-primaria);
+  --bs-link-color-rgb:        34, 90, 49;
+  --bs-link-hover-color:      var(--cor-primaria-hover);
+  --bs-link-hover-color-rgb:  19, 73, 36;
+  --bs-focus-ring-color:      rgba(72, 128, 85, 0.35);
+  --bs-border-radius:         0.625rem;
+  --bs-border-radius-lg:      0.75rem;
+  --bs-border-radius-xl:      1.25rem; /* rounded-4: cards */
+  --bs-border-radius-xxl:     1.5rem;  /* rounded-5: painéis de destaque */
 }
 
 body {
-  font-family: var(--font);
-  background: var(--green-light);
-  color: var(--green-text);
+  font-family: var(--fonte-texto);
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
   min-height: 100vh;
+}
+
+h1, h2, h3, .fonte-titulo {
+  font-family: var(--fonte-titulo);
 }
 
 a {
@@ -33,11 +95,222 @@ a {
   text-decoration: none;
 }
 
+a:focus-visible {
+  outline: 2px solid var(--cor-foco);
+  outline-offset: 2px;
+}
+
 button {
-  font-family: var(--font);
+  font-family: var(--fonte-texto);
   cursor: pointer;
 }
 
 input, select {
-  font-family: var(--font);
+  font-family: var(--fonte-texto);
+}
+
+/* ── Componentes Bootstrap no tema do projeto ───────────────────────────────
+   .btn-success e .btn-outline-success seguem a primária por compatibilidade
+   com telas antigas; novas telas usam .btn-primary. */
+.btn-primary,
+.btn-success {
+  --bs-btn-color: var(--cor-primaria-texto);
+  --bs-btn-bg: var(--cor-primaria);
+  --bs-btn-border-color: var(--cor-primaria);
+  --bs-btn-hover-color: var(--cor-primaria-texto);
+  --bs-btn-hover-bg: var(--cor-primaria-hover);
+  --bs-btn-hover-border-color: var(--cor-primaria-hover);
+  --bs-btn-focus-shadow-rgb: 72, 128, 85;
+  --bs-btn-active-color: var(--cor-primaria-texto);
+  --bs-btn-active-bg: var(--cor-primaria-hover);
+  --bs-btn-active-border-color: var(--cor-primaria-hover);
+  --bs-btn-disabled-color: var(--cor-primaria-texto);
+  --bs-btn-disabled-bg: var(--cor-primaria);
+  --bs-btn-disabled-border-color: var(--cor-primaria);
+}
+
+.btn-outline-primary,
+.btn-outline-success {
+  --bs-btn-color: var(--cor-primaria);
+  --bs-btn-border-color: var(--cor-primaria);
+  --bs-btn-hover-color: var(--cor-primaria-texto);
+  --bs-btn-hover-bg: var(--cor-primaria);
+  --bs-btn-hover-border-color: var(--cor-primaria);
+  --bs-btn-focus-shadow-rgb: 72, 128, 85;
+  --bs-btn-active-color: var(--cor-primaria-texto);
+  --bs-btn-active-bg: var(--cor-primaria-hover);
+  --bs-btn-active-border-color: var(--cor-primaria-hover);
+  --bs-btn-disabled-color: var(--cor-primaria);
+  --bs-btn-disabled-bg: transparent;
+  --bs-btn-disabled-border-color: var(--cor-primaria);
+}
+
+.btn-outline-secondary {
+  --bs-btn-color: var(--cor-texto);
+  --bs-btn-border-color: var(--cor-borda);
+  --bs-btn-hover-color: var(--cor-texto);
+  --bs-btn-hover-bg: var(--cor-apoio);
+  --bs-btn-hover-border-color: var(--cor-borda);
+  --bs-btn-focus-shadow-rgb: 72, 128, 85;
+  --bs-btn-active-color: var(--cor-texto);
+  --bs-btn-active-bg: var(--cor-apoio);
+  --bs-btn-active-border-color: var(--cor-borda);
+  --bs-btn-disabled-color: var(--cor-texto-secundario);
+  --bs-btn-disabled-bg: transparent;
+  --bs-btn-disabled-border-color: var(--cor-borda);
+}
+
+.form-control,
+.form-select {
+  background-color: var(--cor-superficie);
+}
+
+.form-control:focus,
+.form-select:focus,
+.form-check-input:focus {
+  border-color: var(--cor-foco);
+  box-shadow: 0 0 0 0.25rem rgba(72, 128, 85, 0.25);
+}
+
+.form-check-input:checked {
+  background-color: var(--cor-primaria);
+  border-color: var(--cor-primaria);
+}
+
+.form-range::-webkit-slider-thumb {
+  background-color: var(--cor-primaria);
+}
+.form-range::-moz-range-thumb {
+  background-color: var(--cor-primaria);
+}
+/* Seletores de navegadores diferentes ficam separados: uma lista com pseudo-elemento desconhecido é descartada */
+.form-range::-webkit-slider-thumb:active {
+  background-color: var(--cor-primaria-hover);
+}
+.form-range::-moz-range-thumb:active {
+  background-color: var(--cor-primaria-hover);
+}
+.form-range:focus::-webkit-slider-thumb {
+  box-shadow: 0 0 0 1px var(--cor-fundo), 0 0 0 0.25rem rgba(72, 128, 85, 0.25);
+}
+.form-range:focus::-moz-range-thumb {
+  box-shadow: 0 0 0 1px var(--cor-fundo), 0 0 0 0.25rem rgba(72, 128, 85, 0.25);
+}
+
+.card {
+  --bs-card-bg: var(--cor-superficie);
+  --bs-card-border-color: var(--cor-borda);
+}
+
+.offcanvas {
+  --bs-offcanvas-bg: var(--cor-fundo);
+  --bs-offcanvas-border-color: var(--cor-borda);
+}
+
+.modal {
+  --bs-modal-bg: var(--cor-superficie);
+  --bs-modal-border-color: var(--cor-borda);
+  --bs-modal-header-border-color: var(--cor-borda);
+  --bs-modal-footer-border-color: var(--cor-borda);
+}
+
+.nav-underline {
+  --bs-nav-link-color: var(--cor-texto-secundario);
+  --bs-nav-link-hover-color: var(--cor-texto);
+  --bs-nav-underline-link-active-color: var(--cor-primaria);
+}
+
+.dropdown-menu {
+  --bs-dropdown-bg: var(--cor-superficie);
+  --bs-dropdown-border-color: var(--cor-borda);
+  --bs-dropdown-link-color: var(--cor-texto);
+  --bs-dropdown-link-hover-color: var(--cor-texto);
+  --bs-dropdown-link-active-color: var(--cor-primaria-texto);
+  --bs-dropdown-link-active-bg: var(--cor-primaria);
+}
+
+.pagination {
+  --bs-pagination-color: var(--cor-texto);
+  --bs-pagination-bg: var(--cor-superficie);
+  --bs-pagination-border-color: var(--cor-borda);
+  --bs-pagination-hover-color: var(--cor-texto);
+  --bs-pagination-hover-bg: var(--cor-apoio);
+  --bs-pagination-hover-border-color: var(--cor-borda);
+  --bs-pagination-focus-color: var(--cor-texto);
+  --bs-pagination-focus-bg: var(--cor-apoio);
+  --bs-pagination-focus-box-shadow: 0 0 0 0.25rem rgba(72, 128, 85, 0.25);
+  --bs-pagination-active-color: var(--cor-primaria-texto);
+  --bs-pagination-active-bg: var(--cor-primaria);
+  --bs-pagination-active-border-color: var(--cor-primaria);
+  --bs-pagination-disabled-color: var(--cor-texto-secundario);
+  --bs-pagination-disabled-bg: var(--cor-neutra);
+  --bs-pagination-disabled-border-color: var(--cor-borda);
+}
+
+/* ── Utilitários do projeto ─────────────────────────────────────────────── */
+.app-container {
+  max-width: 72rem;
+}
+
+.sombra-suave {
+  box-shadow: var(--sombra-suave);
+}
+
+.bg-apoio {
+  background-color: var(--cor-apoio);
+}
+
+/* Banner e painel de login: único uso permitido de gradiente */
+.fundo-destaque {
+  background: linear-gradient(135deg, var(--cor-primaria), var(--cor-hero-fim));
+  color: var(--cor-primaria-texto);
+}
+
+.badge-destaque {
+  background-color: var(--cor-destaque-forte);
+  color: #fff;
+}
+
+/* Ícone dos estados vazios e de acesso (carrinho, favoritos) */
+.icone-estado {
+  width: 5rem;
+  height: 5rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background-color: var(--cor-apoio);
+  color: var(--cor-primaria);
+}
+
+/* Selo de status (pedidos, produtos e loja): sempre com texto, a cor só reforça */
+.selo-status {
+  --selo-fundo: var(--cor-neutra);
+  --selo-texto: var(--cor-texto-secundario);
+  background-color: var(--selo-fundo);
+  color: var(--selo-texto);
+  font-weight: 600;
+  padding: 0.35em 0.75em;
+}
+.selo-pendente  { --selo-fundo: var(--status-pendente-fundo);  --selo-texto: var(--status-pendente-texto); }
+.selo-preparo   { --selo-fundo: var(--status-preparo-fundo);   --selo-texto: var(--status-preparo-texto); }
+.selo-pronto    { --selo-fundo: var(--status-pronto-fundo);    --selo-texto: var(--status-pronto-texto); }
+.selo-entregue  { --selo-fundo: var(--status-entregue-fundo);  --selo-texto: var(--status-entregue-texto); }
+.selo-cancelado { --selo-fundo: var(--status-cancelado-fundo); --selo-texto: var(--status-cancelado-texto); }
+
+/* Cartões de indicadores (área do produtor) */
+.cartao-indicador {
+  background-color: var(--cor-superficie);
+  border: 1px solid var(--cor-borda);
+}
+
+/* Área sem foto (produto sem imagem, slide ilustrativo, miniatura do carrinho) */
+.imagem-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  background-color: var(--cor-neutra);
+  color: var(--cor-texto-secundario);
 }

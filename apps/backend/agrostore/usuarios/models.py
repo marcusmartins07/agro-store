@@ -1,7 +1,13 @@
+from django.core.validators import FileExtensionValidator
 from django.db import models
 from django.contrib.auth.models import AbstractBaseUser, PermissionsMixin, BaseUserManager
 from datetime import date
+from agrostore.main.imagens import EXTENSOES_IMAGEM, nome_arquivo_aleatorio
 from agrostore.main.models import BaseModel
+
+
+def caminho_foto_usuario(usuario, nome_arquivo):
+    return nome_arquivo_aleatorio('usuarios', nome_arquivo)
 
 
 class UsuarioManager(BaseUserManager):
@@ -40,6 +46,12 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     data_nascimento = models.DateField()
     genero = models.ForeignKey(Genero, on_delete=models.RESTRICT)
     telefone = models.CharField(max_length=11, null=True, blank=True)
+    foto_perfil = models.FileField(
+        upload_to=caminho_foto_usuario,
+        max_length=255,
+        blank=True,
+        validators=[FileExtensionValidator(EXTENSOES_IMAGEM)],
+    )
     is_produtor = models.BooleanField(default=False)
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)

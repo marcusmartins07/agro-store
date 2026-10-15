@@ -1,0 +1,29 @@
+%% Figura 10 - Diagrama de Estados do Pedido
+%% Conferido em: pedidos/views.py (STATUS_TRANSICOES, atualizar_status, cancelar, _atualizar_status_pedido).
+%% RN-004 (cliente), RN-005 (produtor), RN-006 (transições) e RN-007 (devolução do estoque).
+stateDiagram-v2
+    state "Pendente" as Pendente
+    state "Em preparo" as EmPreparo
+    state "Pronto para retirada" as Pronto
+    state "Entregue" as Entregue
+    state "Cancelado" as Cancelado
+
+    [*] --> Pendente : checkout gera um pedido por loja
+    Pendente --> EmPreparo : produtor
+    EmPreparo --> Pronto : produtor
+    Pronto --> Entregue : produtor, na retirada
+    Pendente --> Cancelado : cliente ou produtor
+    EmPreparo --> Cancelado : produtor
+    Entregue --> [*]
+    Cancelado --> [*]
+
+    note right of Cancelado
+        Ao cancelar, o estoque de cada item
+        é devolvido uma única vez, pois
+        Cancelado é um estado final.
+    end note
+
+    note left of Pronto
+        Não há retorno de status.
+        A retirada é presencial na feira.
+    end note

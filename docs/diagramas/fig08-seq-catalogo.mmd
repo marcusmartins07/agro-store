@@ -1,0 +1,31 @@
+%% Figura 8 - Diagrama de Sequência V - Consulta do Catálogo de Produtos
+%% Conferido em: produtos/views.py (ProdutoViewSet.get_queryset), produtos/serializers.py (ProdutoSerializer)
+%% e frontend components/ProductCard.vue. Regra de disponibilidade da RN-017.
+sequenceDiagram
+    autonumber
+    actor V as Visitante ou Cliente
+    participant F as Frontend
+    participant A as API/Backend
+    participant B as Banco de dados
+
+    V->>F: Abre o catálogo
+    F->>A: GET /api/v1/produtos/ (filtro de categoria opcional)
+    Note over A: Recurso público, sem autenticação
+    A->>B: Busca produtos ativos, de loja ativa e com estoque maior que zero, com preços e imagens
+    B-->>A: Produtos encontrados
+    A->>A: Monta preço atual, preço original, desconto e a URL da imagem principal
+    A-->>F: 200 com a lista do catálogo
+    F-->>V: Exibe os cards com a imagem principal (ou Sem foto)
+
+    opt Acesso ao detalhe pelo link direto
+        V->>F: Abre a página de um produto
+        F->>A: GET /api/v1/produtos/{id}/
+        A->>B: Busca o produto ativo, de loja ativa, inclusive com estoque zero
+        B-->>A: Produto com todas as imagens
+        A-->>F: 200 com o produto
+        alt Estoque igual a zero
+            F-->>V: Exibe Sem estoque e bloqueia a compra
+        else Estoque disponível
+            F-->>V: Exibe a galeria e permite adicionar ao carrinho
+        end
+    end

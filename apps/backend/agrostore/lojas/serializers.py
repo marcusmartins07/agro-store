@@ -17,7 +17,9 @@ class LojaSerializer(serializers.ModelSerializer):
             'imagem_perfil',
             'ativa',
         ]
-        read_only_fields = ['proprietario']  # sempre vem do usuário logado
+        # proprietario sempre vem do usuário logado. imagem_perfil fica somente leitura provisoriamente,
+        # até a BE-018 trazer a validação da RN-018 (5 MB e conteúdo) e a checagem do dono da loja.
+        read_only_fields = ['proprietario', 'imagem_perfil']
 
     def validate(self, data):
         usuario = self.context['request'].user

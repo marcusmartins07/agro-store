@@ -1,0 +1,66 @@
+%% Figura 3 - Diagrama de Casos de Uso (aproximação em Mermaid)
+%% O Mermaid não possui diagrama de casos de uso UML: atores são retângulos, casos de uso são elipses
+%% e a generalização entre atores é representada por seta tracejada com o rótulo "herda".
+%% Casos tracejados em cinza estão fora do MVP (RN-009 pendente).
+flowchart LR
+    VI["Visitante"]:::ator
+    CL["Cliente"]:::ator
+    PR["Produtor"]:::ator
+    AD["Administrador"]:::ator
+
+    PR -. herda .-> CL
+
+    subgraph SIS["Agro Store"]
+        direction TB
+        UC01(["Visualizar catálogo e produto"])
+        UC02(["Consultar avaliações do produto"])
+        UC03(["Cadastrar-se como cliente"])
+        UC04(["Efetuar login"])
+        UC05(["Editar perfil"])
+        UC06(["Gerenciar carrinho"])
+        UC07(["Realizar pedido"])
+        UC08(["Acompanhar pedidos"])
+        UC09(["Cancelar pedido pendente"])
+        UC10(["Favoritar produto"])
+        UC11(["Avaliar item entregue"])
+        UC12(["Cadastrar loja (uma por produtor)"])
+        UC13(["Gerenciar loja"])
+        UC14(["Gerenciar produtos, preços e imagens"])
+        UC15(["Sugerir categoria"])
+        UC16(["Atualizar status do pedido"])
+        UC17(["Cancelar pedido da loja"])
+        UC18(["Ativar ou renomear categoria"])
+        UC19(["Moderar avaliações"])
+        UC20(["Solicitar habilitação e criação de loja"]):::foraMVP
+        UC21(["Aprovar produtor e loja"]):::foraMVP
+    end
+
+    VI --- UC01
+    VI --- UC02
+    VI --- UC03
+
+    CL --- UC01
+    CL --- UC04
+    CL --- UC05
+    CL --- UC06
+    CL --- UC07
+    CL --- UC08
+    CL --- UC09
+    CL --- UC10
+    CL --- UC11
+    CL -.- UC20
+
+    PR --- UC12
+    PR --- UC13
+    PR --- UC14
+    PR --- UC15
+    PR --- UC16
+    PR --- UC17
+
+    AD --- UC04
+    AD --- UC18
+    AD --- UC19
+    AD -.- UC21
+
+    classDef ator fill:#ffffff,stroke:#333333,stroke-width:2px
+    classDef foraMVP fill:#f2f2f2,stroke:#999999,stroke-dasharray:5 5,color:#666666

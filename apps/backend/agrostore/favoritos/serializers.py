@@ -6,13 +6,10 @@ from .models import Favorito
 
 
 class ProdutoFavoritoSerializer(ProdutoSerializer):
-    disponivel = serializers.SerializerMethodField()
+    disponivel = serializers.BooleanField(source='disponivel_para_compra', read_only=True)
 
     class Meta(ProdutoSerializer.Meta):
         fields = ProdutoSerializer.Meta.fields + ['disponivel']
-
-    def get_disponivel(self, produto):
-        return produto.ativo and produto.loja.ativa and produto.estoque > 0
 
 
 class FavoritoSerializer(serializers.ModelSerializer):

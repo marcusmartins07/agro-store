@@ -1,0 +1,185 @@
+%% Figura 2 - Modelo Lógico do Banco de Dados (Agro Store)
+%% Fonte da verdade: models do Django em apps/backend/agrostore/*/models.py (estado implementado, após a DB-010).
+%% Nomes de colunas seguem os models. docs/modelo-logico.sql é o modelo-alvo (PostgreSQL) e usa nomes em português
+%% (id_usuario, e_produtor, esta_ativa...). As divergências de on_delete e de restrições estão anotadas em cada tabela.
+%% Todas as tabelas, exceto USUARIO, GENERO e STATUS_PEDIDO, herdam data_criacao e data_atualizacao (BaseModel).
+erDiagram
+    GENERO ||--o{ USUARIO : classifica
+    USUARIO ||--o{ LOJA : "é proprietário de"
+    LOJA ||--o{ PRODUTO : oferece
+    CATEGORIA ||--o{ PRODUTO : classifica
+    PRODUTO ||--o{ PRECO_PRODUTO : "tem histórico de"
+    PRODUTO ||--o{ IMAGEM_PRODUTO : "possui (0 a 5)"
+    USUARIO ||--o{ CARRINHO : possui
+    LOJA ||--o{ CARRINHO : agrupa
+    CARRINHO ||--o{ CARRINHO_PRODUTO : contem
+    PRODUTO ||--o{ CARRINHO_PRODUTO : "está em"
+    LOJA ||--o{ PEDIDO : recebe
+    STATUS_PEDIDO ||--o{ PEDIDO : define
+    PEDIDO ||--|| PEDIDO_CLIENTE : "preserva o cliente em"
+    USUARIO ||--o{ PEDIDO_CLIENTE : realiza
+    PEDIDO ||--|{ PEDIDO_PRODUTO : contem
+    PRODUTO ||--o{ PEDIDO_PRODUTO : "vendido em"
+    USUARIO ||--o{ FAVORITO : marca
+    PRODUTO ||--o{ FAVORITO : "favoritado em"
+    USUARIO ||--o{ AVALIACAO : escreve
+    PRODUTO ||--o{ AVALIACAO : recebe
+    PEDIDO_PRODUTO ||--o| AVALIACAO : "avaliado por"
+
+    %% USUARIO ||--o{ LOJA: o model não tem UNIQUE em proprietario; a regra de uma loja por produtor (RN-013)
+    %% é validada na API. O modelo-alvo tem uq_loja_proprietario e ON DELETE RESTRICT (o model usa CASCADE).
+    %% PEDIDO ||--|| PEDIDO_CLIENTE: o OneToOne garante no máximo um snapshot por pedido; a API cria o pedido
+    %% e o snapshot na mesma transação. PEDIDO ||--|{ PEDIDO_PRODUTO: a API só cria pedido com ao menos um item.
+
+    GENERO {
+        varchar(2) id_genero PK
+        varchar(55) genero UK
+    }
+
+    USUARIO {
+        int id PK
+        varchar(150) nome
+        varchar(11) cpf UK "somente dígitos"
+        varchar(254) email UK
+        date data_nascimento
+        varchar(2) genero_id FK
+        varchar(11) telefone "celular, somente dígitos"
+        varchar(255) foto_perfil "opcional"
+        varchar(128) password "hash"
+        datetime last_login
+        boolean is_produtor
+        boolean is_active
+        boolean is_staff
+        boolean is_superuser
+    }
+
+    LOJA {
+        int loja_id PK
+        int proprietario_id FK
+        varchar(150) nome
+        text descricao
+        varchar(14) cnpj UK
+        varchar(255) imagem_perfil "opcional"
+        boolean ativa
+    }
+
+    CATEGORIA {
+        int categoria_id PK
+        varchar(100) nome UK
+        boolean ativo
+    }
+
+    PRODUTO {
+        int produto_id PK
+        int loja_id FK
+        int categoria_id FK
+        varchar(155) nome
+        text descricao
+        varchar(13) codigo_barras
+        int estoque "não negativo, validado na API"
+        varchar(50) sku UK "gerado: loja, categoria, produto"
+        boolean ativo
+        varchar(100) imagem "legado, sem uso na API"
+    }
+    %% PRODUTO: o modelo-alvo tem CHECK (estoque >= 0), sku NOT NULL e ON DELETE RESTRICT para loja;
+    %% o model usa CASCADE para loja e PROTECT para categoria. A trava de estoque no banco está pendente.
+
+    PRECO_PRODUTO {
+        int id PK
+        int produto_id FK
+        decimal preco_venda
+        decimal preco_custo
+        decimal preco_desconto
+        int porcentagem_desconto "0 a 100"
+        datetime vigencia_inicio
+        datetime vigencia_fim "nulo = preço vigente"
+    }
+    %% PRECO_PRODUTO: model com CASCADE; modelo-alvo com ON DELETE RESTRICT.
+
+    IMAGEM_PRODUTO {
+        int id PK
+        int produto_id FK
+        varchar(100) imagem "nome aleatório no storage"
+        smallint ordem
+        boolean e_principal "no máximo uma por produto"
+    }
+    %% IMAGEM_PRODUTO: restrição única condicional imagem_principal_unica_por_produto
+    %% (UNIQUE produto_id WHERE e_principal = true). Ao excluir a principal, a API promove a próxima pela ordem.
+    %% O limite de 5 imagens é validado na API. O modelo-alvo chama a tabela de imagem, tem UNIQUE (id_produto, ordem)
+    %% e ainda não declara a restrição da imagem principal.
+
+    CARRINHO {
+        int carrinho_id PK
+        int usuario_id FK
+        int loja_id FK
+        decimal valor_bruto
+        decimal valor_desconto
+        decimal valor_liquido
+    }
+    %% CARRINHO: UNIQUE (usuario_id, loja_id) - um carrinho por cliente e loja (decisão v1).
+
+    CARRINHO_PRODUTO {
+        int carrinho_produto_id PK
+        int carrinho_id FK
+        int produto_id FK
+        int quantidade "0 indica Sem estoque (RN-017)"
+    }
+    %% CARRINHO_PRODUTO: UNIQUE (carrinho_id, produto_id). O modelo-alvo tem CHECK (quantidade > 0),
+    %% incompatível com a RN-017, que mantém o item com quantidade 0.
+
+    STATUS_PEDIDO {
+        int status_pedido_id PK
+        varchar(55) status UK
+    }
+
+    PEDIDO {
+        int pedido_id PK
+        int loja_id FK
+        int status_id FK
+        decimal valor_bruto
+        decimal valor_desconto
+        decimal valor_liquido
+    }
+    %% PEDIDO: sem FK de cliente (DB-010). loja e status com PROTECT, iguais ao RESTRICT do modelo-alvo.
+
+    PEDIDO_CLIENTE {
+        int pedido_cliente_id PK
+        int pedido_id FK, UK
+        int usuario_id FK "obrigatória"
+        varchar(150) nome
+        varchar(11) cpf
+        varchar(254) email
+        varchar(11) telefone
+        date data_nascimento
+        varchar(55) genero
+    }
+    %% PEDIDO_CLIENTE: snapshot do cliente no momento da compra. usuario com PROTECT (RESTRICT no modelo-alvo).
+
+    PEDIDO_PRODUTO {
+        int pedido_produto_id PK
+        int pedido_id FK
+        int produto_id FK
+        varchar(155) nome_produto "snapshot"
+        int quantidade
+        decimal valor_unitario
+        decimal valor_desconto
+        decimal subtotal
+    }
+    %% PEDIDO_PRODUTO: o model usa CASCADE e produto obrigatório; o modelo-alvo usa produto nulo com ON DELETE SET NULL.
+
+    FAVORITO {
+        int favorito_id PK
+        int usuario_id FK
+        int produto_id FK
+    }
+    %% FAVORITO: UNIQUE (usuario_id, produto_id).
+
+    AVALIACAO {
+        int avaliacao_id PK
+        int usuario_id FK
+        int produto_id FK
+        int pedido_produto_id FK, UK "uma por item"
+        int nota "1 a 5"
+        text comentario "até 500, validado na API"
+    }
+    %% AVALIACAO: o model usa CASCADE nas três FKs; o modelo-alvo usa ON DELETE RESTRICT.

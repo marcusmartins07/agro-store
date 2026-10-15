@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Produto, PrecoProduto, Categoria
+from .models import Produto, PrecoProduto, Categoria, ImagemProduto
 
 
 TAMANHO_MAXIMO_IMAGEM_PRODUTO = 5 * 1024 * 1024
@@ -52,12 +52,36 @@ class PrecoProdutoSerializer(serializers.ModelSerializer):
         return valor
 
 
+class ImagemProdutoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ImagemProduto
+        fields = ['id', 'imagem', 'ordem', 'e_principal']
+        read_only_fields = ['ordem']
+
+    def validate_imagem(self, imagem):
+        if self.instance is not None:
+            raise serializers.ValidationError('Para trocar a imagem, exclua esta e envie uma nova.')
+        if imagem.size > TAMANHO_MAXIMO_IMAGEM_PRODUTO:
+            raise serializers.ValidationError('A imagem deve ter no máximo 5 MB.')
+        if not arquivo_e_imagem(imagem):
+            raise serializers.ValidationError('Envie uma imagem JPG, PNG ou WEBP válida.')
+        return imagem
+
+    def validate_e_principal(self, e_principal):
+        if self.instance is not None and self.instance.e_principal and not e_principal:
+            raise serializers.ValidationError('Defina outra imagem como principal para desmarcar esta.')
+        return e_principal
+
+
 class ProdutoSerializer(serializers.ModelSerializer):
     categoria_nome = serializers.StringRelatedField(source='categoria', read_only=True)
     loja_nome = serializers.StringRelatedField(source='loja', read_only=True)  # ← novo
     preco = serializers.SerializerMethodField()
     preco_original = serializers.SerializerMethodField()
     desconto = serializers.SerializerMethodField()
+    imagem = serializers.SerializerMethodField()
+    imagens = ImagemProdutoSerializer(many=True, read_only=True)
+    estoque_baixo = serializers.ReadOnlyField()
 
     class Meta:
         model = Produto
@@ -71,29 +95,29 @@ class ProdutoSerializer(serializers.ModelSerializer):
             'categoria_nome', # leitura
             'codigo_barras',
             'estoque',
+            'estoque_baixo',  # leitura: estoque de 1 a Produto.LIMITE_ESTOQUE_BAIXO
             'sku',
             'ativo',
             'preco',
             'preco_original',
             'desconto',
-            'imagem',
+            'imagem',         # leitura: URL da imagem principal
+            'imagens',        # leitura: gerenciadas em /produtos/{id}/imagens/
         ]
         read_only_fields = ['loja', 'sku']
 
-    def validate_imagem(self, imagem):
-        if imagem.size > TAMANHO_MAXIMO_IMAGEM_PRODUTO:
-            raise serializers.ValidationError('A imagem deve ter no máximo 5 MB.')
-        if not arquivo_e_imagem(imagem):
-            raise serializers.ValidationError('Envie uma imagem JPG, PNG ou WEBP válida.')
-        return imagem
+    def get_imagem(self, obj):
+        principal = next((imagem for imagem in obj.imagens.all() if imagem.e_principal), None)
+        if principal is None:
+            return None
+        url = principal.imagem.url
+        request = self.context.get('request')
+        return request.build_absolute_uri(url) if request else url
 
-    def update(self, instance, validated_data):
-        imagem_anterior = instance.imagem.name if 'imagem' in validated_data else ''
-        produto = super().update(instance, validated_data)
-
-        if imagem_anterior and imagem_anterior != produto.imagem.name:
-            produto.imagem.storage.delete(imagem_anterior)
-        return produto
+    def validate_estoque(self, estoque):
+        if estoque < 0:
+            raise serializers.ValidationError('O estoque não pode ser negativo.')
+        return estoque
 
     def validate(self, attrs):
         categoria = attrs.get('categoria')

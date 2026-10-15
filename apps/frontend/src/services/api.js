@@ -56,14 +56,25 @@ const jsonBody = (body) => JSON.stringify(body)
 export const api = {
   produtos: {
     listar: () => request('/produtos/'),
+    obter: (produtoId) => request(`/produtos/${produtoId}/`),
     listarMeus: () => request('/produtos/meus/'),
     criar: (body) => request('/produtos/', { method: 'POST', body: jsonBody(body) }),
     atualizar: (produtoId, body) => request(`/produtos/${produtoId}/`, { method: 'PATCH', body: jsonBody(body) }),
-    enviarImagem: (produtoId, arquivo) => {
+    enviarImagem: (produtoId, arquivo, ePrincipal = false) => {
       const formData = new FormData()
       formData.append('imagem', arquivo)
-      return request(`/produtos/${produtoId}/`, { method: 'PATCH', body: formData })
+      if (ePrincipal) formData.append('e_principal', 'true')
+      return request(`/produtos/${produtoId}/imagens/`, { method: 'POST', body: formData })
     },
+    definirImagemPrincipal: (produtoId, imagemId) => request(`/produtos/${produtoId}/imagens/${imagemId}/`, {
+      method: 'PATCH',
+      body: jsonBody({ e_principal: true }),
+    }),
+    removerImagem: (produtoId, imagemId) => request(`/produtos/${produtoId}/imagens/${imagemId}/`, { method: 'DELETE' }),
+    reordenarImagens: (produtoId, imagemIds) => request(`/produtos/${produtoId}/imagens/reordenar/`, {
+      method: 'POST',
+      body: jsonBody({ imagens: imagemIds }),
+    }),
     criarPreco: (body) => request('/produtos/precos/', { method: 'POST', body: jsonBody(body) }),
   },
   categorias: {
@@ -75,7 +86,8 @@ export const api = {
     refresh: (refresh) => request('/usuarios/token/refresh/', { method: 'POST', body: jsonBody({ refresh }) }, false),
   },
   usuarios: {
-    me: () => request('/usuarios/me'),
+    me: () => request('/usuarios/me/'),
+    atualizar: (body) => request('/usuarios/me/', { method: 'PATCH', body: jsonBody(body) }),
   },
   lojas: {
     criar: (body) => request('/lojas/lojas/', { method: 'POST', body: jsonBody(body) }),
@@ -93,6 +105,10 @@ export const api = {
       body: jsonBody({ quantidade }),
     }),
     removerItem: (itemId) => request(`/carrinhos/itens/${itemId}/`, { method: 'DELETE' }),
+  },
+  avaliacoes: {
+    listarPorProduto: (produtoId) => request(`/avaliacoes/?produto=${encodeURIComponent(produtoId)}`),
+    criar: (body) => request('/avaliacoes/', { method: 'POST', body: jsonBody(body) }),
   },
   favoritos: {
     listar: () => request('/favoritos/'),
