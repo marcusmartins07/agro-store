@@ -11,6 +11,8 @@ class CarrinhoProdutoSerializer(serializers.ModelSerializer):
     valor_unitario = serializers.ReadOnlyField()
     valor_desconto = serializers.ReadOnlyField()
     subtotal = serializers.ReadOnlyField()
+    estoque = serializers.IntegerField(source='produto.estoque', read_only=True)
+    disponivel = serializers.BooleanField(source='produto.disponivel_para_compra', read_only=True)
 
     class Meta:
         model = CarrinhoProduto
@@ -24,6 +26,8 @@ class CarrinhoProdutoSerializer(serializers.ModelSerializer):
             'valor_unitario',
             'valor_desconto',
             'quantidade',
+            'estoque',
+            'disponivel',
             'subtotal',
         ]
         read_only_fields = ['carrinho']

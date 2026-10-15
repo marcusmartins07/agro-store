@@ -21,7 +21,7 @@ class CarrinhoViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return Carrinho.objects.filter(
             usuario=self.request.user
-        ).select_related('loja').prefetch_related('itens__produto__precos')
+        ).select_related('loja').prefetch_related('itens__produto__precos', 'itens__produto__loja')
 
     def get_serializer_class(self):
         if self.action == 'create':

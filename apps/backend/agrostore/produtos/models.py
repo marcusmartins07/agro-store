@@ -29,6 +29,8 @@ class Categoria(BaseModel):
 
 
 class Produto(BaseModel):
+    LIMITE_ESTOQUE_BAIXO = 5
+
     produto_id = models.AutoField(primary_key=True, default=None)
     loja = models.ForeignKey(Loja, on_delete=models.CASCADE, related_name='produtos')
     nome = models.CharField(max_length=155)
@@ -47,6 +49,14 @@ class Produto(BaseModel):
 
     def __str__(self):
         return self.nome
+
+    @property
+    def estoque_baixo(self):
+        return 0 < self.estoque <= self.LIMITE_ESTOQUE_BAIXO
+
+    @property
+    def disponivel_para_compra(self):
+        return self.ativo and self.loja.ativa and self.estoque > 0
 
     def gerar_sku(self):
         componentes = (

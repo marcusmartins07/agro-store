@@ -103,6 +103,34 @@ class CarrinhoAPITests(APITestCase):
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]['loja'], self.loja.loja_id)
 
+    def test_itens_informam_estoque_e_disponibilidade(self):
+        self.client.post('/api/v1/carrinhos/', {'produto': self.produto.produto_id, 'quantidade': 2}, format='json')
+
+        item = self.client.get('/api/v1/carrinhos/').data[0]['itens'][0]
+        self.assertEqual(item['estoque'], 10)
+        self.assertTrue(item['disponivel'])
+
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=0)
+        item = self.client.get('/api/v1/carrinhos/').data[0]['itens'][0]
+        self.assertEqual(item['estoque'], 0)
+        self.assertFalse(item['disponivel'])
+
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=10)
+        self.loja.ativa = False
+        self.loja.save(update_fields=['ativa'])
+        item = self.client.get('/api/v1/carrinhos/').data[0]['itens'][0]
+        self.assertFalse(item['disponivel'])
+
+    def test_rejeita_atualizar_item_para_quantidade_zero(self):
+        self.client.post('/api/v1/carrinhos/', {'produto': self.produto.produto_id, 'quantidade': 2}, format='json')
+        item = CarrinhoProduto.objects.get()
+
+        response = self.client.patch(f'/api/v1/carrinhos/itens/{item.carrinho_produto_id}/', {'quantidade': 0}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        item.refresh_from_db()
+        self.assertEqual(item.quantidade, 2)
+
     def test_nao_atualiza_item_de_outro_usuario(self):
         carrinho_outro_usuario = Carrinho.objects.create(usuario=self.outro_cliente, loja=self.loja)
         item_outro_usuario = CarrinhoProduto.objects.create(
@@ -133,3 +161,103 @@ class CarrinhoAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
         self.assertTrue(CarrinhoProduto.objects.filter(carrinho_produto_id=item_outro_usuario.carrinho_produto_id).exists())
+
+    def _adicionar_item_com_quantidade(self, quantidade):
+        carrinho = Carrinho.objects.create(usuario=self.cliente, loja=self.loja)
+        item = CarrinhoProduto.objects.create(carrinho=carrinho, produto=self.produto, quantidade=quantidade)
+        carrinho.recalcular_totais()
+        return item
+
+    def _url_item(self, item):
+        return f'/api/v1/carrinhos/itens/{item.carrinho_produto_id}/'
+
+    def test_rejeita_atualizar_item_acima_do_estoque(self):
+        item = self._adicionar_item_com_quantidade(2)
+
+        response = self.client.patch(self._url_item(item), {'quantidade': 11}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        item.refresh_from_db()
+        self.assertEqual(item.quantidade, 2)
+
+    def test_aceita_atualizar_item_ate_o_estoque(self):
+        item = self._adicionar_item_com_quantidade(2)
+
+        response = self.client.patch(self._url_item(item), {'quantidade': 10}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        item.refresh_from_db()
+        self.assertEqual(item.quantidade, 10)
+
+    def test_rejeita_adicionar_produto_sem_estoque(self):
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=0)
+
+        response = self.client.post('/api/v1/carrinhos/', {'produto': self.produto.produto_id, 'quantidade': 1}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(CarrinhoProduto.objects.exists())
+
+    def test_item_zerado_permanece_listado_com_totais_zerados_e_indisponivel(self):
+        item = self._adicionar_item_com_quantidade(0)
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=0)
+
+        response = self.client.get('/api/v1/carrinhos/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        item_resposta = response.data[0]['itens'][0]
+        self.assertEqual(item_resposta['carrinho_produto_id'], item.carrinho_produto_id)
+        self.assertEqual((item_resposta['quantidade'], item_resposta['estoque'], item_resposta['disponivel']), (0, 0, False))
+        self.assertEqual(Decimal(response.data[0]['valor_liquido']), Decimal('0.00'))
+
+    def test_rejeita_subir_item_zerado_enquanto_o_produto_continua_sem_estoque(self):
+        item = self._adicionar_item_com_quantidade(0)
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=0)
+
+        response = self.client.patch(self._url_item(item), {'quantidade': 1}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        item.refresh_from_db()
+        self.assertEqual(item.quantidade, 0)
+
+    def test_cliente_sobe_item_zerado_para_um_depois_da_reposicao_e_totais_voltam(self):
+        item = self._adicionar_item_com_quantidade(0)
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=3)
+
+        response = self.client.patch(self._url_item(item), {'quantidade': 1}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['quantidade'], 1)
+        self.assertTrue(response.data['disponivel'])
+        carrinho = Carrinho.objects.get(pk=item.carrinho_id)
+        self.assertEqual(carrinho.valor_bruto, Decimal('10.00'))
+        self.assertEqual(carrinho.valor_liquido, Decimal('8.00'))
+
+    def test_adicionar_produto_repetido_soma_sobre_item_zerado_apos_reposicao(self):
+        item = self._adicionar_item_com_quantidade(0)
+
+        response = self.client.post('/api/v1/carrinhos/', {'produto': self.produto.produto_id, 'quantidade': 3}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        item.refresh_from_db()
+        self.assertEqual(item.quantidade, 3)
+        self.assertEqual(CarrinhoProduto.objects.count(), 1)
+
+    def test_cliente_remove_item_zerado_e_carrinho_vazio_e_excluido(self):
+        item = self._adicionar_item_com_quantidade(0)
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=0)
+
+        response = self.client.delete(self._url_item(item))
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(CarrinhoProduto.objects.exists())
+        self.assertFalse(Carrinho.objects.filter(usuario=self.cliente).exists())
+
+    def test_item_de_produto_inativo_com_estoque_fica_indisponivel_mas_expoe_estoque(self):
+        self._adicionar_item_com_quantidade(2)
+        Produto.objects.filter(pk=self.produto.pk).update(ativo=False)
+
+        item = self.client.get('/api/v1/carrinhos/').data[0]['itens'][0]
+
+        self.assertEqual(item['estoque'], 10)
+        self.assertFalse(item['disponivel'])

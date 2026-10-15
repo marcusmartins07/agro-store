@@ -81,6 +81,7 @@ class ProdutoSerializer(serializers.ModelSerializer):
     desconto = serializers.SerializerMethodField()
     imagem = serializers.SerializerMethodField()
     imagens = ImagemProdutoSerializer(many=True, read_only=True)
+    estoque_baixo = serializers.ReadOnlyField()
 
     class Meta:
         model = Produto
@@ -94,6 +95,7 @@ class ProdutoSerializer(serializers.ModelSerializer):
             'categoria_nome', # leitura
             'codigo_barras',
             'estoque',
+            'estoque_baixo',  # leitura: estoque de 1 a Produto.LIMITE_ESTOQUE_BAIXO
             'sku',
             'ativo',
             'preco',
@@ -111,6 +113,11 @@ class ProdutoSerializer(serializers.ModelSerializer):
         url = principal.imagem.url
         request = self.context.get('request')
         return request.build_absolute_uri(url) if request else url
+
+    def validate_estoque(self, estoque):
+        if estoque < 0:
+            raise serializers.ValidationError('O estoque não pode ser negativo.')
+        return estoque
 
     def validate(self, attrs):
         categoria = attrs.get('categoria')

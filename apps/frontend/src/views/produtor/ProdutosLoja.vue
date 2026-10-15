@@ -22,6 +22,8 @@
       </div>
     </div>
 
+    <div v-if="avisoEstoque" class="alert alert-warning mb-3">{{ avisoEstoque }}</div>
+
     <div v-if="produtorStore.produtos.length === 0" class="card rounded-4 text-center py-5">
       <div class="card-body">
         <span class="icone-estado mb-3"><IconeSvg nome="pacote" :tamanho="32" /></span>
@@ -68,8 +70,13 @@
               </td>
               <td class="d-none d-lg-table-cell">{{ produto.categoria_nome }}</td>
               <td class="text-center">
-                {{ produto.estoque }}
-                <span v-if="produto.estoque === 0" class="d-block small text-danger">Sem estoque</span>
+                <span class="d-block">{{ produto.estoque }}</span>
+                <!-- Selo curto em uma linha (formato de pílula); a consequência vem logo abaixo, em texto visível -->
+                <template v-if="produto.estoque === 0">
+                  <SeloStatus status="Sem estoque" variante="cancelado" class="mt-1" />
+                  <span class="d-block small text-body-secondary mt-1">Fora do catálogo</span>
+                </template>
+                <SeloStatus v-else-if="produto.estoque_baixo" status="Estoque baixo" variante="pendente" class="mt-1" />
               </td>
               <td class="text-end d-none d-md-table-cell text-nowrap">{{ precoOuAviso(produto.preco_original) }}</td>
               <td class="text-center d-none d-md-table-cell">
@@ -153,6 +160,21 @@ const produtosFiltrados = computed(() => {
   if (filtro.value === 'ativos') return ordenados.filter(produto => produto.ativo)
   if (filtro.value === 'inativos') return ordenados.filter(produto => !produto.ativo)
   return ordenados
+})
+
+// Aviso resumido (RN-017): conta só produtos ativos; o limite de estoque baixo vem do backend em `estoque_baixo`
+const avisoEstoque = computed(() => {
+  const ativos = produtorStore.produtos.filter(produto => produto.ativo)
+  const comEstoqueBaixo = ativos.filter(produto => produto.estoque_baixo).length
+  const semEstoque = ativos.filter(produto => produto.estoque === 0).length
+
+  const partes = []
+  if (comEstoqueBaixo) partes.push(`${comEstoqueBaixo} ${comEstoqueBaixo === 1 ? 'produto' : 'produtos'} com estoque baixo`)
+  if (semEstoque) {
+    const rotulo = partes.length ? 'sem estoque' : `${semEstoque === 1 ? 'produto' : 'produtos'} sem estoque`
+    partes.push(`${semEstoque} ${rotulo}, fora do catálogo`)
+  }
+  return partes.length ? `Atenção ao estoque: ${partes.join(' e ')}.` : ''
 })
 
 // O botão "Novo produto" do topo chega aqui com ?novo=1

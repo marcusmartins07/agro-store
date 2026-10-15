@@ -1,5 +1,6 @@
 import shutil
 import tempfile
+from decimal import Decimal
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.db import IntegrityError
@@ -8,9 +9,11 @@ from django.test import override_settings
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from agrostore.carrinhos.models import Carrinho, CarrinhoProduto
 from agrostore.lojas.models import Loja
 from agrostore.produtos.models import Categoria, ImagemProduto, PrecoProduto, Produto
-from agrostore.produtos.serializers import TAMANHO_MAXIMO_IMAGEM_PRODUTO
+from agrostore.produtos.serializers import TAMANHO_MAXIMO_IMAGEM_PRODUTO, ProdutoSerializer
+from agrostore.produtos.views import ProdutoViewSet
 from agrostore.usuarios.models import Genero, Usuario
 
 
@@ -275,6 +278,293 @@ class ProdutoCategoriaAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(PrecoProduto.objects.filter(produto=self.produto, vigencia_fim__isnull=True).count(), 1)
+
+
+class ProdutoEstoqueAPITests(APITestCase):
+    def setUp(self):
+        genero, _ = Genero.objects.get_or_create(id_genero='M', defaults={'genero': 'Masculino'})
+        self.produtor = Usuario.objects.create_user(
+            cpf='32345678901',
+            email='produtor-estoque@example.com',
+            password='senha123',
+            nome='Produtor Estoque',
+            data_nascimento='1980-01-01',
+            genero=genero,
+            is_produtor=True,
+        )
+        self.clientes = [
+            Usuario.objects.create_user(
+                cpf=f'3234567890{indice}',
+                email=f'cliente-estoque-{indice}@example.com',
+                password='senha123',
+                nome=f'Cliente Estoque {indice}',
+                data_nascimento='1990-01-01',
+                genero=genero,
+            )
+            for indice in (2, 3)
+        ]
+        self.loja = Loja.objects.create(proprietario=self.produtor, nome='Feira Estoque', cnpj='32345678000199')
+        self.categoria = Categoria.objects.create(nome='Frutas')
+        self.produto = Produto.objects.create(loja=self.loja, nome='Maçã', estoque=10, categoria=self.categoria)
+        PrecoProduto.objects.create(produto=self.produto, preco_venda=Decimal('10.00'), preco_desconto=Decimal('2.00'))
+        self.url_produto = f'/api/v1/produtos/{self.produto.produto_id}/'
+
+    def adicionar_item(self, cliente, quantidade):
+        carrinho, _ = Carrinho.objects.get_or_create(usuario=cliente, loja=self.loja)
+        item = CarrinhoProduto.objects.create(carrinho=carrinho, produto=self.produto, quantidade=quantidade)
+        carrinho.recalcular_totais()
+        return item
+
+    def alterar_estoque(self, estoque):
+        self.client.force_authenticate(self.produtor)
+        return self.client.patch(self.url_produto, {'estoque': estoque}, format='json')
+
+    def test_listagem_omite_produto_sem_estoque_mas_detalhe_e_meus_continuam_acessiveis(self):
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=0)
+
+        listagem = self.client.get('/api/v1/produtos/')
+        detalhe = self.client.get(self.url_produto)
+        self.client.force_authenticate(self.produtor)
+        meus = self.client.get('/api/v1/produtos/meus/')
+
+        self.assertEqual(listagem.data, [])
+        self.assertEqual(detalhe.status_code, status.HTTP_200_OK)
+        self.assertEqual(detalhe.data['estoque'], 0)
+        self.assertEqual([produto['produto_id'] for produto in meus.data], [self.produto.produto_id])
+
+        self.alterar_estoque(3)
+        self.client.force_authenticate(None)
+        listagem = self.client.get('/api/v1/produtos/')
+        self.assertEqual([produto['produto_id'] for produto in listagem.data], [self.produto.produto_id])
+
+    def test_estoque_baixo_considera_de_um_ate_o_limite(self):
+        casos = {0: False, 1: True, Produto.LIMITE_ESTOQUE_BAIXO: True, Produto.LIMITE_ESTOQUE_BAIXO + 1: False}
+
+        for estoque, esperado in casos.items():
+            Produto.objects.filter(pk=self.produto.pk).update(estoque=estoque)
+            response = self.client.get(self.url_produto)
+            self.assertIs(response.data['estoque_baixo'], esperado, f'estoque={estoque}')
+
+    def test_estoque_negativo_e_rejeitado(self):
+        self.client.force_authenticate(self.produtor)
+
+        criacao = self.client.post(
+            '/api/v1/produtos/',
+            {'nome': 'Pera', 'estoque': -1, 'categoria': self.categoria.categoria_id},
+            format='json',
+        )
+        edicao = self.alterar_estoque(-1)
+
+        self.assertEqual(criacao.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('estoque', criacao.data)
+        self.assertEqual(edicao.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('estoque', edicao.data)
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.estoque, 10)
+
+    def test_reducao_de_estoque_ajusta_carrinhos_acima_do_novo_estoque(self):
+        item_acima = self.adicionar_item(self.clientes[0], 8)
+        item_abaixo = self.adicionar_item(self.clientes[1], 3)
+        atualizado_antes = item_acima.data_atualizacao
+
+        response = self.alterar_estoque(5)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        item_acima.refresh_from_db()
+        item_abaixo.refresh_from_db()
+        self.assertEqual(item_acima.quantidade, 5)
+        self.assertGreater(item_acima.data_atualizacao, atualizado_antes)
+        self.assertEqual(item_abaixo.quantidade, 3)
+        self.assertEqual(item_acima.carrinho.valor_bruto, Decimal('50.00'))
+        self.assertEqual(item_acima.carrinho.valor_liquido, Decimal('40.00'))
+
+    def test_estoque_zerado_mantem_itens_com_quantidade_zero_e_reposicao_nao_restaura(self):
+        item = self.adicionar_item(self.clientes[0], 4)
+
+        self.alterar_estoque(0)
+        item.refresh_from_db()
+        self.assertEqual(item.quantidade, 0)
+        self.assertEqual(item.carrinho.valor_liquido, Decimal('0.00'))
+        self.assertTrue(Carrinho.objects.filter(pk=item.carrinho_id).exists())
+
+        self.alterar_estoque(10)
+        item.refresh_from_db()
+        self.assertEqual(item.quantidade, 0)
+
+    def test_edicao_sem_estoque_nao_altera_carrinhos(self):
+        item = self.adicionar_item(self.clientes[0], 8)
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=2)
+        self.client.force_authenticate(self.produtor)
+
+        response = self.client.patch(self.url_produto, {'nome': 'Maçã gala'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['estoque'], 2)
+        item.refresh_from_db()
+        self.assertEqual(item.quantidade, 8)
+
+    def test_edicao_sem_estoque_preserva_baixa_feita_depois_da_leitura_do_produto(self):
+        # Simula um checkout que baixa o estoque entre a leitura do produto pela view e o save da edição.
+        produto_lido_pela_view = Produto.objects.get(pk=self.produto.pk)
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=3)
+        serializer = ProdutoSerializer(produto_lido_pela_view, data={'nome': 'Maçã gala'}, partial=True)
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+
+        ProdutoViewSet().perform_update(serializer)
+
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.nome, 'Maçã gala')
+        self.assertEqual(self.produto.estoque, 3)
+
+    def criar_cliente(self, indice):
+        genero = Genero.objects.get(id_genero='M')
+        return Usuario.objects.create_user(
+            cpf=f'3234567891{indice}',
+            email=f'cliente-estoque-extra-{indice}@example.com',
+            password='senha123',
+            nome=f'Cliente Extra {indice}',
+            data_nascimento='1990-01-01',
+            genero=genero,
+        )
+
+    def criar_produto(self, nome, estoque):
+        produto = Produto.objects.create(loja=self.loja, nome=nome, estoque=estoque, categoria=self.categoria)
+        PrecoProduto.objects.create(produto=produto, preco_venda=Decimal('5.00'), preco_desconto=Decimal('0.00'))
+        return produto
+
+    def test_listagem_oculta_so_o_produto_zerado_sem_desativa_lo_e_ele_volta_na_reposicao(self):
+        pera = self.criar_produto('Pera', 4)
+
+        self.alterar_estoque(0)
+        self.client.force_authenticate(None)
+        listagem = self.client.get('/api/v1/produtos/')
+        filtrada = self.client.get(f'/api/v1/produtos/?categoria={self.categoria.categoria_id}')
+
+        self.assertEqual([produto['produto_id'] for produto in listagem.data], [pera.produto_id])
+        self.assertEqual([produto['produto_id'] for produto in filtrada.data], [pera.produto_id])
+        self.produto.refresh_from_db()
+        self.assertTrue(self.produto.ativo)
+
+        self.alterar_estoque(1)
+        self.client.force_authenticate(None)
+        listagem = self.client.get('/api/v1/produtos/')
+        self.assertCountEqual([produto['produto_id'] for produto in listagem.data], [self.produto.produto_id, pera.produto_id])
+
+    def test_estoque_baixo_aparece_na_listagem_e_em_meus_nos_limites(self):
+        self.client.force_authenticate(self.produtor)
+        casos = {1: True, Produto.LIMITE_ESTOQUE_BAIXO: True, Produto.LIMITE_ESTOQUE_BAIXO + 1: False}
+
+        for estoque, esperado in casos.items():
+            Produto.objects.filter(pk=self.produto.pk).update(estoque=estoque)
+            listagem = self.client.get('/api/v1/produtos/').data[0]
+            meus = self.client.get('/api/v1/produtos/meus/').data[0]
+            self.assertIs(listagem['estoque_baixo'], esperado, f'listagem estoque={estoque}')
+            self.assertIs(meus['estoque_baixo'], esperado, f'meus estoque={estoque}')
+
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=0)
+        self.assertFalse(self.client.get('/api/v1/produtos/meus/').data[0]['estoque_baixo'])
+
+    def test_estoque_negativo_retorna_mensagem_clara_sem_criar_nem_alterar_dados(self):
+        item = self.adicionar_item(self.clientes[0], 8)
+        self.client.force_authenticate(self.produtor)
+
+        criacao = self.client.post(
+            '/api/v1/produtos/',
+            {'nome': 'Pera', 'estoque': -5, 'categoria': self.categoria.categoria_id},
+            format='json',
+        )
+        edicao = self.client.patch(self.url_produto, {'nome': 'Maçã gala', 'estoque': -1}, format='json')
+
+        self.assertEqual(criacao.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(criacao.data, {'estoque': ['O estoque não pode ser negativo.']})
+        self.assertEqual(edicao.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(edicao.data, {'estoque': ['O estoque não pode ser negativo.']})
+        self.assertFalse(Produto.objects.filter(nome='Pera').exists())
+        self.produto.refresh_from_db()
+        self.assertEqual(self.produto.estoque, 10)
+        self.assertEqual(self.produto.nome, 'Maçã')
+        item.refresh_from_db()
+        self.assertEqual(item.quantidade, 8)
+
+    def test_estoque_zero_e_aceito_no_cadastro_e_na_edicao(self):
+        self.client.force_authenticate(self.produtor)
+
+        criacao = self.client.post(
+            '/api/v1/produtos/',
+            {'nome': 'Pera', 'estoque': 0, 'categoria': self.categoria.categoria_id},
+            format='json',
+        )
+        edicao = self.alterar_estoque(0)
+
+        self.assertEqual(criacao.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(edicao.status_code, status.HTTP_200_OK)
+
+    def test_reducao_ajusta_so_itens_acima_e_preserva_iguais_e_abaixo_com_totais(self):
+        cliente_extra = self.criar_cliente(1)
+        item_acima = self.adicionar_item(self.clientes[0], 8)
+        item_igual = self.adicionar_item(self.clientes[1], 5)
+        item_abaixo = self.adicionar_item(cliente_extra, 2)
+        atualizado_igual = item_igual.data_atualizacao
+        atualizado_abaixo = item_abaixo.data_atualizacao
+
+        response = self.alterar_estoque(5)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        for item in (item_acima, item_igual, item_abaixo):
+            item.refresh_from_db()
+        self.assertEqual([item_acima.quantidade, item_igual.quantidade, item_abaixo.quantidade], [5, 5, 2])
+        self.assertEqual(item_igual.data_atualizacao, atualizado_igual)
+        self.assertEqual(item_abaixo.data_atualizacao, atualizado_abaixo)
+        esperado = {
+            item_acima: (Decimal('50.00'), Decimal('40.00')),
+            item_igual: (Decimal('50.00'), Decimal('40.00')),
+            item_abaixo: (Decimal('20.00'), Decimal('16.00')),
+        }
+        for item, (bruto, liquido) in esperado.items():
+            carrinho = Carrinho.objects.get(pk=item.carrinho_id)
+            self.assertEqual((carrinho.valor_bruto, carrinho.valor_liquido), (bruto, liquido))
+
+    def test_aumento_de_estoque_nao_restaura_quantidade_reduzida_nem_altera_totais(self):
+        item = self.adicionar_item(self.clientes[0], 8)
+        self.alterar_estoque(5)
+
+        response = self.alterar_estoque(20)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        item.refresh_from_db()
+        self.assertEqual(item.quantidade, 5)
+        carrinho = Carrinho.objects.get(pk=item.carrinho_id)
+        self.assertEqual(carrinho.valor_bruto, Decimal('50.00'))
+        self.assertEqual(carrinho.valor_liquido, Decimal('40.00'))
+
+    def test_ajuste_de_estoque_nao_afeta_itens_de_outro_produto(self):
+        pera = self.criar_produto('Pera', 20)
+        item_maca = self.adicionar_item(self.clientes[0], 8)
+        item_pera = CarrinhoProduto.objects.create(carrinho=item_maca.carrinho, produto=pera, quantidade=9)
+
+        self.alterar_estoque(1)
+
+        item_pera.refresh_from_db()
+        item_maca.refresh_from_db()
+        self.assertEqual(item_pera.quantidade, 9)
+        self.assertEqual(item_maca.quantidade, 1)
+
+    def test_item_zerado_pelo_produtor_continua_no_carrinho_do_cliente_e_reposicao_o_torna_disponivel(self):
+        self.adicionar_item(self.clientes[0], 4)
+        self.alterar_estoque(0)
+        self.client.force_authenticate(self.clientes[0])
+
+        carrinhos = self.client.get('/api/v1/carrinhos/').data
+
+        self.assertEqual(len(carrinhos), 1)
+        item = carrinhos[0]['itens'][0]
+        self.assertEqual((item['quantidade'], item['estoque'], item['disponivel']), (0, 0, False))
+        self.assertEqual(Decimal(carrinhos[0]['valor_liquido']), Decimal('0.00'))
+
+        self.alterar_estoque(10)
+        self.client.force_authenticate(self.clientes[0])
+        item = self.client.get('/api/v1/carrinhos/').data[0]['itens'][0]
+        self.assertEqual((item['quantidade'], item['estoque'], item['disponivel']), (0, 10, True))
 
 
 MEDIA_ROOT_TESTES = tempfile.mkdtemp()

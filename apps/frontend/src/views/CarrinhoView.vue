@@ -15,7 +15,16 @@
       <div class="card-body text-body-secondary" role="status">Carregando carrinho...</div>
     </div>
 
-    <div v-else-if="carrinhoStore.totalItens === 0" class="card rounded-4 text-center py-5">
+    <div v-else-if="erroCarregamento && carrinhoStore.itens.length === 0" class="card rounded-4 text-center py-5">
+      <div class="card-body" role="alert">
+        <h2 class="h4 fw-semibold mb-2">Não foi possível carregar o carrinho</h2>
+        <p class="text-body-secondary mb-3">{{ erroCarregamento }}</p>
+        <button type="button" class="btn btn-primary rounded-pill px-4" @click="carregarCarrinho">Tentar novamente</button>
+      </div>
+    </div>
+
+    <!-- Itens com quantidade 0 (RN-017) continuam no carrinho: o vazio depende dos itens, não das unidades -->
+    <div v-else-if="carrinhoStore.itens.length === 0" class="card rounded-4 text-center py-5">
       <div class="card-body">
         <span class="icone-estado mb-3"><IconeSvg nome="cesta" :tamanho="32" /></span>
         <h2 class="h4 fw-semibold mb-2">Seu carrinho está vazio</h2>
@@ -28,16 +37,16 @@
       <div class="col-12 col-lg-8 d-flex flex-column gap-4">
         <div v-if="mensagemErro" class="alert alert-danger mb-0" role="alert">{{ mensagemErro }}</div>
 
-        <section v-for="(itens, fornecedor) in carrinhoStore.porFornecedor" :key="fornecedor" class="card rounded-4">
+        <section v-for="grupo in lojasDoCarrinho" :key="grupo.fornecedor" class="card rounded-4">
           <div class="card-body p-3 p-md-4">
             <h2 class="h6 fw-semibold text-body-secondary d-flex align-items-center gap-2 mb-1 titulo-loja">
               <IconeSvg nome="loja" :tamanho="16" />
-              {{ fornecedor }}
+              {{ grupo.fornecedor }}
             </h2>
 
             <ul class="list-unstyled mb-0">
               <li
-                v-for="item in itens"
+                v-for="item in grupo.itens"
                 :key="item.carrinho_produto_id"
                 class="item-carrinho d-flex flex-wrap flex-sm-nowrap align-items-center gap-3 py-3"
               >
@@ -45,7 +54,9 @@
                   :id="`selecionar-${item.carrinho_produto_id}`"
                   class="form-check-input item-checkbox flex-shrink-0 m-0"
                   type="checkbox"
-                  :checked="selecionados.has(item.carrinho_produto_id)"
+                  :checked="item.situacao.finalizavel && selecionados.has(item.carrinho_produto_id)"
+                  :disabled="!item.situacao.finalizavel"
+                  :aria-describedby="item.situacao.texto ? idSituacao(item) : undefined"
                   @change="alternarSelecao(item.carrinho_produto_id)"
                 />
                 <label :for="`selecionar-${item.carrinho_produto_id}`" class="visually-hidden">
@@ -62,17 +73,34 @@
                     {{ item.produto_nome }}
                   </RouterLink>
                   <p class="small text-body-secondary mb-0">{{ formatarPreco(precoUnitario(item)) }} cada</p>
+                  <div
+                    v-if="item.situacao.texto"
+                    :id="idSituacao(item)"
+                    class="d-flex flex-wrap align-items-center gap-2 mt-1"
+                  >
+                    <SeloStatus
+                      v-if="item.situacao.selo"
+                      :status="item.situacao.selo"
+                      :variante="item.situacao.variante"
+                      class="text-wrap"
+                    />
+                    <span class="small text-body-secondary">{{ item.situacao.texto }}</span>
+                  </div>
                 </div>
 
-                <div class="d-flex align-items-center gap-3 ms-auto">
+                <div class="acoes-item d-flex align-items-center justify-content-end gap-3 ms-auto">
                   <SeletorQuantidade
                     :model-value="Number(item.quantidade)"
-                    :disabled="salvando"
+                    :max="limiteEstoque(item)"
+                    :disabled="salvando || item.disponivel === false"
                     :rotulo="item.produto_nome"
                     compacto
                     @update:model-value="quantidade => alterarQuantidade(item, quantidade)"
                   />
-                  <span class="fw-bold text-end subtotal">{{ formatarPreco(item.subtotal) }}</span>
+                  <span
+                    class="fw-bold text-end subtotal"
+                    :class="{ 'text-body-secondary': !item.situacao.finalizavel }"
+                  >{{ formatarPreco(item.subtotal) }}</span>
                   <button
                     type="button"
                     class="btn btn-link p-1 botao-remover"
@@ -101,6 +129,8 @@
             </li>
           </ul>
 
+          <p v-if="textoNaoFinalizaveis" class="small text-body-secondary mb-3">{{ textoNaoFinalizaveis }}</p>
+
           <dl class="mb-0">
             <div class="d-flex justify-content-between small mb-2">
               <dt class="fw-normal">Itens selecionados</dt>
@@ -125,6 +155,9 @@
             <span>{{ textoRetirada() }}</span>
           </p>
 
+          <!-- A recusa da finalização fica junto do botão para continuar visível no celular -->
+          <div v-if="erroFinalizacao" class="alert alert-danger small mb-3" role="alert">{{ erroFinalizacao }}</div>
+
           <button
             type="button"
             class="btn btn-primary btn-lg rounded-pill w-100 fw-semibold"
@@ -145,6 +178,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import IconeSvg from '@/components/IconeSvg.vue'
+import SeloStatus from '@/components/SeloStatus.vue'
 import SeletorQuantidade from '@/components/SeletorQuantidade.vue'
 import { useAuthStore } from '@/stores/auth.js'
 import { useCarrinhoStore } from '@/stores/index.js'
@@ -159,10 +193,19 @@ const selecionados = ref(new Set())
 const salvando = ref(false)
 const finalizando = ref(false)
 const mensagemErro = ref('')
+const erroCarregamento = ref('')
+const erroFinalizacao = ref('')
+
+const lojasDoCarrinho = computed(() =>
+  Object.entries(carrinhoStore.porFornecedor).map(([fornecedor, itens]) => ({
+    fornecedor,
+    itens: itens.map(item => ({ ...item, situacao: descreverSituacao(item) })),
+  }))
+)
 
 // Totais calculados só para exibição; o backend valida os valores ao finalizar
 const itensSelecionados = computed(() =>
-  carrinhoStore.itens.filter(item => selecionados.value.has(item.carrinho_produto_id))
+  carrinhoStore.itens.filter(item => selecionados.value.has(item.carrinho_produto_id) && podeFinalizar(item))
 )
 
 const totalSelecionados = computed(() => somar(itensSelecionados.value, item => Number(item.quantidade || 0)))
@@ -183,13 +226,21 @@ const resumoPorFornecedor = computed(() => {
   return Object.entries(grupos).map(([fornecedor, total]) => ({ fornecedor, total }))
 })
 
+const textoNaoFinalizaveis = computed(() => {
+  const quantidade = carrinhoStore.itens.filter(item => !podeFinalizar(item)).length
+  if (quantidade === 0) return ''
+  if (quantidade === 1) return '1 item do carrinho não entra no pedido. Veja a situação indicada na lista.'
+  return `${quantidade} itens do carrinho não entram no pedido. Veja a situação indicada na lista.`
+})
+
 onMounted(async () => {
   if (authStore.estaLogado) await carregarCarrinho()
 })
 
+// Mantém selecionados só os itens que ainda existem e podem ser finalizados (ex.: estoque zerado após recarregar)
 watch(() => carrinhoStore.itens, () => {
-  const idsAtuais = carrinhoStore.itens.map(item => item.carrinho_produto_id)
-  selecionados.value = new Set(idsAtuais.filter(id => selecionados.value.has(id)))
+  const idsFinalizaveis = new Set(carrinhoStore.itens.filter(podeFinalizar).map(item => item.carrinho_produto_id))
+  selecionados.value = new Set([...selecionados.value].filter(id => idsFinalizaveis.has(id)))
 })
 
 function somar(itens, valorDoItem) {
@@ -201,17 +252,75 @@ function precoUnitario(item) {
   return Number(item.valor_unitario) - Number(item.valor_desconto || 0)
 }
 
+function limiteEstoque(item) {
+  return item.estoque === null || item.estoque === undefined ? Infinity : Number(item.estoque)
+}
+
+// Situação de exibição do item (RN-017) a partir de `disponivel`, `estoque` e `quantidade` da API.
+// `disponivel` não considera a quantidade: um item com 0 pode estar disponível de novo após a reposição.
+function descreverSituacao(item) {
+  const estoque = limiteEstoque(item)
+
+  if (item.disponivel === false && estoque > 0) {
+    return {
+      finalizavel: false,
+      selo: 'Indisponível',
+      variante: 'cancelado',
+      texto: 'Produto ou loja indisponível no momento. Remova o item do carrinho.',
+    }
+  }
+  if (item.disponivel === false) {
+    return {
+      finalizavel: false,
+      selo: 'Sem estoque',
+      variante: 'cancelado',
+      texto: 'Não entra no pedido. Remova o item ou aguarde a reposição.',
+    }
+  }
+  if (Number(item.quantidade) === 0) {
+    const limite = Number.isFinite(estoque) ? ` (até ${estoque})` : ''
+    return {
+      finalizavel: false,
+      selo: 'Disponível novamente',
+      variante: 'pronto',
+      texto: `Aumente a quantidade para incluir no pedido${limite}.`,
+    }
+  }
+
+  const noLimite = Number(item.quantidade) >= estoque
+  return { finalizavel: true, selo: '', variante: '', texto: noLimite ? `Máximo disponível: ${estoque}` : '' }
+}
+
+function podeFinalizar(item) {
+  return descreverSituacao(item).finalizavel
+}
+
+function idSituacao(item) {
+  return `situacao-${item.carrinho_produto_id}`
+}
+
+function idsFinalizaveis() {
+  return carrinhoStore.itens.filter(podeFinalizar).map(item => item.carrinho_produto_id)
+}
+
 async function carregarCarrinho() {
   mensagemErro.value = ''
+  erroCarregamento.value = ''
   try {
     await carrinhoStore.carregar()
-    selecionados.value = new Set(carrinhoStore.itens.map(item => item.carrinho_produto_id))
+    selecionados.value = new Set(idsFinalizaveis())
   } catch (e) {
-    mensagemErro.value = carrinhoStore.erro
+    // Sem itens já carregados, a falha vira o estado de erro da tela; com itens, um alerta sobre a lista
+    if (carrinhoStore.itens.length === 0) {
+      erroCarregamento.value = carrinhoStore.erro || 'Não foi possível concluir a operação.'
+    } else {
+      mensagemErro.value = carrinhoStore.erro
+    }
   }
 }
 
 function alternarSelecao(itemId) {
+  erroFinalizacao.value = ''
   const proximos = new Set(selecionados.value)
   if (proximos.has(itemId)) {
     proximos.delete(itemId)
@@ -224,10 +333,17 @@ function alternarSelecao(itemId) {
 async function alterarQuantidade(item, quantidade) {
   if (quantidade < 1) return
 
+  const estavaSemQuantidade = Number(item.quantidade) === 0
   mensagemErro.value = ''
+  erroFinalizacao.value = ''
   salvando.value = true
   try {
     await carrinhoStore.alterarQuantidade(item.carrinho_produto_id, quantidade)
+    // Após a reposição, o item que volta de 0 para 1 ou mais retorna marcado para finalizar
+    const atualizado = carrinhoStore.itens.find(atual => atual.carrinho_produto_id === item.carrinho_produto_id)
+    if (estavaSemQuantidade && atualizado && podeFinalizar(atualizado)) {
+      selecionados.value = new Set([...selecionados.value, item.carrinho_produto_id])
+    }
   } catch (e) {
     mensagemErro.value = carrinhoStore.erro
   } finally {
@@ -237,6 +353,7 @@ async function alterarQuantidade(item, quantidade) {
 
 async function remover(itemId) {
   mensagemErro.value = ''
+  erroFinalizacao.value = ''
   salvando.value = true
   try {
     await carrinhoStore.remover(itemId)
@@ -251,14 +368,19 @@ async function remover(itemId) {
 }
 
 async function finalizarPedido() {
+  const ids = itensSelecionados.value.map(item => item.carrinho_produto_id)
+  if (ids.length === 0) return
+
   mensagemErro.value = ''
+  erroFinalizacao.value = ''
   finalizando.value = true
   try {
-    await carrinhoStore.finalizar([...selecionados.value])
+    await carrinhoStore.finalizar(ids)
     selecionados.value = new Set()
     router.push({ name: 'pedidos' })
   } catch (e) {
-    mensagemErro.value = carrinhoStore.erro
+    // O store já recarregou o carrinho; a mensagem da API fica junto do botão
+    erroFinalizacao.value = carrinhoStore.erro
   } finally {
     finalizando.value = false
   }
@@ -280,8 +402,17 @@ async function finalizarPedido() {
   width: 4rem;
   height: 4rem;
 }
+/* Base 0: nomes e textos de situação longos quebram dentro da coluna, sem empurrar as informações para baixo da miniatura */
 .info-item {
+  flex-basis: 0;
   min-width: 0;
+  overflow-wrap: anywhere;
+}
+/* No celular, seletor, subtotal e remover sempre ocupam a segunda linha do item */
+@media (max-width: 575.98px) {
+  .acoes-item {
+    flex-basis: 100%;
+  }
 }
 .link-produto:hover {
   color: var(--cor-primaria);

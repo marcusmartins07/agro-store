@@ -62,6 +62,18 @@ class FavoritoAPITests(APITestCase):
         self.assertTrue(dados_produto['disponivel'])
         self.assertEqual(dados_produto['preco'], Decimal('9.00'))
 
+    def test_produto_sem_estoque_permanece_nos_favoritos_como_indisponivel(self):
+        self.client.force_authenticate(self.cliente)
+        self.client.post('/api/v1/favoritos/', {'produto': self.produto.produto_id}, format='json')
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=0)
+
+        response = self.client.get('/api/v1/favoritos/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertFalse(response.data[0]['dados_produto']['disponivel'])
+        self.assertFalse(response.data[0]['dados_produto']['estoque_baixo'])
+
     def test_listagem_retorna_apenas_favoritos_do_usuario_autenticado(self):
         self.client.force_authenticate(self.cliente)
         criado = self.client.post('/api/v1/favoritos/', {'produto': self.produto.produto_id}, format='json')
@@ -93,3 +105,25 @@ class FavoritoAPITests(APITestCase):
         self.client.force_authenticate(self.cliente)
         response = self.client.delete(f'/api/v1/favoritos/{favorito_id}/')
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+
+    def test_favorito_sem_estoque_volta_a_ficar_disponivel_na_reposicao(self):
+        self.client.force_authenticate(self.cliente)
+        self.client.post('/api/v1/favoritos/', {'produto': self.produto.produto_id}, format='json')
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=0)
+        self.assertFalse(self.client.get('/api/v1/favoritos/').data[0]['dados_produto']['disponivel'])
+
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=2)
+        dados = self.client.get('/api/v1/favoritos/').data[0]['dados_produto']
+
+        self.assertTrue(dados['disponivel'])
+        self.assertTrue(dados['estoque_baixo'])
+
+    def test_produto_sem_estoque_pode_ser_favoritado_pelo_detalhe_acessivel(self):
+        Produto.objects.filter(pk=self.produto.pk).update(estoque=0)
+        self.client.force_authenticate(self.cliente)
+
+        response = self.client.post('/api/v1/favoritos/', {'produto': self.produto.produto_id}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertFalse(response.data['dados_produto']['disponivel'])
+        self.assertEqual(response.data['dados_produto']['estoque'], 0)

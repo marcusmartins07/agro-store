@@ -5,6 +5,8 @@ from rest_framework import permissions, serializers, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.response import Response
+
+from agrostore.carrinhos.services import ajustar_carrinhos_ao_estoque
 from .models import Produto, PrecoProduto, Categoria, ImagemProduto
 from .serializers import ProdutoSerializer, PrecoProdutoSerializer, CategoriaSerializer, ImagemProdutoSerializer
 
@@ -87,6 +89,9 @@ class ProdutoViewSet(viewsets.ModelViewSet):
             return queryset.filter(loja__proprietario=self.request.user)
 
         queryset = queryset.filter(ativo=True, loja__ativa=True)
+        if self.action == 'list':
+            # RN-017: produto sem estoque sai da listagem do catálogo, mas o detalhe continua acessível.
+            queryset = queryset.filter(estoque__gt=0)
         return self._filtrar_categoria(queryset)
 
     def _filtrar_categoria(self, queryset):
@@ -112,6 +117,17 @@ class ProdutoViewSet(viewsets.ModelViewSet):
         if not loja:
             raise PermissionDenied('Cadastre uma loja antes de cadastrar produtos.')
         serializer.save(loja=loja)
+
+    def perform_update(self, serializer):
+        with transaction.atomic():
+            Produto.objects.select_for_update().get(pk=serializer.instance.pk)
+            estoque_alterado = 'estoque' in serializer.validated_data
+            if not estoque_alterado:
+                # Recarrega o estoque travado para não desfazer a baixa de um checkout concorrente.
+                serializer.instance.refresh_from_db(fields=['estoque'])
+            produto = serializer.save()
+            if estoque_alterado:
+                ajustar_carrinhos_ao_estoque(produto)
 
     @action(detail=False, methods=['get'], url_path='meus')
     def meus(self, request):

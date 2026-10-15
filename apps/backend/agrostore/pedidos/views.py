@@ -9,6 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from agrostore.carrinhos.models import CarrinhoProduto
+from agrostore.carrinhos.services import ajustar_carrinhos_ao_estoque
 from agrostore.produtos.models import Produto
 from .models import Pedido, PedidoCliente, PedidoProduto, StatusPedido
 from .serializers import CriarPedidoSerializer, PedidoProdutorSerializer, PedidoSerializer, StatusPedidoSerializer
@@ -55,16 +56,25 @@ class PedidoViewSet(viewsets.ModelViewSet):
         itens_carrinho = CarrinhoProduto.objects.filter(
             carrinho_produto_id__in=carrinho_produto_ids,
             carrinho__usuario=usuario,
-        ).select_related('carrinho', 'carrinho__loja', 'produto')
+        ).select_related('carrinho', 'carrinho__loja')
+        itens = list(itens_carrinho)
 
-        if itens_carrinho.count() != len(set(carrinho_produto_ids)):
+        if len(itens) != len(set(carrinho_produto_ids)):
             return Response(
                 {"detail": "Um ou mais itens do carrinho são inválidos."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # Trava os produtos em ordem de pk; validação e baixa de estoque usam a instância travada.
+        produtos_travados = {
+            produto.pk: produto
+            for produto in Produto.objects.select_for_update().filter(pk__in={item.produto_id for item in itens}).order_by('pk')
+        }
+        for item in itens:
+            item.produto = produtos_travados[item.produto_id]
+
         itens_por_loja = defaultdict(list)
-        for item in itens_carrinho:
+        for item in itens:
             erro = self._validar_item_checkout(item)
             if erro:
                 return Response({"detail": erro}, status=status.HTTP_400_BAD_REQUEST)
@@ -73,8 +83,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
         status_pendente = garantir_status_pedidos()['Pendente']
         pedidos_criados = []
 
-        for loja, itens in itens_por_loja.items():
-            valor_bruto, valor_desconto = self._calcular_totais(itens)
+        for loja, itens_da_loja in itens_por_loja.items():
+            valor_bruto, valor_desconto = self._calcular_totais(itens_da_loja)
             pedido = Pedido.objects.create(
                 usuario=usuario,
                 loja=loja,
@@ -84,7 +94,7 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 valor_liquido=valor_bruto - valor_desconto,
             )
 
-            for item in itens:
+            for item in itens_da_loja:
                 preco = item.preco_atual
                 desconto_unitario = preco.preco_desconto or Decimal('0.00')
                 PedidoProduto.objects.create(
@@ -111,13 +121,16 @@ class PedidoViewSet(viewsets.ModelViewSet):
             )
             pedidos_criados.append(pedido)
 
-        carrinhos_afetados = {item.carrinho for item in itens_carrinho}
+        carrinhos_afetados = {item.carrinho for item in itens}
         itens_carrinho.delete()
         for carrinho in carrinhos_afetados:
             if carrinho.itens.exists():
                 carrinho.recalcular_totais()
             else:
                 carrinho.delete()
+
+        for produto in produtos_travados.values():
+            ajustar_carrinhos_ao_estoque(produto)
 
         return Response(PedidoSerializer(pedidos_criados, many=True).data, status=status.HTTP_201_CREATED)
 
@@ -179,6 +192,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
             return f"O produto {item.produto.nome} está inativo."
         if not item.carrinho.loja.ativa:
             return f"A loja {item.carrinho.loja.nome} está inativa."
+        if item.quantidade < 1:
+            return f"O produto {item.produto.nome} está sem estoque. Remova-o da seleção para finalizar."
         if item.quantidade > item.produto.estoque:
             return f"O produto {item.produto.nome} não possui estoque suficiente."
         if not item.preco_atual:
