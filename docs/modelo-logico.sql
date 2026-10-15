@@ -9,15 +9,15 @@
  * Divergências conhecidas com os models atuais (alinhamento na DB-009):
  *
  * 1. on_delete: os models usam CASCADE onde este modelo usa RESTRICT em
- *    loja.id_proprietario, produto.id_loja, preco_produto.id_produto e nas
- *    três FKs de avaliacao (id_usuario, id_produto, id_pedido_produto).
+ *    produto.id_loja, preco_produto.id_produto e nas três FKs de avaliacao
+ *    (id_usuario, id_produto, id_pedido_produto).
  * 2. pedido_produto.id_produto: no model é obrigatório e CASCADE; aqui é
  *    opcional (NULL) com ON DELETE SET NULL, preservando o item do pedido.
  * 3. Nomes físicos: tabelas e colunas aqui seguem o padrão em português
  *    (id_<entidade>, esta_ativo, senha, valor_venda, imagem.caminho etc.);
  *    os models ainda usam os nomes gerados pelo Django (id, ativo, password,
  *    preco_venda, produtos_imagemproduto.imagem etc.).
- * 4. Restrições que só existem neste modelo: uq_loja_proprietario,
+ * 4. Restrições que só existem neste modelo:
  *    CHECK (estoque >= 0), sku NOT NULL, uq_imagem_produto_ordem
  *    (id_produto, ordem), ck_avaliacao_comentario_tamanho e os demais CHECK
  *    de valores (preço, carrinho, pedido, item do pedido) e de vigência
@@ -27,6 +27,8 @@
  *
  * A restrição de imagem principal única por produto existe no model
  * (imagem_principal_unica_por_produto) e está refletida neste arquivo.
+ * loja.id_proprietario está alinhado desde a migration lojas/0003 (DB-003/DB-014):
+ * o model tem uq_loja_proprietario e PROTECT, equivalente ao RESTRICT daqui.
  */
 
 CREATE TABLE genero (

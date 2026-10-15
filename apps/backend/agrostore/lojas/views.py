@@ -1,5 +1,7 @@
-from rest_framework import permissions, status, viewsets
+from django.db import IntegrityError, transaction
+from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.response import Response
+from rest_framework.settings import api_settings
 from rest_framework.views import APIView
 
 from .models import Loja
@@ -17,7 +19,16 @@ class LojaViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def perform_create(self, serializer):
-        serializer.save(proprietario=self.request.user)
+        # RN-013: em pedidos simultâneos, a validação do serializer passa nos dois e o banco recusa o segundo.
+        try:
+            with transaction.atomic():
+                serializer.save(proprietario=self.request.user)
+        except IntegrityError:
+            if not Loja.objects.filter(proprietario=self.request.user).exists():
+                raise
+            raise serializers.ValidationError(
+                {api_settings.NON_FIELD_ERRORS_KEY: ["Cada produtor pode possuir somente uma loja."]}
+            )
 
 
 class MinhaLojaView(APIView):

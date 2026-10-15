@@ -93,6 +93,23 @@ Os endpoints abaixo exigem JWT de um produtor com loja cadastrada. O backend sem
 
 Produtos não são excluídos: para tirá-los do catálogo, o produtor altera `ativo` para `false`, preservando o histórico dos pedidos.
 
+### Criar loja (loja única por produtor, RN-013)
+
+- Método: POST
+- URL: `/api/v1/lojas/lojas/`
+- Autenticação: JWT (produtor)
+
+Payload esperado: `nome`, `descricao` e `cnpj`. O proprietário é sempre o usuário autenticado.
+
+Resposta esperada (`201`): dados da loja, incluindo `loja_id`, `proprietario` e `ativa`.
+
+Possíveis erros:
+- 400 — `{"non_field_errors": ["Cada produtor pode possuir somente uma loja."]}` quando o produtor já possui loja. A regra é validada na API e garantida no banco pela restrição única `uq_loja_proprietario`; em requisições simultâneas, o `IntegrityError` do banco é convertido na mesma resposta `400`.
+- 400 — `{"non_field_errors": ["Usuário precisa ser produtor para criar uma loja."]}` para usuário que não é produtor.
+- 401 — sem autenticação.
+
+A API não tem `DELETE` de loja nem de usuário. Como `Loja.proprietario` usa `PROTECT`, um produtor com loja não pode ser excluído, mesmo sem pedidos (no Admin do Django aparece a tela de objetos protegidos). O encerramento é feito pela desativação da loja (`ativa=false`) e pela inativação do usuário.
+
 ### Imagens do produto
 
 Cada produto pode ter até 5 imagens (JPG, PNG ou WEBP, até 5 MB cada), com exatamente uma principal quando houver imagem. A resposta de produto traz `imagens` (lista `{ id, imagem, ordem, e_principal }` em ordem de exibição) e `imagem`, com a URL da principal ou `null`.
@@ -301,6 +318,7 @@ O dono de um pedido é identificado pelo registro `PedidoCliente` (tabela `pedid
 - "Meus pedidos", detalhe e cancelamento filtram por `cliente__usuario`; a avaliação de produto confere a titularidade do pedido pelo mesmo caminho. O produtor continua filtrado por `loja__proprietario`.
 - O contrato JSON da API não mudou: nenhum payload expõe `usuario`.
 - Exclusão bloqueada: `PedidoCliente.usuario` e `Pedido.loja` usam `PROTECT`. Não é possível excluir um usuário que tenha pedidos como cliente, nem uma loja que tenha pedidos; o Django lança `ProtectedError` (no Admin, a exclusão é recusada com a lista dos pedidos). Isso preserva o histórico de pedidos. Para retirar o acesso, desative o usuário ou a loja.
+- `Loja.proprietario` também usa `PROTECT` e é único (`uq_loja_proprietario`): não é possível excluir um produtor que tenha loja, tenha ela pedidos ou não, e a loja nunca é apagada em cascata com o usuário.
 - As demais chaves estrangeiras não protegem: `PedidoProduto.produto` e as chaves de `Avaliacao` (`usuario`, `produto` e `pedido_produto`) usam `CASCADE`. Por isso produtos não são excluídos (são desativados) e avaliações só saem por moderação no Admin.
 
 ## Banco de dados e migrations
@@ -308,6 +326,12 @@ O dono de um pedido é identificado pelo registro `PedidoCliente` (tabela `pedid
 O banco é definido por `DATABASE_URL`. Com a variável vazia, o backend usa SQLite local; com `postgresql://...`, usa PostgreSQL (Supabase em produção). O modelo lógico está em `docs/modelo-logico.sql`.
 
 > **Alerta:** o `.env` da raiz pode conter um `DATABASE_URL` apontando para o Supabase. Rodar `migrate` com essa variável preenchida aplica as migrations **em produção**. No desenvolvimento, execute os comandos com `DATABASE_URL=` vazio (use o `.env.example` como base; ele traz a variável vazia).
+
+### Migration de loja única por produtor (lojas 0003)
+
+`lojas/0003_loja_proprietario_unico_protect` altera `Loja.proprietario` para `on_delete=PROTECT` e cria a restrição única `uq_loja_proprietario`. Ela tem uma guarda que **interrompe** a migration se algum produtor tiver mais de uma loja. Já está aplicada no Supabase.
+
+No SQLite local de desenvolvimento, se o `migrate` parar nessa guarda, o banco tem produtores com duas ou mais lojas. Sane o banco deixando uma loja por produtor (por exemplo, pelo Admin ou `manage.py shell`, preservando a loja que tem pedidos) ou recrie o `db.sqlite3` (apague o arquivo e rode `migrate`), e então rode `migrate` novamente.
 
 ### Migrations do vínculo do cliente (pedidos 0003 a 0005)
 
@@ -321,7 +345,7 @@ Elas ficam separadas por compatibilidade com PostgreSQL: misturar alteração de
 
 ### Procedimento para aplicar no Supabase
 
-Estado: **ainda não aplicado**. Aplique somente com autorização.
+Estado: **aplicado em produção (Supabase)**. Em 15/10/2026, `showmigrations` confirmou todas as migrations aplicadas, incluindo `pedidos` 0001 a 0005 (os 7 registros de `pedidos_pedidocliente` com `usuario_id` preenchido) e `lojas` 0003. O procedimento abaixo fica como registro histórico e como referência para novas aplicações, que exigem autorização.
 
 1. Faça backup (`pg_dump` ou painel do Supabase).
 2. Rode as consultas somente leitura:
@@ -440,6 +464,7 @@ Cada item de pedido traz o campo somente leitura `avaliacao`, que vale `null` (i
 - Pedidos (e seus itens, cliente e status) ficam somente para consulta: sem incluir, editar ou excluir, inclusive o status. A troca de status é feita pela API (RN-019).
 - Avaliações são moderadas apenas por exclusão (não há inclusão nem edição). Após a exclusão, o item de pedido pode ser avaliado de novo.
 - Usuário ou loja com pedidos não podem ser excluídos; usa-se a desativação.
+- Produtor com loja não pode ser excluído, mesmo sem pedidos (RN-013); o Admin exibe os objetos protegidos. Encerre pela desativação da loja e pela inativação do usuário.
 
 ## Idioma e notificações
 

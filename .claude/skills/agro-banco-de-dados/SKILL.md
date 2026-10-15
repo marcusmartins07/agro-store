@@ -47,6 +47,10 @@ aprovação conforme `AGENTS.md`.
 
 - Produto possui uma única categoria obrigatória. A exclusão é protegida;
   categorias devem ser inativadas, não removidas.
+- Loja pertence a um produtor: `loja.proprietario` é PROTECT e único
+  (`uq_loja_proprietario`, migration `lojas/0003`), produtor (1,1) — (0,1) loja.
+  Produtor com loja não é excluído; a loja é desativada. A relação continua
+  `ForeignKey` (`usuario.lojas`), não `OneToOneField`.
 - Produto pertence a uma loja; preços pertencem a produto e mantêm vigência.
 - Imagens pertencem a produto (`ImagemProduto`, cascata com o produto): produto
   (1,1) — (0,n) imagem, com `ordem` e `e_principal`. A restrição única

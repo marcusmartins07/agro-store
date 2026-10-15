@@ -1,14 +1,19 @@
 import os
 import shutil
 import tempfile
+from unittest import mock
 
 from django.core.exceptions import ValidationError
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError, transaction
+from django.db.models import ProtectedError
 from django.test import TestCase, override_settings
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from agrostore.lojas.models import Loja
+from agrostore.lojas.serializers import LojaSerializer
 from agrostore.usuarios.models import Genero, Usuario
 
 
@@ -206,3 +211,107 @@ class LojaImagemPerfilSomenteLeituraAPITests(APITestCase):
         self.assertEqual(loja.imagem_perfil.name, '')
         self.assertIsNone(response.data['imagem_perfil'])
         self.assertEqual(self.arquivos_gravados(), [])
+
+
+class LojaUnicaPorProdutorTests(APITestCase):
+    """RN-013: uma loja por produtor, garantida na API e no banco; produtor com loja não é excluído."""
+
+    MENSAGEM_LOJA_UNICA = 'Cada produtor pode possuir somente uma loja.'
+
+    def setUp(self):
+        self.genero, _ = Genero.objects.get_or_create(id_genero='M', defaults={'genero': 'Masculino'})
+        self.produtor = self.criar_usuario('98765432201', 'unica-produtor@example.com', is_produtor=True)
+
+    def criar_usuario(self, cpf, email, is_produtor=False, **extra):
+        return Usuario.objects.create_user(
+            cpf=cpf, email=email, password='senha123', nome='Usuário Teste',
+            data_nascimento='1980-01-01', genero=self.genero, is_produtor=is_produtor, **extra,
+        )
+
+    def test_banco_recusa_segunda_loja_do_mesmo_proprietario(self):
+        Loja.objects.create(proprietario=self.produtor, nome='Primeira', cnpj='98765432000201')
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                Loja.objects.create(proprietario=self.produtor, nome='Segunda', cnpj='98765432000202')
+
+        self.assertEqual(Loja.objects.filter(proprietario=self.produtor).count(), 1)
+
+    def test_api_recusa_segunda_loja_com_mensagem_clara(self):
+        self.client.force_authenticate(self.produtor)
+        Loja.objects.create(proprietario=self.produtor, nome='Primeira', cnpj='98765432000201')
+
+        response = self.client.post('/api/v1/lojas/lojas/', {'nome': 'Segunda', 'cnpj': '98765432000202'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.json(), {'non_field_errors': [self.MENSAGEM_LOJA_UNICA]})
+        self.assertEqual(Loja.objects.filter(proprietario=self.produtor).count(), 1)
+
+    def test_corrida_validate_passou_e_banco_recusou_responde_400_com_a_mesma_mensagem(self):
+        self.client.force_authenticate(self.produtor)
+        Loja.objects.create(proprietario=self.produtor, nome='Primeira', cnpj='98765432000201')
+
+        with mock.patch.object(LojaSerializer, 'validate', new=lambda serializer, data: data):
+            response = self.client.post('/api/v1/lojas/lojas/', {'nome': 'Segunda', 'cnpj': '98765432000202'}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.json(), {'non_field_errors': [self.MENSAGEM_LOJA_UNICA]})
+        self.assertEqual(Loja.objects.filter(proprietario=self.produtor).count(), 1)
+
+    def test_corrida_com_outro_erro_de_unicidade_e_relancado_sem_a_mensagem_de_loja_unica(self):
+        self.client.force_authenticate(self.produtor)
+
+        with mock.patch.object(LojaSerializer, 'save', side_effect=IntegrityError('cnpj duplicado')):
+            with self.assertRaises(IntegrityError):
+                self.client.post('/api/v1/lojas/lojas/', {'nome': 'Sem Loja', 'cnpj': '98765432000203'}, format='json')
+
+        self.assertFalse(Loja.objects.filter(proprietario=self.produtor).exists())
+
+    def test_produtores_diferentes_podem_ter_cada_um_a_sua_loja(self):
+        outro = self.criar_usuario('98765432202', 'unica-outro@example.com', is_produtor=True)
+
+        for usuario, cnpj in [(self.produtor, '98765432000204'), (outro, '98765432000205')]:
+            self.client.force_authenticate(usuario)
+            response = self.client.post('/api/v1/lojas/lojas/', {'nome': 'Loja', 'cnpj': cnpj}, format='json')
+            self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+
+        self.assertEqual(Loja.objects.filter(proprietario=self.produtor).count(), 1)
+        self.assertEqual(Loja.objects.filter(proprietario=outro).count(), 1)
+
+    def test_excluir_produtor_com_loja_sem_pedidos_e_bloqueado(self):
+        loja = Loja.objects.create(proprietario=self.produtor, nome='Primeira', cnpj='98765432000201')
+
+        with self.assertRaises(ProtectedError):
+            with transaction.atomic():
+                self.produtor.delete()
+
+        self.assertTrue(Usuario.objects.filter(pk=self.produtor.pk).exists())
+        self.assertTrue(Loja.objects.filter(pk=loja.pk).exists())
+
+    def test_admin_exclusao_de_produtor_com_loja_nao_da_erro_500_e_preserva_usuario_e_loja(self):
+        loja = Loja.objects.create(proprietario=self.produtor, nome='Primeira', cnpj='98765432000201')
+        admin = self.criar_usuario('98765432203', 'unica-admin@example.com', is_staff=True, is_superuser=True)
+        self.client.force_login(admin)
+
+        response = self.client.post(reverse('admin:usuarios_usuario_delete', args=[self.produtor.pk]), {'post': 'yes'})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertContains(response, 'protegid')
+        self.assertTrue(Usuario.objects.filter(pk=self.produtor.pk).exists())
+        self.assertTrue(Loja.objects.filter(pk=loja.pk).exists())
+
+    def test_cliente_sem_loja_e_sem_pedidos_pode_ser_excluido(self):
+        cliente = self.criar_usuario('98765432204', 'unica-cliente@example.com')
+
+        cliente.delete()
+
+        self.assertFalse(Usuario.objects.filter(pk=cliente.pk).exists())
+
+    def test_api_nao_oferece_exclusao_de_loja_nem_de_usuario(self):
+        loja = Loja.objects.create(proprietario=self.produtor, nome='Primeira', cnpj='98765432000201')
+        self.client.force_authenticate(self.produtor)
+
+        response = self.client.delete(f'/api/v1/lojas/lojas/{loja.loja_id}/')
+
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertTrue(Loja.objects.filter(pk=loja.pk).exists())

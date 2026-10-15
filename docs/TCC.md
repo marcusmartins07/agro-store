@@ -455,6 +455,9 @@ O diagrama confeccionado para este trabalho apresenta as seguintes entidades, co
 **Loja**: representa as lojas cadastradas pelos produtores rurais na plataforma, armazenando informações como nome, descrição, CNPJ, imagem de perfil e situação de atividade. Relaciona-se com a entidade Cliente, pois uma loja pertence a um usuário produtor, e com a entidade Pedido, visto que uma loja pode receber diversos pedidos. Também se relaciona com a entidade Carrinho, permitindo que os itens adicionados pelos clientes sejam organizados conforme a loja responsável pelos produtos.
 
 <!-- orientador: revisar -->
+O relacionamento entre Cliente e Loja ocorre na cardinalidade (0,1) para (1,1): cada loja pertence a exatamente um usuário produtor, e cada usuário possui no máximo uma loja, de modo que o usuário sem perfil de produtor não possui loja. Por decisão de projeto, a possibilidade de um mesmo produtor manter várias lojas não foi contemplada no MVP.
+
+<!-- orientador: revisar -->
 **Produto**: representa os produtos disponibilizados para comercialização na plataforma, armazenando informações como nome, descrição, código de barras, estoque, SKU, situação de atividade, data de criação e data de atualização. Relaciona-se com a entidade Preço, que armazena os valores associados ao produto; com a entidade Categoria, responsável pela classificação dos produtos; com a entidade Imagem, já que um produto pode possuir de nenhuma a cinco imagens; com a entidade Favorito, pois pode ser favoritado por diferentes clientes; com a entidade Avaliação, uma vez que pode receber avaliações; com a entidade Pedido_Produto, representando sua participação em pedidos; e com a entidade Carrinho_Produto, representando sua inclusão nos carrinhos de compra.
 
 **Preço**: armazena os dados referentes à precificação dos produtos, incluindo valor de venda, valor de custo, valor de desconto, porcentagem de desconto, vigência inicial, vigência final, data de criação e data de atualização. Relaciona-se com a entidade Produto, permitindo que os valores praticados sejam associados aos produtos comercializados na plataforma.
@@ -504,6 +507,9 @@ A partir do modelo conceitual, foi elaborado o modelo lógico do banco de dados,
 A tabela de imagens dos produtos possui, além da chave estrangeira para o produto, uma restrição de unicidade condicional, isto é, aplicada apenas às linhas que atendem a uma condição: entre as imagens de um mesmo produto, somente uma pode estar marcada como principal. Dessa forma, o próprio banco de dados impede a existência de duas imagens principais para o mesmo produto, enquanto o limite de cinco imagens por produto é verificado pela aplicação.
 
 No modelo lógico, a tabela pedido possui chaves estrangeiras apenas para loja e status_pedido, enquanto a referência ao cliente fica na tabela pedido_cliente, por meio da coluna id_usuario, de preenchimento obrigatório. A coluna id_pedido dessa tabela é única, o que materializa a relação um-para-um com o pedido. Para preservar o histórico de pedidos, as chaves estrangeiras de pedido_cliente para o usuário e de pedido para a loja utilizam a regra de exclusão restritiva (ON DELETE RESTRICT), segundo a qual o banco de dados recusa a exclusão de um registro enquanto existirem outros registros que dependem dele. Assim, não é possível excluir um usuário ou uma loja que possua pedidos associados. Essa escolha substitui a exclusão em cascata (ON DELETE CASCADE), na qual a remoção do registro principal provocaria a remoção automática dos pedidos vinculados e, consequentemente, a perda do histórico de vendas e de compras.
+
+<!-- orientador: revisar -->
+Na tabela loja, a coluna proprietario_id, que referencia o usuário produtor, também é única, o que materializa a relação de no máximo uma loja por produtor. Essa restrição de unicidade complementa a validação realizada pela API e garante a regra mesmo quando duas requisições de criação de loja para o mesmo produtor são processadas simultaneamente: nesse caso, o banco de dados recusa a segunda inclusão, e a API responde com a mesma mensagem de validação apresentada ao usuário. A chave estrangeira dessa coluna adota igualmente a regra de exclusão restritiva, de forma que um produtor que possua loja não pode ser excluído, ainda que a loja não tenha recebido pedidos, e a loja nunca é removida em cascata junto com o seu proprietário.
 
 ###### Figura 2 - Modelo Lógico do Diagrama Entidade-Relacionamento
 
@@ -739,6 +745,9 @@ O Diagrama de Sequência III busca representar visualmente o processo de cadastr
   - **Retorna dados da loja:** a API/Backend devolve ao *frontend* os dados cadastrados.
 
   - **Exibe loja cadastrada:** o *frontend* apresenta ao produtor a confirmação do cadastro.
+
+<!-- orientador: revisar -->
+A verificação de loja já existente, realizada pela API, é reforçada por uma restrição de unicidade no banco de dados, descrita na Seção 3.2.4. Assim, caso duas solicitações de cadastro de loja do mesmo produtor sejam processadas ao mesmo tempo e ambas passem pela verificação da API, o banco de dados recusa a segunda gravação, e o produtor recebe a mesma mensagem de erro de validação.
 
 Abaixo, a Figura 6 apresenta o Diagrama de Sequência III, que detalha o processo de cadastro de loja pelo produtor.
 
@@ -994,9 +1003,12 @@ Conforme descrito nas Seções 3.2.3 e 3.2.4, o vínculo entre o pedido e o clie
 Complementarmente, o sistema impede a exclusão de registros dos quais o histórico depende. Um usuário que possua pedidos e um produtor cuja loja tenha recebido pedidos não podem ser excluídos: a tentativa de exclusão pela área administrativa é recusada, e são exibidos os pedidos que a impedem. A loja não possui operação própria de exclusão, nem na área administrativa nem na API, e a API também não oferece a exclusão de usuários. Para encerrar o acesso de um usuário, o administrador o desativa, mantendo a conta; para encerrar a atividade de uma loja, utiliza-se a desativação, descrita na Seção 4.4. Os pedidos, por sua vez, ficam disponíveis na área administrativa apenas para consulta, sem a possibilidade de inclusão, edição ou exclusão, e a alteração de status ocorre exclusivamente pela API, respeitando o fluxo descrito na Seção 4.2.
 
 <!-- orientador: revisar -->
+No caso dos produtores, a proteção é mais ampla: enquanto possuir loja, o produtor não pode ser excluído, tenha ou não pedidos associados, pois a referência da loja ao seu proprietário utiliza a regra de exclusão restritiva descrita na Seção 3.2.4. Dessa forma, a loja e os seus produtos nunca são removidos em cascata junto com o usuário. O encerramento da atividade do produtor ocorre por meio de exclusão lógica, isto é, pela marcação do registro como inativo em vez de sua remoção física do banco de dados: a loja é desativada e, quando necessário, o administrador inativa o usuário, preservando o histórico de pedidos, a loja e os produtos.
+
+<!-- orientador: revisar -->
 ## 4.8 Verificação das Funcionalidades {#verificação-das-funcionalidades}
 
-As regras de negócio descritas neste capítulo foram verificadas por meio de testes automatizados do *backend*, que simulam as requisições à API e conferem as respostas e os dados gravados no banco de dados. Na data de redação desta seção, 15 de outubro de 2026, a suíte de testes do *backend* reunia 176 testes automatizados, todos executados com sucesso no banco de dados SQLite. Entre eles, estão os testes que verificam a retirada do produto sem estoque do catálogo, os limites do indicador de estoque baixo, a recusa de estoque negativo, o ajuste dos carrinhos, as transições de status e a devolução do estoque no cancelamento, o vínculo do cliente com os pedidos, o bloqueio da exclusão de usuários com pedidos e as regras de avaliação. Complementarmente, as telas relacionadas ao controle de estoque foram inspecionadas visualmente nas larguras de 375 e 1280 pixels, representativas de *smartphones* e de computadores de mesa, respectivamente, em atenção ao requisito não funcional de responsividade da interface.
+As regras de negócio descritas neste capítulo foram verificadas por meio de testes automatizados do *backend*, que simulam as requisições à API e conferem as respostas e os dados gravados no banco de dados. Na data de redação desta seção, 15 de outubro de 2026, a suíte de testes do *backend* reunia 187 testes automatizados, todos executados com sucesso no banco de dados SQLite. Entre eles, estão os testes que verificam a retirada do produto sem estoque do catálogo, os limites do indicador de estoque baixo, a recusa de estoque negativo, o ajuste dos carrinhos, as transições de status e a devolução do estoque no cancelamento, o vínculo do cliente com os pedidos, o bloqueio da exclusão de usuários com pedidos, a recusa de uma segunda loja para o mesmo produtor, tanto pela API quanto pela restrição de unicidade do banco de dados, inclusive em uma situação que simula requisições simultâneas, o bloqueio da exclusão de produtor que possui loja, com ou sem pedidos, preservando a loja e o histórico, e as regras de avaliação. Complementarmente, as telas relacionadas ao controle de estoque foram inspecionadas visualmente nas larguras de 375 e 1280 pixels, representativas de *smartphones* e de computadores de mesa, respectivamente, em atenção ao requisito não funcional de responsividade da interface.
 
 <!-- autor: registrar aqui a validação manual da tela de avaliações no navegador, se desejar; não há testes de usabilidade com usuários a relatar -->
 
@@ -1025,7 +1037,7 @@ Nas avaliações, não há edição pelo autor: uma avaliação enviada só pode
 Quanto aos dados pessoais, a preservação do histórico impede a exclusão de usuários que possuam pedidos, e o *snapshot* mantém dados como nome, CPF, e-mail e telefone registrados em cada pedido. O sistema ainda não dispõe de um procedimento de anonimização desses dados, que seria necessário para atender a solicitações de eliminação de dados pessoais previstas na LGPD (Lei Geral de Proteção de Dados Pessoais) [CITAÇÃO NECESSÁRIA] sem comprometer a integridade do histórico de vendas.
 
 <!-- orientador: revisar -->
-Por fim, o desenvolvimento e os testes automatizados foram realizados com o banco de dados SQLite. A alteração que transferiu o vínculo do cliente para a entidade Pedido_Cliente, descrita na Seção 4.7, ainda não foi aplicada ao banco de dados PostgreSQL do ambiente de produção, e o comportamento do bloqueio por linha descrito na Seção 4.1.3 ainda precisa ser verificado nesse banco de dados.
+Por fim, o desenvolvimento e os testes automatizados foram realizados com o banco de dados SQLite. As alterações da estrutura do banco de dados, incluindo a transferência do vínculo do cliente para a entidade Pedido_Cliente, descrita na Seção 4.7, e a restrição de uma loja por produtor, descrita na Seção 3.2.4, já foram aplicadas ao banco de dados PostgreSQL do ambiente de produção. Contudo, o comportamento do bloqueio por linha descrito na Seção 4.1.3 ainda precisa ser verificado nesse banco de dados.
 
 <!-- orientador: revisar -->
 ## 5.3 Trabalhos Futuros {#trabalhos-futuros}
@@ -1042,7 +1054,7 @@ A partir das limitações identificadas e do escopo definido para o MVP, as segu
 
 - Procedimento de anonimização de dados pessoais, em conformidade com a LGPD;
 
-- Aplicação das alterações do banco de dados e verificação do controle de concorrência no PostgreSQL do ambiente de produção;
+- Verificação do controle de concorrência no PostgreSQL do ambiente de produção;
 
 - Pagamento online e integração com meios de pagamento;
 

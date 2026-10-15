@@ -5,7 +5,7 @@
 %% Todas as tabelas, exceto USUARIO, GENERO e STATUS_PEDIDO, herdam data_criacao e data_atualizacao (BaseModel).
 erDiagram
     GENERO ||--o{ USUARIO : classifica
-    USUARIO ||--o{ LOJA : "é proprietário de"
+    USUARIO ||--o| LOJA : "é proprietário de"
     LOJA ||--o{ PRODUTO : oferece
     CATEGORIA ||--o{ PRODUTO : classifica
     PRODUTO ||--o{ PRECO_PRODUTO : "tem histórico de"
@@ -26,8 +26,8 @@ erDiagram
     PRODUTO ||--o{ AVALIACAO : recebe
     PEDIDO_PRODUTO ||--o| AVALIACAO : "avaliado por"
 
-    %% USUARIO ||--o{ LOJA: o model não tem UNIQUE em proprietario; a regra de uma loja por produtor (RN-013)
-    %% é validada na API. O modelo-alvo tem uq_loja_proprietario e ON DELETE RESTRICT (o model usa CASCADE).
+    %% USUARIO ||--o| LOJA: uma loja por produtor (RN-013) garantida no banco por uq_loja_proprietario e validada na API.
+    %% proprietario com PROTECT, igual ao RESTRICT do modelo-alvo (DB-003/DB-014, migration lojas/0003).
     %% PEDIDO ||--|| PEDIDO_CLIENTE: o OneToOne garante no máximo um snapshot por pedido; a API cria o pedido
     %% e o snapshot na mesma transação. PEDIDO ||--|{ PEDIDO_PRODUTO: a API só cria pedido com ao menos um item.
 
@@ -55,7 +55,7 @@ erDiagram
 
     LOJA {
         int loja_id PK
-        int proprietario_id FK
+        int proprietario_id FK, UK
         varchar(150) nome
         text descricao
         varchar(14) cnpj UK
