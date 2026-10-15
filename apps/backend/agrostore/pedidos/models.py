@@ -20,8 +20,7 @@ class StatusPedido(models.Model):
 
 class Pedido(BaseModel):
     pedido_id = models.AutoField(primary_key=True)
-    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='pedidos')
-    loja = models.ForeignKey(Loja, on_delete=models.CASCADE, related_name='pedidos')
+    loja = models.ForeignKey(Loja, on_delete=models.PROTECT, related_name='pedidos')
     status = models.ForeignKey(StatusPedido, on_delete=models.PROTECT, related_name='pedidos')
     valor_bruto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     valor_desconto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
@@ -48,6 +47,8 @@ class PedidoProduto(BaseModel):
 class PedidoCliente(BaseModel):
     pedido_cliente_id = models.AutoField(primary_key=True)
     pedido = models.OneToOneField(Pedido, on_delete=models.CASCADE, related_name='cliente')
+    # O vínculo com o cliente fica no snapshot (DB-010); PROTECT impede apagar o histórico ao excluir o usuário.
+    usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='pedidos_cliente')
     nome = models.CharField(max_length=150)
     cpf = models.CharField(max_length=11)
     email = models.EmailField()

@@ -1,8 +1,13 @@
 from decimal import Decimal
 
+from django.db import IntegrityError, connection, transaction
+from django.db.models import ProtectedError
+from django.test.utils import CaptureQueriesContext
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from agrostore.avaliacoes.models import Avaliacao
 from agrostore.carrinhos.models import Carrinho, CarrinhoProduto
 from agrostore.lojas.models import Loja
 from agrostore.pedidos.models import Pedido, PedidoCliente, PedidoProduto, StatusPedido
@@ -182,11 +187,7 @@ class PedidoCheckoutTests(APITestCase):
         self.assertTrue(CarrinhoProduto.objects.filter(carrinho_produto_id=item_outro_usuario.carrinho_produto_id).exists())
 
     def test_produtor_visualiza_apenas_pedidos_da_propria_loja_com_contato_minimo(self):
-        pedido = Pedido.objects.create(
-            usuario=self.cliente,
-            loja=self.loja_a,
-            status=StatusPedido.objects.get(status='Pendente'),
-        )
+        pedido = self._criar_pedido()
         PedidoProduto.objects.create(
             pedido=pedido,
             produto=self.produto_a,
@@ -194,15 +195,6 @@ class PedidoCheckoutTests(APITestCase):
             quantidade=1,
             valor_unitario='5.00',
             subtotal='4.00',
-        )
-        PedidoCliente.objects.create(
-            pedido=pedido,
-            nome=self.cliente.nome,
-            cpf=self.cliente.cpf,
-            email=self.cliente.email,
-            telefone=self.cliente.telefone,
-            data_nascimento=self.cliente.data_nascimento,
-            genero=str(self.cliente.genero),
         )
         self.client.force_authenticate(self.produtor)
 
@@ -213,7 +205,7 @@ class PedidoCheckoutTests(APITestCase):
         self.assertIsNotNone(response.data[0]['data_criacao'])
 
     def test_cliente_lista_pedidos_com_data_de_criacao(self):
-        Pedido.objects.create(usuario=self.cliente, loja=self.loja_a, status=StatusPedido.objects.get(status='Pendente'))
+        self._criar_pedido()
 
         response = self.client.get('/api/v1/pedidos/')
 
@@ -235,11 +227,7 @@ class PedidoCheckoutTests(APITestCase):
     def test_produtor_respeita_fluxo_de_status(self):
         em_preparo = StatusPedido.objects.create(status='Em preparo')
         pronto = StatusPedido.objects.create(status='Pronto para retirada')
-        pedido = Pedido.objects.create(
-            usuario=self.cliente,
-            loja=self.loja_a,
-            status=StatusPedido.objects.get(status='Pendente'),
-        )
+        pedido = self._criar_pedido()
         self.client.force_authenticate(self.produtor)
 
         response = self.client.patch(f'/api/v1/pedidos/{pedido.pedido_id}/status/', {'status': pronto.status_pedido_id}, format='json')
@@ -274,11 +262,7 @@ class PedidoCheckoutTests(APITestCase):
         self.assertEqual(self.produto_a.estoque, 10)
 
     def test_cliente_nao_cancela_pedido_de_outro_usuario(self):
-        pedido = Pedido.objects.create(
-            usuario=self.cliente,
-            loja=self.loja_a,
-            status=StatusPedido.objects.get(status='Pendente'),
-        )
+        pedido = self._criar_pedido()
         outro_cliente = Usuario.objects.create_user(
             cpf='22345678904',
             email='outro-cancelamento@example.com',
@@ -294,11 +278,7 @@ class PedidoCheckoutTests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_cliente_nao_cancela_pedido_em_preparo(self):
-        pedido = Pedido.objects.create(
-            usuario=self.cliente,
-            loja=self.loja_a,
-            status=StatusPedido.objects.create(status='Em preparo'),
-        )
+        pedido = self._criar_pedido(status_pedido=StatusPedido.objects.create(status='Em preparo'))
 
         response = self.client.patch(f'/api/v1/pedidos/{pedido.pedido_id}/cancelar/')
 
@@ -365,6 +345,124 @@ class PedidoCheckoutTests(APITestCase):
         self.assertEqual(self.produto_a.estoque, 10)
         item_outro_cliente.refresh_from_db()
         self.assertEqual(item_outro_cliente.quantidade, 8)
+
+    def test_checkout_cria_pedido_cliente_com_o_usuario_correto_em_cada_pedido(self):
+        item_a = self._adicionar_item(self.produto_a, 1)
+        item_b = self._adicionar_item(self.produto_b, 1)
+
+        response = self._checkout(item_a, item_b)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(PedidoCliente.objects.count(), 2)
+        for dados in response.data:
+            pedido = Pedido.objects.get(pedido_id=dados['pedido_id'])
+            self.assertEqual(pedido.cliente.usuario, self.cliente)
+            self.assertEqual(pedido.cliente.cpf, self.cliente.cpf)
+
+    def test_meus_pedidos_nao_exibe_pedidos_de_outro_cliente(self):
+        outro_cliente = self._criar_outro_cliente()
+        pedido_proprio = self._criar_pedido()
+        pedido_do_outro = self._criar_pedido(usuario=outro_cliente)
+
+        response = self.client.get('/api/v1/pedidos/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual([p['pedido_id'] for p in response.data], [pedido_proprio.pedido_id])
+
+        self.client.force_authenticate(outro_cliente)
+        response = self.client.get('/api/v1/pedidos/')
+        self.assertEqual([p['pedido_id'] for p in response.data], [pedido_do_outro.pedido_id])
+
+    def test_cliente_nao_cancela_pedido_de_outro_cliente_e_mantem_status_e_estoque(self):
+        item = self._adicionar_item(self.produto_a, 2)
+        pedido_id = self._checkout(item).data[0]['pedido_id']
+        self.client.force_authenticate(self._criar_outro_cliente())
+
+        response = self.client.patch(f'/api/v1/pedidos/{pedido_id}/cancelar/')
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(Pedido.objects.get(pedido_id=pedido_id).status.status, 'Pendente')
+        self.produto_a.refresh_from_db()
+        self.assertEqual(self.produto_a.estoque, 8)
+
+    def test_excluir_usuario_cliente_com_pedidos_e_bloqueado(self):
+        pedido = self._criar_pedido()
+
+        with self.assertRaises(ProtectedError):
+            with transaction.atomic():
+                self.cliente.delete()
+
+        self.assertTrue(Usuario.objects.filter(pk=self.cliente.pk).exists())
+        self.assertTrue(Pedido.objects.filter(pk=pedido.pk).exists())
+        self.assertTrue(PedidoCliente.objects.filter(pedido=pedido, usuario=self.cliente).exists())
+
+    def test_excluir_loja_com_pedidos_e_bloqueado(self):
+        pedido = self._criar_pedido()
+
+        with self.assertRaises(ProtectedError):
+            with transaction.atomic():
+                self.loja_a.delete()
+
+        self.assertTrue(Loja.objects.filter(pk=self.loja_a.pk).exists())
+        self.assertTrue(Pedido.objects.filter(pk=pedido.pk).exists())
+
+    def test_excluir_usuario_produtor_cuja_loja_tem_pedidos_e_bloqueado(self):
+        pedido = self._criar_pedido()
+
+        with self.assertRaises(ProtectedError):
+            with transaction.atomic():
+                self.produtor.delete()
+
+        self.assertTrue(Usuario.objects.filter(pk=self.produtor.pk).exists())
+        self.assertTrue(Loja.objects.filter(pk=self.loja_a.pk).exists())
+        self.assertTrue(Pedido.objects.filter(pk=pedido.pk).exists())
+        self.assertTrue(PedidoCliente.objects.filter(pedido=pedido, usuario=self.cliente).exists())
+
+    def test_cliente_nao_consulta_detalhe_de_pedido_de_outro_cliente(self):
+        pedido_do_outro = self._criar_pedido(usuario=self._criar_outro_cliente())
+
+        response = self.client.get(f'/api/v1/pedidos/{pedido_do_outro.pedido_id}/')
+
+        self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_cliente_consulta_detalhe_do_proprio_pedido(self):
+        pedido = self._criar_pedido()
+
+        response = self.client.get(f'/api/v1/pedidos/{pedido.pedido_id}/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['pedido_id'], pedido.pedido_id)
+
+    def test_pedido_cliente_sem_usuario_e_recusado_pelo_banco(self):
+        pedido = Pedido.objects.create(loja=self.loja_a, status=StatusPedido.objects.get(status='Pendente'))
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PedidoCliente.objects.create(
+                    pedido=pedido,
+                    nome='Sem Usuario',
+                    cpf='22345678901',
+                    email='sem@example.com',
+                    data_nascimento='1990-01-01',
+                    genero='Feminino',
+                )
+
+        self.assertFalse(PedidoCliente.objects.exists())
+
+    def _criar_pedido(self, usuario=None, loja=None, status_pedido=None):
+        usuario = usuario or self.cliente
+        pedido = Pedido.objects.create(loja=loja or self.loja_a, status=status_pedido or StatusPedido.objects.get(status='Pendente'))
+        PedidoCliente.objects.create(
+            pedido=pedido,
+            usuario=usuario,
+            nome=usuario.nome,
+            cpf=usuario.cpf,
+            email=usuario.email,
+            telefone=usuario.telefone,
+            data_nascimento=usuario.data_nascimento,
+            genero=str(usuario.genero),
+        )
+        return pedido
 
     def _criar_outro_cliente(self):
         return Usuario.objects.create_user(
@@ -553,5 +651,98 @@ class PedidoCheckoutTests(APITestCase):
             password='senha123',
             nome=f'Cliente Extra {sufixo}',
             data_nascimento='1991-01-01',
+            genero=self.genero,
+        )
+
+    def test_itens_do_pedido_exibem_a_avaliacao_ou_null(self):
+        pedido = self._criar_pedido()
+        item_avaliado = self._criar_item_pedido(pedido, self.produto_a)
+        item_sem_avaliacao = self._criar_item_pedido(pedido, self.produto_nao_selecionado)
+        avaliacao = self._avaliar_item(item_avaliado)
+
+        response = self.client.get('/api/v1/pedidos/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        itens = {item['pedido_produto_id']: item for item in response.data[0]['itens']}
+        self.assertEqual(
+            itens[item_avaliado.pedido_produto_id]['avaliacao'],
+            {'avaliacao_id': avaliacao.avaliacao_id, 'nota': 4, 'comentario': 'Fresquinho'},
+        )
+        self.assertIsNone(itens[item_sem_avaliacao.pedido_produto_id]['avaliacao'])
+
+    def test_produtor_ve_a_avaliacao_dos_itens_da_propria_loja(self):
+        item = self._criar_item_pedido(self._criar_pedido(), self.produto_a)
+        self._avaliar_item(item)
+        self.client.force_authenticate(self.produtor)
+
+        response = self.client.get('/api/v1/pedidos/minha-loja/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]['itens'][0]['avaliacao']['nota'], 4)
+
+    def test_listagem_de_pedidos_nao_consulta_a_avaliacao_item_por_item(self):
+        self._avaliar_item(self._criar_item_pedido(self._criar_pedido(), self.produto_a))
+        with CaptureQueriesContext(connection) as consultas_um_pedido:
+            self.client.get('/api/v1/pedidos/')
+
+        for _ in range(2):
+            pedido = self._criar_pedido()
+            self._avaliar_item(self._criar_item_pedido(pedido, self.produto_a))
+            self._criar_item_pedido(pedido, self.produto_nao_selecionado)
+
+        with self.assertNumQueries(len(consultas_um_pedido)):
+            response = self.client.get('/api/v1/pedidos/')
+        self.assertEqual(len(response.data), 3)
+
+    def test_admin_consulta_pedido_sem_incluir_editar_ou_excluir(self):
+        pedido = self._criar_pedido()
+        self._criar_item_pedido(pedido, self.produto_a)
+        self.client.force_login(self._criar_administrador())
+        em_preparo, _ = StatusPedido.objects.get_or_create(status='Em preparo')
+
+        listagem = self.client.get(reverse('admin:pedidos_pedido_changelist'))
+        detalhe = self.client.get(reverse('admin:pedidos_pedido_change', args=[pedido.pk]))
+        inclusao = self.client.get(reverse('admin:pedidos_pedido_add'))
+        exclusao = self.client.post(reverse('admin:pedidos_pedido_delete', args=[pedido.pk]), {'post': 'yes'})
+        edicao = self.client.post(
+            reverse('admin:pedidos_pedido_change', args=[pedido.pk]),
+            {'status': em_preparo.pk, 'loja': self.loja_a.pk, 'valor_liquido': '0.01'},
+        )
+
+        self.assertEqual((listagem.status_code, detalhe.status_code), (status.HTTP_200_OK, status.HTTP_200_OK))
+        self.assertEqual(inclusao.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(exclusao.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(edicao.status_code, status.HTTP_403_FORBIDDEN)
+        pedido.refresh_from_db()
+        self.assertEqual(pedido.status.status, 'Pendente')
+        self.assertEqual(pedido.valor_liquido, Decimal('0.00'))
+        self.assertEqual(pedido.itens.count(), 1)
+
+    def _criar_item_pedido(self, pedido, produto):
+        return PedidoProduto.objects.create(
+            pedido=pedido,
+            produto=produto,
+            nome_produto=produto.nome,
+            quantidade=1,
+            valor_unitario=Decimal('5.00'),
+            subtotal=Decimal('5.00'),
+        )
+
+    def _avaliar_item(self, item):
+        return Avaliacao.objects.create(
+            usuario=self.cliente,
+            produto=item.produto,
+            pedido_produto=item,
+            nota=4,
+            comentario='Fresquinho',
+        )
+
+    def _criar_administrador(self):
+        return Usuario.objects.create_superuser(
+            cpf='22345678909',
+            email='admin-pedido@example.com',
+            password='senha123',
+            nome='Administrador Pedido',
+            data_nascimento='1985-01-01',
             genero=self.genero,
         )

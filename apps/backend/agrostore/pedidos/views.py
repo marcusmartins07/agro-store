@@ -37,14 +37,12 @@ class PedidoViewSet(viewsets.ModelViewSet):
     http_method_names = ['get', 'post', 'patch']
 
     def get_queryset(self):
-        queryset = Pedido.objects.select_related('loja', 'status').prefetch_related('itens', 'cliente')
+        queryset = Pedido.objects.select_related('loja', 'status', 'cliente').prefetch_related('itens__avaliacao')
         if self.action in ['minha_loja', 'atualizar_status']:
             if self.request.user.is_staff:
                 return queryset
             return queryset.filter(loja__proprietario=self.request.user)
-        return Pedido.objects.filter(
-            usuario=self.request.user
-        ).select_related('loja', 'status').prefetch_related('itens', 'cliente')
+        return queryset.filter(cliente__usuario=self.request.user)
 
     @transaction.atomic
     def create(self, request):
@@ -86,12 +84,21 @@ class PedidoViewSet(viewsets.ModelViewSet):
         for loja, itens_da_loja in itens_por_loja.items():
             valor_bruto, valor_desconto = self._calcular_totais(itens_da_loja)
             pedido = Pedido.objects.create(
-                usuario=usuario,
                 loja=loja,
                 status=status_pendente,
                 valor_bruto=valor_bruto,
                 valor_desconto=valor_desconto,
                 valor_liquido=valor_bruto - valor_desconto,
+            )
+            PedidoCliente.objects.create(
+                pedido=pedido,
+                usuario=usuario,
+                nome=usuario.nome,
+                cpf=usuario.cpf,
+                email=usuario.email,
+                telefone=usuario.telefone,
+                data_nascimento=usuario.data_nascimento,
+                genero=str(usuario.genero),
             )
 
             for item in itens_da_loja:
@@ -110,15 +117,6 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 item.produto.estoque -= item.quantidade
                 item.produto.save(update_fields=['estoque', 'data_atualizacao'])
 
-            PedidoCliente.objects.create(
-                pedido=pedido,
-                nome=usuario.nome,
-                cpf=usuario.cpf,
-                email=usuario.email,
-                telefone=usuario.telefone,
-                data_nascimento=usuario.data_nascimento,
-                genero=str(usuario.genero),
-            )
             pedidos_criados.append(pedido)
 
         carrinhos_afetados = {item.carrinho for item in itens}
@@ -212,9 +210,9 @@ class PedidoViewSet(viewsets.ModelViewSet):
         return valor_bruto, valor_desconto
 
     def _obter_pedido_para_atualizacao(self, pedido_id, usuario=None):
-        queryset = Pedido.objects.select_for_update().prefetch_related('itens')
+        queryset = Pedido.objects.select_for_update().prefetch_related('itens__avaliacao')
         if usuario is not None:
-            queryset = queryset.filter(usuario=usuario)
+            queryset = queryset.filter(cliente__usuario=usuario)
         elif not self.request.user.is_staff:
             queryset = queryset.filter(loja__proprietario=self.request.user)
         return get_object_or_404(queryset, pedido_id=pedido_id)
