@@ -39,8 +39,12 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
 - O cadastro não aceita campos de privilégios, incluindo `is_produtor`, `is_staff` ou permissões.
 - O cadastro de cliente não cria loja nem inicia solicitação para perfil de produtor.
 - Cadastro, aprovação de produtor, ativação de loja e notificações administrativas serão definidos em tarefa futura.
-- No perfil, o usuário pode alterar nome, e-mail, celular, data de nascimento e gênero, com as mesmas validações do cadastro.
+- No perfil, o usuário pode alterar nome, e-mail, celular, data de nascimento, gênero e foto de perfil, com as mesmas validações do cadastro.
   CPF e papéis (`is_produtor`, `is_staff`) não podem ser alterados pelo próprio usuário.
+- Foto de perfil (RN-018): todo usuário (cliente ou produtor) pode ter uma única foto de perfil, opcional, enviada, trocada ou removida
+  (sem precisar enviar outra) somente pelo próprio usuário na tela de perfil. Sem foto, o sistema exibe as iniciais do nome.
+  A foto é exibida apenas ao próprio usuário (perfil e menu da conta); não aparece em avaliações, pedidos ou na área do produtor.
+  As regras comuns de arquivo estão em "Imagem da loja e foto de perfil" na seção do produtor e da loja.
 - Alterar o perfil não muda pedidos já realizados: eles mantêm o snapshot dos dados do cliente.
 - O usuário que não é produtor vê apenas uma orientação para procurar a organização da feira; o frontend não oferece criação de loja para ele.
 
@@ -52,8 +56,24 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
 - Um produtor/agricultor não deve administrar produtos de outro produtor.
 - O produtor/agricultor deve visualizar apenas pedidos relacionados à sua própria loja/produtor.
 - Decisão v1: cada produtor pode possuir somente uma loja.
-- O produtor pode alterar o nome e a descrição e desativar sua própria loja. CNPJ e proprietário não são alterados por essa área.
+- O produtor pode alterar o nome, a descrição e a imagem e desativar sua própria loja. CNPJ e proprietário não são alterados por essa área.
   A desativação preserva o histórico e impede novas compras.
+- Imagem da loja (RN-018): cada loja pode ter uma única imagem, opcional, que pode ser escolhida já na criação da loja ou enviada depois
+  na área do produtor. Se a imagem enviada na criação for inválida, a loja não é criada e o produtor corrige o arquivo.
+  Somente o proprietário da loja envia, troca ou remove a imagem; a remoção é permitida sem enviar outra.
+  Sem imagem, o sistema exibe um marcador neutro com a inicial do nome da loja.
+  A imagem aparece na página pública da loja, no detalhe do produto (junto ao nome da loja) e na área do produtor;
+  os cards do catálogo continuam mostrando a imagem principal do produto. A desativação da loja não apaga a imagem.
+- Imagem da loja e foto de perfil, regras comuns (RN-018): o backend aceita apenas JPG, PNG ou WEBP de até 5 MB, conferindo
+  extensão e conteúdo, e renomeia o arquivo com nome aleatório (mesmas validações da RN-016). Mensagens de recusa:
+  "Envie uma imagem JPG, PNG ou WEBP válida." e "A imagem deve ter no máximo 5 MB."; quando o envio é recusado, a imagem atual é mantida.
+  Diferente da imagem do produto, enviar uma nova imagem substitui a anterior. O arquivo anterior é removido do storage ao trocar
+  ou remover, mas só é removido se não for usado por outra loja.
+  Os arquivos ficam no disco local em desenvolvimento e no Supabase Storage em produção.
+  A imagem da loja e a foto do usuário não fazem parte do snapshot do pedido; trocá-las ou removê-las não altera pedidos já realizados.
+  Os valores já existentes em `Loja.imagem_perfil` são preservados na mudança do campo; um valor que não aponta para arquivo válido
+  é exibido como "sem imagem", sem apagar o dado.
+  Nenhuma permissão administrativa nova é criada para essas imagens; a moderação pelo administrador é trabalho futuro.
 
 ## Produtos
 
@@ -252,6 +272,13 @@ Adicionar novas regras abaixo conforme o projeto evoluir.
 - Vendas do mês, pedidos no mês, ticket médio, vendas dos últimos 7 dias e produtos mais vendidos consideram somente pedidos
   não cancelados, agrupados pela data de criação do pedido.
 - Os indicadores são calculados no frontend apenas para acompanhamento e não substituem relatórios ou validações do backend.
+
+### Loja e imagens (fora da RN-018)
+
+- Cidade e contato da loja serão definidos em tarefa própria (DB-013); não fazem parte da RN-018.
+- Moderação de imagens de loja e de usuário pelo administrador.
+- Logo e capa separadas da loja (no MVP, cada loja tem uma única imagem).
+- Imagem da loja nos cards do catálogo.
 
 ### Regras pendentes de definição
 - Se o produtor poderá recusar pedido.

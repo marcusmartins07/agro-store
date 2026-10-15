@@ -1,5 +1,7 @@
 from datetime import date, timedelta
 
+from django.core.exceptions import ValidationError
+from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -155,3 +157,51 @@ class AtualizacaoPerfilTests(APITestCase):
         self.client.force_authenticate(user=None)
         response = self.client.patch(self.url_perfil, {'nome': 'Sem login'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+
+class UsuarioFotoPerfilModelTests(TestCase):
+    def setUp(self):
+        self.genero, _ = Genero.objects.get_or_create(id_genero='M', defaults={'genero': 'Masculino'})
+
+    def montar_usuario(self, foto=''):
+        usuario = Usuario(
+            cpf='11122233344', email='foto-model@example.com', nome='Usuario Foto',
+            data_nascimento='1990-01-01', genero=self.genero,
+        )
+        if foto:
+            usuario.foto_perfil.name = foto
+        return usuario
+
+    def test_usuario_novo_nasce_sem_foto_com_texto_vazio(self):
+        usuario = Usuario.objects.create_user(
+            cpf='11122233355', email='sem-foto@example.com', password='senha12345',
+            nome='Sem Foto', data_nascimento='1990-01-01', genero=self.genero,
+        )
+        usuario.refresh_from_db()
+        self.assertEqual(usuario.foto_perfil.name, '')
+        self.assertFalse(usuario.foto_perfil)
+
+    def test_campo_foto_perfil_nao_aceita_null_e_tem_max_length_255(self):
+        campo = Usuario._meta.get_field('foto_perfil')
+        self.assertFalse(campo.null)
+        self.assertTrue(campo.blank)
+        self.assertEqual(campo.max_length, 255)
+
+    def test_upload_to_gera_nome_aleatorio_em_minusculas_sem_nome_original(self):
+        campo = Usuario._meta.get_field('foto_perfil')
+        caminho = campo.upload_to(self.montar_usuario(), 'Minha Foto.WEBP')
+        self.assertRegex(caminho, r'^usuarios/[0-9a-f]{32}\.webp$')
+        self.assertNotIn('Minha', caminho)
+
+    def test_extensoes_aceitas_passam_no_full_clean(self):
+        for extensao in ['jpg', 'jpeg', 'png', 'webp', 'PNG']:
+            with self.subTest(extensao=extensao):
+                usuario = self.montar_usuario(f'usuarios/abc.{extensao}')
+                usuario.full_clean(exclude=['password'])
+
+    def test_extensao_nao_permitida_e_recusada_no_full_clean(self):
+        for nome in ['usuarios/abc.gif', 'usuarios/abc.svg', 'usuarios/abc.pdf', 'usuarios/abc']:
+            with self.subTest(nome=nome):
+                with self.assertRaises(ValidationError) as ctx:
+                    self.montar_usuario(nome).full_clean(exclude=['password'])
+                self.assertIn('foto_perfil', ctx.exception.message_dict)

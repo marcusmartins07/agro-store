@@ -53,6 +53,9 @@ aprovação conforme `AGENTS.md`.
   condicional `imagem_principal_unica_por_produto` impede duas principais; o
   limite de 5 imagens é validado na API. `Produto.imagem` é legado, foi copiado
   para a imagem principal (migration `0006`) e sua remoção depende de autorização.
+- Loja e usuário têm uma imagem única cada (`Loja.imagem_perfil` e `Usuario.foto_perfil`, `FileField` de 255,
+  `''` quando vazio), substituída na troca. `imagem_perfil` era texto e virou arquivo sem mudar a coluna
+  (migration `lojas/0002`), preservando os caminhos legados. Extensões e nome aleatório ficam em `main/imagens.py`.
 - Carrinho pertence a um usuário e uma loja. `carrinho_produto` é o item do
   carrinho e é único por carrinho e produto.
 - Pedido pertence a usuário, loja e status. Pedidos e suas referências centrais
