@@ -58,8 +58,9 @@ aprovação conforme `AGENTS.md`.
   (migration `lojas/0002`), preservando os caminhos legados. Extensões e nome aleatório ficam em `main/imagens.py`.
 - Carrinho pertence a um usuário e uma loja. `carrinho_produto` é o item do
   carrinho e é único por carrinho e produto.
-- Pedido pertence a usuário, loja e status. Pedidos e suas referências centrais
-  não podem ser apagados em cascata.
+- Pedido pertence à loja e ao status; `pedido.loja` é PROTECT. O cliente fica em
+  `pedido_cliente.usuario` (obrigatório, PROTECT/RESTRICT), junto com o snapshot.
+  Pedidos e suas referências centrais não podem ser apagados em cascata.
 - `pedido_cliente` é o snapshot um-para-um do cliente. `pedido_produto` mantém
   nome, quantidade e valores do momento da compra; sua referência ao produto é
   opcional e deve usar `SET NULL` se o produto for removido.

@@ -194,7 +194,13 @@ replicar o hexadecimal em views ou componentes.
   detalhe (`/produto/:id`); o favorito é um botão separado do link.
 - `SeletorQuantidade.vue`: quantidade com `v-model`, `min`, `max` e `disabled`
   (detalhe do produto e carrinho).
-- `AvaliacaoEstrelas.vue`: nota de 1 a 5 com texto acessível.
+- `AvaliacaoEstrelas.vue`: nota de 1 a 5 com texto acessível; a estrela vazia usa `--cor-texto-secundario`.
+- `SeletorNota.vue`: seletor de nota de 1 a 5 com radios nativos (`fieldset` com `legend`), usado com `v-model`
+  (número ou `null`). Props `desabilitado`, `invalido` e `idErro`; expõe `focar()`, que foca a opção marcada ou a primeira.
+- `FormularioAvaliacao.vue`: formulário de apresentação da avaliação (nota e comentário de até 500 caracteres, com
+  contador). Usa `v-model:nota` e `v-model:comentario`; recebe `nomeProduto`, `pedidoId`, `lojaNome`, `desabilitado`,
+  `erro` e `erroNota`; emite `enviar` e expõe `focarNota()`. Não chama a API: quem o usa (ex.: `PedidosView.vue`, dentro
+  do `ModalConfirmacao`) coordena o envio.
 - `GaleriaProduto.vue`: carrossel com miniaturas do detalhe do produto. Recebe `produto.imagens`
   com a principal primeiro; sem imagens, exibe um único slide "Sem foto cadastrada".
 - `src/utils/formatacao.js`: `formatarPreco`, `temDesconto`, máscaras (`mascaraCpf`,
@@ -222,7 +228,9 @@ replicar o hexadecimal em views ou componentes.
   imagens já salvas como blob para edição. O backend continua validando formato, tamanho e quantidade.
 - `ModalConfirmacao.vue`: modal Bootstrap para confirmar ações (ex.: desativar produto), no lugar de
   `window.confirm`. Recebe `titulo`, `textoConfirmar`, `textoCarregando`, `variante` (padrão `danger`) e
-  `carregando`; a mensagem vai no slot; emite `confirmar` e expõe `abrir()`/`fechar()`. Segue o mesmo padrão do
+  `carregando` e `rolavel` (padrão `false`; aplica `modal-dialog-scrollable` para o corpo rolar com cabeçalho e
+  botões visíveis); a mensagem vai no slot; emite `confirmar` e `fechado` (em `hidden.bs.modal`, depois de devolver o
+  foco ao gatilho) e expõe `abrir()`/`fechar()`. Segue o mesmo padrão do
   offcanvas (classe `Modal` do bundle, foco devolvido ao gatilho, fechamento antes de `dispose()`) e não fecha
   por Esc ou clique fora enquanto `carregando`.
 

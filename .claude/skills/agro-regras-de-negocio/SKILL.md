@@ -165,6 +165,16 @@ Ao finalizar o carrinho, o backend deve:
 - O cliente deve visualizar apenas seus próprios pedidos.
 - O produtor/agricultor deve visualizar apenas pedidos relacionados aos seus produtos ou loja.
 - O pedido representa uma solicitação para retirada presencial na feira.
+- Preservação do histórico (RN-019): usuário ou loja que tenha pedidos não pode ser excluído, para preservar o histórico de pedidos.
+  Todo pedido fica vinculado ao cliente que o fez e à loja que o recebeu, e esses vínculos impedem a exclusão.
+  O bloqueio vale para o cliente com pedidos e para o produtor cuja loja tenha pedidos: ao excluir esse usuário pelo admin do Django,
+  a exclusão é recusada e os pedidos que a impedem são exibidos.
+  A loja não tem exclusão própria, nem no admin nem na API; ela só seria excluída junto com o produtor dono, o que fica bloqueado
+  quando a loja tem pedidos. A API também não oferece exclusão de usuário.
+  Usuário com pedidos nunca é excluído: para encerrar seu acesso, o administrador o desativa e a conta é mantida.
+  Pedidos não são excluídos nem editados (snapshot, itens e valores) pela área administrativa, que os mantém apenas para consulta;
+  para encerrar um pedido, usa-se o status `Cancelado`.
+  Para encerrar a atividade de uma loja, o caminho é a desativação, que preserva o histórico e impede novas compras.
 
 ## Exemplo de split de pedidos
 
@@ -236,10 +246,20 @@ Para organizar a retirada, o produtor pode consultar somente nome e telefone do 
 
 ## Avaliações
 
-- O cliente precisa estar autenticado para avaliar produtos.
-- A avaliação deve possuir nota de 1 a 5.
-- A avaliação deve estar relacionada a um produto comprado sempre que essa validação estiver disponível.
-- A avaliação pode conter comentário.
+- Avaliação de produto comprado (RN-010): somente o usuário autenticado dono do pedido pode avaliar um item desse pedido,
+  e somente quando o pedido estiver com status `Entregue`. Vale para qualquer usuário que compre, incluindo o produtor.
+  A avaliação é feita por item de pedido; o backend vincula automaticamente o produto do item e o usuário autenticado.
+- Cada item de pedido pode ser avaliado uma única vez (o banco também impede duplicidade). Se o mesmo produto foi comprado
+  em pedidos diferentes, cada item entregue pode receber sua própria avaliação.
+- A avaliação possui nota inteira de 1 a 5 e comentário opcional, com até 500 caracteres. Mensagens de recusa: "Este item não pertence ao seu pedido.",
+  "Só é possível avaliar pedidos entregues.", "Este item já foi avaliado." e "O comentário deve ter no máximo 500 caracteres.".
+- As avaliações são públicas: qualquer visitante vê, no detalhe do produto, a lista de avaliações e a média das notas.
+  A API já retorna o nome do avaliador abreviado (primeiro nome e inicial do sobrenome); o nome completo não é exposto.
+  As avaliações continuam visíveis mesmo que o produto ou a loja sejam desativados.
+- Decisão v1: a média é calculada apenas para exibição, no detalhe do produto; não há média armazenada nem exibida no catálogo.
+- Decisão v1: depois de enviada, a avaliação não pode ser editada nem removida pelo autor; não existe edição de avaliação.
+  Somente o administrador pode remover uma avaliação, como moderação, pela área administrativa.
+  Depois de removida pelo administrador, uma nova avaliação pode ser enviada para o mesmo item de pedido.
 
 ## Administração
 
@@ -279,6 +299,10 @@ Adicionar novas regras abaixo conforme o projeto evoluir.
 - Moderação de imagens de loja e de usuário pelo administrador.
 - Logo e capa separadas da loja (no MVP, cada loja tem uma única imagem).
 - Imagem da loja nos cards do catálogo.
+
+### Dados pessoais (fora do MVP)
+
+- Anonimização dos dados pessoais de usuário com pedidos que peça a exclusão da conta (LGPD), preservando o histórico de pedidos.
 
 ### Regras pendentes de definição
 - Se o produtor poderá recusar pedido.
