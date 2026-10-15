@@ -9,7 +9,7 @@ from .serializers import LojaSerializer
 class LojaViewSet(viewsets.ModelViewSet):
     queryset = Loja.objects.select_related('proprietario').all()
     serializer_class = LojaSerializer
-    http_method_names = ['get', 'post', 'patch']
+    http_method_names = ['get', 'post']
 
     def get_permissions(self):
         if self.action in ['list', 'retrieve']:

@@ -55,6 +55,46 @@ class LojaAPITests(APITestCase):
         response = self.client.patch('/api/v1/lojas/me/', {'cnpj': '98765432000198'}, format='json')
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
+    def test_produtor_nao_altera_loja_de_outro_produtor_pelo_id(self):
+        loja = Loja.objects.create(
+            proprietario=self.produtor, nome='Feira Central', cnpj='98765432000199', descricao='Produtos coloniais', ativa=True,
+        )
+        outro_produtor = Usuario.objects.create_user(
+            cpf='98765432133',
+            email='loja-outro-produtor@example.com',
+            password='senha123',
+            nome='Outro Produtor',
+            data_nascimento='1980-01-01',
+            genero=self.produtor.genero,
+            is_produtor=True,
+        )
+        self.client.force_authenticate(outro_produtor)
+
+        response = self.client.patch(
+            f'/api/v1/lojas/lojas/{loja.loja_id}/', {'nome': 'Invadida', 'descricao': 'x', 'ativa': False}, format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        loja.refresh_from_db()
+        self.assertEqual(loja.nome, 'Feira Central')
+        self.assertEqual(loja.descricao, 'Produtos coloniais')
+        self.assertTrue(loja.ativa)
+
+    def test_dono_tambem_recebe_405_no_patch_por_id(self):
+        loja = Loja.objects.create(
+            proprietario=self.produtor, nome='Feira Central', cnpj='98765432000199', descricao='Produtos coloniais', ativa=True,
+        )
+
+        response = self.client.patch(
+            f'/api/v1/lojas/lojas/{loja.loja_id}/', {'nome': 'Novo nome', 'descricao': 'y', 'ativa': False}, format='json',
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        loja.refresh_from_db()
+        self.assertEqual(loja.nome, 'Feira Central')
+        self.assertEqual(loja.descricao, 'Produtos coloniais')
+        self.assertTrue(loja.ativa)
+
 
 class LojaImagemPerfilModelTests(TestCase):
     def setUp(self):
@@ -114,7 +154,7 @@ PNG_VALIDO_LOJA = b'\x89PNG\r\n\x1a\n' + b'\x00' * 32
 
 @override_settings(MEDIA_ROOT=MEDIA_ROOT_TESTES_LOJA)
 class LojaImagemPerfilSomenteLeituraAPITests(APITestCase):
-    """Trava provisória: até a BE-018, imagem_perfil não é gravada pelo LojaSerializer."""
+    """Trava provisória: até a BE-018, imagem_perfil não é gravada pela API (somente leitura no LojaSerializer e recusada em /lojas/me/)."""
 
     @classmethod
     def tearDownClass(cls):
@@ -135,20 +175,22 @@ class LojaImagemPerfilSomenteLeituraAPITests(APITestCase):
     def arquivos_gravados(self):
         return [nome for _, _, nomes in os.walk(MEDIA_ROOT_TESTES_LOJA) for nome in nomes]
 
-    def test_patch_multipart_do_dono_nao_altera_imagem_perfil(self):
+    def test_patch_me_recusa_imagem_perfil_e_nao_grava_arquivo(self):
         loja = Loja.objects.create(
-            proprietario=self.produtor, nome='Feira Trava', cnpj='98765432000122', imagem_perfil='lojas/perfil/legado.jpg',
+            proprietario=self.produtor, nome='Feira Trava', cnpj='98765432000122', descricao='Descrição original',
+            imagem_perfil='lojas/perfil/legado.jpg',
         )
 
         response = self.client.patch(
-            f'/api/v1/lojas/lojas/{loja.loja_id}/',
+            '/api/v1/lojas/me/',
             {'descricao': 'Nova descrição', 'imagem_perfil': self.arquivo_png()},
             format='multipart',
         )
 
-        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['detail'], 'Somente nome, descrição e status da loja podem ser alterados nesta área.')
         loja.refresh_from_db()
-        self.assertEqual(loja.descricao, 'Nova descrição')
+        self.assertEqual(loja.descricao, 'Descrição original')
         self.assertEqual(loja.imagem_perfil.name, 'lojas/perfil/legado.jpg')
         self.assertEqual(self.arquivos_gravados(), [])
 
