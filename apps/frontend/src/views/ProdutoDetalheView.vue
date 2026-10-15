@@ -135,7 +135,7 @@
             <article class="card h-100 rounded-4">
               <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center gap-2 mb-2">
-                  <p class="fw-semibold mb-0">{{ nomeAvaliador(avaliacao.usuario_nome) }}</p>
+                  <p class="fw-semibold mb-0">{{ avaliacao.usuario_nome || 'Cliente' }}</p>
                   <AvaliacaoEstrelas :nota="Number(avaliacao.nota)" />
                 </div>
                 <p class="small text-body-secondary mb-0">{{ avaliacao.comentario || 'Avaliação sem comentário.' }}</p>
@@ -149,7 +149,7 @@
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 
 import AvaliacaoEstrelas from '@/components/AvaliacaoEstrelas.vue'
@@ -263,6 +263,16 @@ async function carregarProduto() {
   } finally {
     if (id === produtoId.value) carregando.value = false
   }
+  if (id === produtoId.value && produto.value) rolarParaHash()
+}
+
+// A seção de avaliações só existe depois que o produto carrega; o scrollBehavior do router
+// roda antes disso. Mesmo deslocamento do router (cabeçalho fixo).
+async function rolarParaHash() {
+  if (route.hash !== '#avaliacoes') return
+  await nextTick()
+  const secao = document.getElementById('avaliacoes')
+  if (secao) window.scrollTo({ top: secao.getBoundingClientRect().top + window.scrollY - 96 })
 }
 
 async function carregarAvaliacoes() {
@@ -322,14 +332,6 @@ async function alternarFavorito() {
   } catch (e) {
     notificacoesStore.notificar({ tipo: 'danger', mensagem: favoritosStore.erro })
   }
-}
-
-// Exibe o primeiro nome e a inicial do último sobrenome para não expor o nome completo do cliente
-function nomeAvaliador(nomeCompleto) {
-  const partes = (nomeCompleto || '').trim().split(/\s+/).filter(Boolean)
-  if (partes.length === 0) return 'Cliente'
-  if (partes.length === 1) return partes[0]
-  return `${partes[0]} ${partes[partes.length - 1][0]}.`
 }
 </script>
 

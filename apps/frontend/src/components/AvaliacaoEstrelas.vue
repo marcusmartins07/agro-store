@@ -27,5 +27,5 @@ const notaFormatada = computed(() => props.nota.toLocaleString('pt-BR', { maximu
 
 <style scoped>
 .estrela-cheia { color: var(--cor-destaque); }
-.estrela-vazia { color: var(--cor-borda); }
+.estrela-vazia { color: var(--cor-texto-secundario); }
 </style>

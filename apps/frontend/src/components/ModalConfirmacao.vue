@@ -1,6 +1,6 @@
 <template>
   <div ref="elemento" class="modal fade" tabindex="-1" :aria-labelledby="idTitulo" aria-hidden="true">
-    <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-dialog modal-dialog-centered" :class="{ 'modal-dialog-scrollable': rolavel }">
       <div class="modal-content rounded-4">
         <div class="modal-header">
           <h2 :id="idTitulo" class="modal-title h5 fw-semibold">{{ titulo }}</h2>
@@ -36,9 +36,11 @@ const props = defineProps({
   textoCarregando: { type: String, default: 'Processando...' },
   variante: { type: String, default: 'danger' },
   carregando: { type: Boolean, default: false },
+  // Corpo com rolagem própria, mantendo cabeçalho e botões visíveis em telas baixas
+  rolavel: { type: Boolean, default: false },
 })
 
-const emit = defineEmits(['confirmar'])
+const emit = defineEmits(['confirmar', 'fechado'])
 
 const idTitulo = useId()
 const elemento = ref(null)
@@ -82,9 +84,11 @@ function impedirFechamentoDuranteAcao(evento) {
 }
 
 // Aberto por código, o modal não devolve o foco sozinho; volta para o botão que o abriu
+// Emite 'fechado' depois disso: só então o focus trap do Bootstrap está desligado e o pai pode mover o foco
 function aoFechar() {
   if (gatilho?.isConnected) gatilho.focus()
   gatilho = null
+  emit('fechado')
 }
 
 defineExpose({ abrir, fechar })

@@ -1,7 +1,7 @@
 <template>
   <section>
     <div class="mb-4">
-      <h1 class="fw-semibold mb-1">Meus pedidos</h1>
+      <h1 ref="titulo" class="fw-semibold mb-1" tabindex="-1">Meus pedidos</h1>
       <p class="text-body-secondary mb-2">Acompanhe o andamento dos pedidos feitos nas lojas da feira.</p>
       <p class="d-flex align-items-start gap-2 small text-body-secondary mb-0">
         <IconeSvg nome="local" :tamanho="16" />
@@ -92,6 +92,10 @@
               <SeloStatus :status="pedido.status_nome" />
             </div>
 
+            <p v-if="temAvaliacaoPendente(pedido)" class="small text-body-secondary mb-2">
+              Conte como foi a experiência com os produtos deste pedido.
+            </p>
+
             <div class="table-responsive">
               <table class="table table-sm align-middle mb-3">
                 <caption class="visually-hidden">Produtos do pedido #{{ pedido.pedido_id }}</caption>
@@ -104,7 +108,32 @@
                 </thead>
                 <tbody>
                   <tr v-for="item in pedido.itens" :key="item.pedido_produto_id">
-                    <td>{{ item.nome_produto }}</td>
+                    <td>
+                      <span class="d-block text-break">{{ item.nome_produto }}</span>
+                      <template v-if="pedido.status_nome === STATUS_ENTREGUE">
+                        <button
+                          v-if="item.avaliacao === null"
+                          type="button"
+                          class="btn btn-sm btn-outline-primary rounded-pill px-3 mt-1"
+                          :aria-label="`Avaliar ${item.nome_produto}`"
+                          @click="abrirAvaliacao(pedido, item)"
+                        >
+                          Avaliar
+                        </button>
+                        <div
+                          v-else-if="item.avaliacao"
+                          :id="`avaliado-${item.pedido_produto_id}`"
+                          class="bloco-avaliado d-flex flex-wrap align-items-center column-gap-2 row-gap-1 small mt-1"
+                          tabindex="-1"
+                        >
+                          <AvaliacaoEstrelas :nota="Number(item.avaliacao.nota)" :tamanho="14" />
+                          <span class="text-body-secondary">Avaliado</span>
+                          <RouterLink :to="{ name: 'produto', params: { id: item.produto }, hash: '#avaliacoes' }">
+                            Ver no produto<span class="visually-hidden">: {{ item.nome_produto }}</span>
+                          </RouterLink>
+                        </div>
+                      </template>
+                    </td>
                     <td class="text-center">{{ item.quantidade }}</td>
                     <td class="text-end">{{ formatarPreco(item.subtotal) }}</td>
                   </tr>
@@ -145,13 +174,42 @@
         </article>
       </div>
     </template>
+
+    <ModalConfirmacao
+      ref="modalAvaliacao"
+      titulo="Avaliar produto"
+      texto-confirmar="Enviar avaliação"
+      texto-carregando="Enviando..."
+      variante="primary"
+      rolavel
+      :carregando="enviandoAvaliacao"
+      @confirmar="enviarAvaliacao"
+      @fechado="aoFecharAvaliacao"
+    >
+      <FormularioAvaliacao
+        v-if="avaliando"
+        ref="formularioAvaliacao"
+        v-model:nota="notaAvaliacao"
+        v-model:comentario="comentarioAvaliacao"
+        :nome-produto="avaliando.item.nome_produto"
+        :pedido-id="avaliando.pedido.pedido_id"
+        :loja-nome="avaliando.pedido.loja_nome"
+        :desabilitado="enviandoAvaliacao"
+        :erro="erroAvaliacao"
+        :erro-nota="erroNota"
+        @enviar="enviarAvaliacao"
+      />
+    </ModalConfirmacao>
   </section>
 </template>
 
 <script setup>
-import { computed, onMounted, ref } from 'vue'
+import { computed, nextTick, onMounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
+import AvaliacaoEstrelas from '@/components/AvaliacaoEstrelas.vue'
+import FormularioAvaliacao from '@/components/FormularioAvaliacao.vue'
 import IconeSvg from '@/components/IconeSvg.vue'
+import ModalConfirmacao from '@/components/ModalConfirmacao.vue'
 import SeloStatus from '@/components/SeloStatus.vue'
 import { api } from '@/services/api.js'
 import { useAuthStore } from '@/stores/auth.js'
@@ -162,6 +220,9 @@ import { formatarData, formatarPreco } from '@/utils/formatacao.js'
 import { ORDEM_STATUS, ordenarPorMaisRecente } from '@/utils/statusPedido.js'
 
 const TODOS = 'Todos'
+const STATUS_ENTREGUE = 'Entregue'
+const MENSAGEM_JA_AVALIADO = 'Este item já foi avaliado.'
+const MENSAGEM_FALHA_ENVIO = 'Não foi possível enviar a avaliação. Verifique sua conexão e tente novamente.'
 
 const route = useRoute()
 const authStore = useAuthStore()
@@ -171,6 +232,18 @@ const carregando = ref(false)
 const erro = ref('')
 const cancelando = ref(null)
 const filtro = ref(TODOS)
+
+const titulo = ref(null)
+const modalAvaliacao = ref(null)
+const formularioAvaliacao = ref(null)
+const avaliando = ref(null)
+const notaAvaliacao = ref(null)
+const comentarioAvaliacao = ref('')
+const erroAvaliacao = ref('')
+const erroNota = ref('')
+const enviandoAvaliacao = ref(false)
+// Para onde levar o foco quando o modal terminar de fechar: id do bloco "Avaliado" ou o título da página
+let focoAposFechar = null
 
 const pedidosOrdenados = computed(() => ordenarPorMaisRecente(pedidos.value))
 
@@ -189,6 +262,11 @@ const pedidosFiltrados = computed(() =>
     : pedidosOrdenados.value.filter(pedido => pedido.status_nome === filtro.value)
 )
 
+// Escolher uma nota resolve o erro de validação do seletor
+watch(notaAvaliacao, nota => {
+  if (nota) erroNota.value = ''
+})
+
 onMounted(() => {
   if (authStore.estaLogado) carregar()
 })
@@ -203,6 +281,77 @@ async function carregar() {
   } finally {
     carregando.value = false
   }
+}
+
+// O campo avaliacao vem da API (BE-019): null = item ainda não avaliado
+function temAvaliacaoPendente(pedido) {
+  return pedido.status_nome === STATUS_ENTREGUE && pedido.itens.some(item => item.avaliacao === null)
+}
+
+function abrirAvaliacao(pedido, item) {
+  avaliando.value = { pedido, item }
+  notaAvaliacao.value = null
+  comentarioAvaliacao.value = ''
+  erroAvaliacao.value = ''
+  erroNota.value = ''
+  focoAposFechar = null
+  modalAvaliacao.value.abrir()
+}
+
+async function enviarAvaliacao() {
+  if (enviandoAvaliacao.value || !avaliando.value) return
+  erroAvaliacao.value = ''
+
+  if (!notaAvaliacao.value) {
+    erroNota.value = 'Escolha uma nota de 1 a 5 estrelas.'
+    formularioAvaliacao.value?.focarNota()
+    return
+  }
+  erroNota.value = ''
+
+  const { item } = avaliando.value
+  enviandoAvaliacao.value = true
+  try {
+    const avaliacao = await api.avaliacoes.criar({
+      pedido_produto: item.pedido_produto_id,
+      nota: notaAvaliacao.value,
+      comentario: comentarioAvaliacao.value.trim(),
+    })
+    item.avaliacao = { avaliacao_id: avaliacao.avaliacao_id, nota: avaliacao.nota, comentario: avaliacao.comentario }
+    focoAposFechar = `avaliado-${item.pedido_produto_id}`
+    enviandoAvaliacao.value = false
+    modalAvaliacao.value.fechar()
+    notificacoes.notificar({ tipo: 'success', mensagem: 'Avaliação enviada. Obrigado por ajudar outros clientes.', tempo: 5 })
+  } catch (falha) {
+    enviandoAvaliacao.value = false
+    const mensagem = mensagemErroAvaliacao(falha)
+    if (mensagem === MENSAGEM_JA_AVALIADO) {
+      focoAposFechar = 'titulo'
+      modalAvaliacao.value.fechar()
+      notificacoes.notificar({ tipo: 'warning', mensagem, tempo: 6 })
+      await carregar()
+    } else {
+      erroAvaliacao.value = mensagem
+    }
+  }
+}
+
+function mensagemErroAvaliacao(falha) {
+  // Sem status, a requisição nem chegou ao servidor
+  if (!falha?.status) return MENSAGEM_FALHA_ENVIO
+  const dados = falha.data || {}
+  const campo = ['pedido_produto', 'nota', 'comentario'].find(nome => Array.isArray(dados[nome]) && dados[nome].length)
+  return campo ? dados[campo][0] : extrairMensagemErro(falha)
+}
+
+async function aoFecharAvaliacao() {
+  const destino = focoAposFechar
+  focoAposFechar = null
+  avaliando.value = null
+  if (!destino) return
+  await nextTick()
+  const elemento = destino === 'titulo' ? titulo.value : document.getElementById(destino)
+  elemento?.focus()
 }
 
 async function cancelarPedido(pedido) {
@@ -225,6 +374,11 @@ async function cancelarPedido(pedido) {
 .link-loja:hover {
   color: var(--cor-primaria);
   text-decoration: underline;
+}
+.bloco-avaliado:focus-visible {
+  outline: 2px solid var(--cor-foco);
+  outline-offset: 2px;
+  border-radius: var(--bs-border-radius-sm);
 }
 .resumo-valores {
   min-width: min(100%, 16rem);

@@ -5,7 +5,6 @@ import CarrinhoView    from '@/views/CarrinhoView.vue'
 import FavoritosView   from '@/views/FavoritosView.vue'
 import PedidosView     from '@/views/PedidosView.vue'
 import LojaView        from '@/views/LojaView.vue'
-import AvaliacoesView  from '@/views/AvaliacoesView.vue'
 import PerfilView      from '@/views/PerfilView.vue'
 import LoginView       from '@/views/LoginView.vue'
 import CriarLojaView   from '@/views/CriarLojaView.vue'
@@ -23,7 +22,6 @@ const routes = [
   { path: '/carrinho',     name: 'carrinho',    component: CarrinhoView   },
   { path: '/favoritos',    name: 'favoritos',   component: FavoritosView  },
   { path: '/pedidos',      name: 'pedidos',     component: PedidosView    },
-  { path: '/avaliacoes/:id', name: 'avaliacoes', component: AvaliacoesView },
   { path: '/perfil',       name: 'perfil',      component: PerfilView     },
   {
     path: '/minha-loja',
@@ -38,6 +36,7 @@ const routes = [
   },
   // Endereços antigos continuam funcionando
   { path: '/cliente',       redirect: { name: 'perfil' } },
+  { path: '/avaliacoes/:id', redirect: { name: 'pedidos' } },
   { path: '/loja',          redirect: { name: 'minha-loja' } },
   { path: '/loja/produtos', redirect: { name: 'produtos-produtor' } },
   { path: '/loja/pedidos',  redirect: { name: 'pedidos-produtor' } },

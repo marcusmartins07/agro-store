@@ -108,6 +108,7 @@ export const api = {
   },
   avaliacoes: {
     listarPorProduto: (produtoId) => request(`/avaliacoes/?produto=${encodeURIComponent(produtoId)}`),
+    criar: (body) => request('/avaliacoes/', { method: 'POST', body: jsonBody(body) }),
   },
   favoritos: {
     listar: () => request('/favoritos/'),
