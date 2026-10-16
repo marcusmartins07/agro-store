@@ -45,6 +45,27 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
   (sem precisar enviar outra) somente pelo próprio usuário na tela de perfil. Sem foto, o sistema exibe as iniciais do nome.
   A foto é exibida apenas ao próprio usuário (perfil e menu da conta); não aparece em avaliações, pedidos ou na área do produtor.
   As regras comuns de arquivo estão em "Imagem da loja e foto de perfil" na seção do produtor e da loja.
+- Redefinição de senha (RN-020): o usuário que esqueceu a senha informa o e-mail da conta na tela "Esqueci minha senha"
+  e recebe por e-mail um link para cadastrar uma nova senha. A resposta é sempre a mesma mensagem neutra,
+  exista ou não conta com aquele e-mail, para não revelar quais contas existem; o e-mail é comparado sem diferenciar maiúsculas.
+  Mensagem da solicitação: "Se houver uma conta com este e-mail, enviaremos um link para redefinir a senha.".
+  O link contém um código aleatório; o sistema guarda somente o hash do código, nunca o código em si.
+  Cada link vale por 30 minutos e pode ser usado uma única vez (a data de utilização é registrada).
+  Pedir um novo link invalida os links anteriores ainda não usados, que passam a ter a data de utilização registrada.
+  Quando a troca de senha é concluída, os demais links pendentes do usuário também são invalidados da mesma forma.
+  Solicitações em excesso são limitadas por endereço de origem (Decisão v1: 5 por hora, valor técnico confirmado pelo Tech Lead),
+  com a mensagem "Muitas solicitações. Tente novamente mais tarde.".
+  Conta inativa não recebe link (a resposta continua neutra). Conta inativa que tenta concluir uma redefinição recebe a mesma mensagem
+  de link inválido, para não revelar o estado da conta.
+  A nova senha segue as mesmas validações do cadastro (mínimo de 8 caracteres, validações de senha do backend
+  e confirmação igual). Link expirado, já usado, invalidado ou inexistente é recusado com a mensagem
+  "Este link de redefinição é inválido ou expirou. Solicite um novo.".
+  Após a troca, o usuário não é autenticado automaticamente: recebe a mensagem "Senha redefinida. Entre com a nova senha."
+  e entra novamente com a nova senha.
+  Decisão v1: o envio usa o e-mail nativo do Django (console em desenvolvimento, SMTP configurado por variáveis de ambiente
+  em produção); credenciais nunca são versionadas. O histórico de solicitações é preservado (0..n por usuário).
+  Decisão v1: sessões já abertas (JWT emitidos antes da troca) não são encerradas e expiram pelo tempo normal;
+  a invalidação imediata de sessões e o aviso por e-mail de "senha alterada" ficam para o futuro.
 - Alterar o perfil não muda pedidos já realizados: eles mantêm o snapshot dos dados do cliente.
 - O usuário que não é produtor vê apenas uma orientação para procurar a organização da feira; o frontend não oferece criação de loja para ele.
 
@@ -64,6 +85,11 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
   Sem imagem, o sistema exibe um marcador neutro com a inicial do nome da loja.
   A imagem aparece na página pública da loja, no detalhe do produto (junto ao nome da loja) e na área do produtor;
   os cards do catálogo continuam mostrando a imagem principal do produto. A desativação da loja não apaga a imagem.
+  Decisão v1: a loja inativa continua editável pelo proprietário (nome, descrição e imagem); a desativação só impede novas compras.
+  Decisão v1: na área do produtor, a imagem é exibida obrigatoriamente na tela Dados da loja, onde é gerenciada;
+  a exibição em outros pontos da área do produtor é opcional.
+  Decisão v1: a exibição na página pública da loja será entregue com a tarefa que construir essa página.
+  No detalhe do produto, a imagem é apenas identificação junto ao nome da loja, sem link; o link entra com a página pública.
 - Imagem da loja e foto de perfil, regras comuns (RN-018): o backend aceita apenas JPG, PNG ou WEBP de até 5 MB, conferindo
   extensão e conteúdo, e renomeia o arquivo com nome aleatório (mesmas validações da RN-016). Mensagens de recusa:
   "Envie uma imagem JPG, PNG ou WEBP válida." e "A imagem deve ter no máximo 5 MB."; quando o envio é recusado, a imagem atual é mantida.
@@ -73,6 +99,7 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
   A imagem da loja e a foto do usuário não fazem parte do snapshot do pedido; trocá-las ou removê-las não altera pedidos já realizados.
   Os valores já existentes em `Loja.imagem_perfil` são preservados na mudança do campo; um valor que não aponta para arquivo válido
   é exibido como "sem imagem", sem apagar o dado.
+  Decisão v1: valores antigos fora do padrão de nome gerado pelo sistema também são exibidos como "sem imagem" e não são apagados.
   Nenhuma permissão administrativa nova é criada para essas imagens; a moderação pelo administrador é trabalho futuro.
 
 ## Produtos
@@ -299,10 +326,18 @@ Adicionar novas regras abaixo conforme o projeto evoluir.
 - Moderação de imagens de loja e de usuário pelo administrador.
 - Logo e capa separadas da loja (no MVP, cada loja tem uma única imagem).
 - Imagem da loja nos cards do catálogo.
+- Página pública da loja (com imagem e link a partir do detalhe do produto).
 
 ### Dados pessoais (fora do MVP)
 
 - Anonimização dos dados pessoais de usuário com pedidos que peça a exclusão da conta (LGPD), preservando o histórico de pedidos.
+
+### Segurança da conta (fora do MVP)
+
+- Encerramento imediato das sessões (JWT) após a troca de senha (RN-020).
+- E-mail de aviso "sua senha foi alterada" após a redefinição (RN-020).
+- Troca de senha pela tela de perfil, informando a senha atual.
+- Limpeza periódica dos registros de redefinição de senha expirados ou já utilizados (RN-020).
 
 ### Regras pendentes de definição
 - Se o produtor poderá recusar pedido.

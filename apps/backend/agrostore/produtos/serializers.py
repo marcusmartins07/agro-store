@@ -1,20 +1,8 @@
 from rest_framework import serializers
+
+from agrostore.main.imagens import TAMANHO_MAXIMO_IMAGEM as TAMANHO_MAXIMO_IMAGEM_PRODUTO
+from agrostore.main.imagens import arquivo_e_imagem
 from .models import Produto, PrecoProduto, Categoria, ImagemProduto
-
-
-TAMANHO_MAXIMO_IMAGEM_PRODUTO = 5 * 1024 * 1024
-ASSINATURAS_IMAGEM = (
-    b'\xff\xd8\xff',  # JPEG
-    b'\x89PNG\r\n\x1a\n',  # PNG
-)
-
-
-def arquivo_e_imagem(arquivo):
-    arquivo.seek(0)
-    cabecalho = arquivo.read(12)
-    arquivo.seek(0)
-    e_webp = cabecalho[:4] == b'RIFF' and cabecalho[8:12] == b'WEBP'
-    return e_webp or cabecalho.startswith(ASSINATURAS_IMAGEM)
 
 
 class CategoriaSerializer(serializers.ModelSerializer):

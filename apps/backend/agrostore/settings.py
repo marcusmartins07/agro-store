@@ -132,7 +132,30 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
+    # Limites por IP da redefinição de senha (RN-020). O cache padrão (LocMemCache) conta por processo.
+    "DEFAULT_THROTTLE_RATES": {
+        "redefinicao_senha": "5/hour",
+        "redefinicao_senha_confirmacao": "10/hour",
+    },
+    # 0 ignora X-Forwarded-For; use 1 atrás de um proxy reverso.
+    "NUM_PROXIES": int(os.getenv('DRF_NUM_PROXIES', '0')),
 }
+
+# Redefinição de senha (RN-020): o link do e-mail aponta para o frontend.
+FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173' if DEBUG else '').strip().rstrip('/')
+if not FRONTEND_URL:
+    raise ImproperlyConfigured('Defina FRONTEND_URL para gerar os links de redefinição de senha.')
+REDEFINICAO_SENHA_VALIDADE_MINUTOS = 30
+
+# E-mail: console no desenvolvimento; SMTP configurado por variáveis de ambiente em produção.
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend').strip()
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'localhost').strip()
+EMAIL_PORT = int(os.getenv('EMAIL_PORT', '587'))
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', '').strip()
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', 'true').lower() == 'true'
+EMAIL_TIMEOUT = int(os.getenv('EMAIL_TIMEOUT', '10'))
+DEFAULT_FROM_EMAIL = os.getenv('DEFAULT_FROM_EMAIL', 'Agro Store <nao-responda@localhost>').strip()
 
 LANGUAGE_CODE = 'pt-br'
 

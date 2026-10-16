@@ -53,6 +53,33 @@
             >
           </div>
 
+          <div class="mb-4">
+            <SeletorImagemUnica
+              id="nova-loja-imagem"
+              ref="seletorImagem"
+              v-model="arquivoImagem"
+              rotulo="Imagem da loja"
+              ajuda="Opcional. JPG, PNG ou WEBP com até 5 MB. Aparece no detalhe dos produtos e na área do produtor."
+              forma="arredondado"
+              tamanho="lg"
+              :quantidade-iniciais="1"
+              texto-pendente="Selecionada (será enviada ao criar a loja):"
+              :nome="form.nome"
+              :desabilitado="salvando"
+              :erro="erroImagem"
+              @selecionar="erroImagem = ''"
+              @erro="erroImagem = ''"
+            >
+              <template #acoes>
+                <div v-if="arquivoImagem">
+                  <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" :disabled="salvando" @click="descartarEscolha">
+                    Descartar escolha
+                  </button>
+                </div>
+              </template>
+            </SeletorImagemUnica>
+          </div>
+
           <div v-if="erro" class="alert alert-danger small mb-3" role="alert">{{ erro }}</div>
 
           <div class="d-flex gap-2">
@@ -71,12 +98,14 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { nextTick, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import IconeSvg from '@/components/IconeSvg.vue'
+import SeletorImagemUnica from '@/components/SeletorImagemUnica.vue'
 import { api } from '@/services/api.js'
 import { useNotificacoesStore } from '@/stores/notificacoes.js'
 import { mascaraCnpj, somenteDigitos } from '@/utils/formatacao.js'
+import { mensagemErroEnvioImagem } from '@/utils/imagem.js'
 
 const router = useRouter()
 const notificacoes = useNotificacoesStore()
@@ -84,10 +113,22 @@ const notificacoes = useNotificacoesStore()
 const form = ref({ nome: '', descricao: '', cnpj: '' })
 const salvando = ref(false)
 const erro = ref('')
+// Imagem opcional (RN-018), enviada junto com a criação; se for recusada, a loja não é criada
+const arquivoImagem = ref(null)
+const erroImagem = ref('')
+const seletorImagem = ref(null)
 
-// A foto da loja não é enviada: o campo imagem_perfil do backend guarda texto e não aceita upload de arquivo.
+// Desfaz só a escolha local, sem confirmação; o foco volta para "Escolher imagem"
+function descartarEscolha() {
+  arquivoImagem.value = null
+  erroImagem.value = ''
+  seletorImagem.value?.limparErro()
+  seletorImagem.value?.focar()
+}
+
 async function criarLoja() {
   erro.value = ''
+  erroImagem.value = ''
   if (!form.value.nome || somenteDigitos(form.value.cnpj).length !== 14) {
     erro.value = 'Informe o nome da loja e um CNPJ com 14 dígitos.'
     return
@@ -99,16 +140,27 @@ async function criarLoja() {
       nome: form.value.nome,
       descricao: form.value.descricao,
       cnpj: somenteDigitos(form.value.cnpj),
-    })
+    }, arquivoImagem.value)
     notificacoes.notificar({ tipo: 'success', mensagem: 'Loja criada! Agora cadastre seus produtos.', tempo: 6 })
     router.push({ name: 'minha-loja' })
   } catch (falha) {
-    const dados = falha?.data || {}
-    if (dados.cnpj) erro.value = 'CNPJ inválido ou já cadastrado.'
-    else if (dados.non_field_errors) erro.value = dados.non_field_errors[0]
-    else erro.value = dados.detail || 'Não foi possível criar a loja. Verifique os dados e tente novamente.'
+    const { imagem_perfil: erroDaImagem, ...outrosErros } = falha?.data || {}
+    // Imagem recusada: o erro fica no campo e o arquivo sai da prévia; os demais erros seguem no alerta
+    if (erroDaImagem) {
+      erroImagem.value = mensagemErroEnvioImagem(falha, 'imagem_perfil')
+      arquivoImagem.value = null
+    }
+    if (outrosErros.cnpj) erro.value = 'CNPJ inválido ou já cadastrado.'
+    else if (outrosErros.non_field_errors) erro.value = outrosErros.non_field_errors[0]
+    else if (outrosErros.detail) erro.value = outrosErros.detail
+    else if (!erroDaImagem) erro.value = 'Não foi possível criar a loja. Verifique os dados e tente novamente.'
   } finally {
     salvando.value = false
+  }
+  // Leva o foco ao campo da imagem recusada, depois de reabilitar os controles
+  if (erroImagem.value) {
+    await nextTick()
+    seletorImagem.value?.focar()
   }
 }
 </script>

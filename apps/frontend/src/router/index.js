@@ -7,6 +7,8 @@ import PedidosView     from '@/views/PedidosView.vue'
 import LojaView        from '@/views/LojaView.vue'
 import PerfilView      from '@/views/PerfilView.vue'
 import LoginView       from '@/views/LoginView.vue'
+import EsqueciSenhaView from '@/views/EsqueciSenhaView.vue'
+import RedefinirSenhaView from '@/views/RedefinirSenhaView.vue'
 import CriarLojaView   from '@/views/CriarLojaView.vue'
 import AreaProdutorView from '@/views/AreaProdutorView.vue'
 import PainelProdutor  from '@/views/produtor/PainelProdutor.vue'
@@ -42,6 +44,8 @@ const routes = [
   { path: '/loja/pedidos',  redirect: { name: 'pedidos-produtor' } },
   { path: '/loja/:id',     name: 'loja',        component: LojaView       },
   { path: '/login',        name: 'login',       component: LoginView      },
+  { path: '/esqueci-senha',   name: 'esqueci-senha',   component: EsqueciSenhaView   },
+  { path: '/redefinir-senha', name: 'redefinir-senha', component: RedefinirSenhaView },
   { path: '/criar-loja',   name: 'criar-loja',  component: CriarLojaView, meta: { produtor: true, semLoja: true } },
 ]
 
@@ -50,6 +54,8 @@ const router = createRouter({
   routes,
   scrollBehavior(to, from, posicaoSalva) {
     if (posicaoSalva) return posicaoSalva
+    // O hash desta rota carrega o token de redefinição, não uma âncora: não pode virar seletor (o vue-router o exibiria em avisos)
+    if (to.name === 'redefinir-senha') return { top: 0 }
     if (to.hash) return { el: to.hash, top: 96 }
 
     // Trocar categoria ou ordenação no catálogo mantém a rolagem; busca e paginação voltam ao topo

@@ -49,7 +49,7 @@
               data-bs-toggle="dropdown"
               aria-expanded="false"
             >
-              <IconeSvg nome="usuario" :tamanho="18" />
+              <AvatarImagem :src="authStore.usuario?.foto_perfil" :nome="authStore.usuario?.nome" tamanho="sm" />
               <span class="rotulo-conta">Minha conta</span>
             </button>
             <ul class="dropdown-menu dropdown-menu-end rounded-4 sombra-suave p-2 menu-conta">
@@ -100,6 +100,7 @@ import { useProdutorStore } from '@/stores/produtor.js'
 import { api } from '@/services/api.js'
 import IconeSvg from '@/components/IconeSvg.vue'
 import NotificacoesGlobais from '@/components/NotificacoesGlobais.vue'
+import AvatarImagem from '@/components/AvatarImagem.vue'
 
 const router        = useRouter()
 const route         = useRoute()
@@ -153,6 +154,8 @@ async function carregarStatusLoja() {
   try {
     const usuario = await api.usuarios.me()
     temLoja.value = !!usuario.tem_loja
+    // Mantém a foto do menu da conta em dia com o servidor, sem requisição extra
+    authStore.atualizarUsuario(usuario)
   } catch (e) {
     temLoja.value = false
     console.error(e)

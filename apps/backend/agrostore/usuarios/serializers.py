@@ -3,9 +3,15 @@ from datetime import date
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from rest_framework import serializers
 
+from agrostore.main.campos import CampoImagemUnica
+from agrostore.main.imagens import remover_arquivo_apos_commit
 from .models import Genero, Usuario
+
+
+PASTA_FOTO_USUARIO = 'usuarios'
 
 
 def somente_digitos(valor):
@@ -61,10 +67,22 @@ def validar_email_unico(valor, usuario_atual=None):
     return email
 
 
+def validar_nova_senha(senha, confirmacao, usuario):
+    """Validações de senha do cadastro, reaproveitadas na redefinição de senha (RN-020)."""
+    if senha != confirmacao:
+        raise serializers.ValidationError({'password_confirmacao': 'As senhas não coincidem.'})
+    try:
+        validate_password(senha, usuario)
+    except DjangoValidationError as erro:
+        raise serializers.ValidationError({'password': erro.messages}) from erro
+
+
 class UsuarioPerfilSerializer(serializers.ModelSerializer):
     idade = serializers.ReadOnlyField()
     tem_loja = serializers.SerializerMethodField()
     genero = serializers.SerializerMethodField()
+    # RN-018: a foto é exibida só ao próprio usuário; este serializer fica restrito ao perfil e à autenticação.
+    foto_perfil = CampoImagemUnica(pasta=PASTA_FOTO_USUARIO, read_only=True)
 
     class Meta:
         model = Usuario
@@ -76,6 +94,7 @@ class UsuarioPerfilSerializer(serializers.ModelSerializer):
             'telefone',
             'data_nascimento',
             'genero',
+            'foto_perfil',
             'is_produtor',
             'tem_loja',
             'idade',
@@ -122,19 +141,13 @@ class CadastroClienteSerializer(serializers.ModelSerializer):
         return validar_data_nascimento(valor)
 
     def validate(self, attrs):
-        if attrs['password'] != attrs['password_confirmacao']:
-            raise serializers.ValidationError({'password_confirmacao': 'As senhas não coincidem.'})
-
         usuario = Usuario(
             nome=attrs['nome'],
             cpf=attrs['cpf'],
             email=attrs['email'],
             telefone=attrs['telefone'],
         )
-        try:
-            validate_password(attrs['password'], usuario)
-        except DjangoValidationError as erro:
-            raise serializers.ValidationError({'password': erro.messages}) from erro
+        validar_nova_senha(attrs['password'], attrs['password_confirmacao'], usuario)
         return attrs
 
     def create(self, validated_data):
@@ -150,10 +163,11 @@ class UsuarioAtualizacaoSerializer(serializers.ModelSerializer):
     email = serializers.EmailField(max_length=254)
     telefone = serializers.CharField(max_length=15)
     genero = serializers.CharField(max_length=2)
+    foto_perfil = CampoImagemUnica(pasta=PASTA_FOTO_USUARIO)
 
     class Meta:
         model = Usuario
-        fields = ['nome', 'email', 'telefone', 'data_nascimento', 'genero']
+        fields = ['nome', 'email', 'telefone', 'data_nascimento', 'genero', 'foto_perfil']
 
     def validate_telefone(self, valor):
         return validar_telefone(valor)
@@ -167,6 +181,14 @@ class UsuarioAtualizacaoSerializer(serializers.ModelSerializer):
     def validate_data_nascimento(self, valor):
         return validar_data_nascimento(valor)
 
+    def update(self, instance, validated_data):
+        nome_anterior = instance.foto_perfil.name if 'foto_perfil' in validated_data else ''
+        with transaction.atomic():
+            usuario = super().update(instance, validated_data)
+            if nome_anterior and nome_anterior != usuario.foto_perfil.name:
+                remover_arquivo_apos_commit(usuario.foto_perfil.storage, nome_anterior, PASTA_FOTO_USUARIO)
+        return usuario
+
 
 class LoginSerializer(serializers.Serializer):
     cpf = serializers.CharField()
@@ -178,3 +200,13 @@ class LoginSerializer(serializers.Serializer):
             raise serializers.ValidationError('CPF ou senha inválidos.')
         data['user'] = user
         return data
+
+
+class SolicitacaoRedefinicaoSenhaSerializer(serializers.Serializer):
+    email = serializers.EmailField(max_length=254)
+
+
+class ConfirmacaoRedefinicaoSenhaSerializer(serializers.Serializer):
+    token = serializers.CharField(max_length=128)
+    password = serializers.CharField(min_length=8, trim_whitespace=False)
+    password_confirmacao = serializers.CharField(trim_whitespace=False)

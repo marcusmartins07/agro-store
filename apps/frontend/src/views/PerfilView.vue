@@ -29,15 +29,46 @@
       <div class="col-12 col-lg-4 d-flex flex-column gap-4">
         <div class="card rounded-4 text-center">
           <div class="card-body p-4">
-            <span class="avatar rounded-circle d-inline-flex align-items-center justify-content-center fonte-titulo fs-3 fw-semibold mb-3" aria-hidden="true">
-              {{ iniciais }}
-            </span>
-            <h2 class="h5 fw-semibold mb-1">{{ usuario.nome }}</h2>
-            <p class="small text-body-secondary text-break mb-3">{{ usuario.email }}</p>
-            <span class="badge rounded-pill selo-status d-inline-flex align-items-center gap-1">
-              <IconeSvg :nome="usuario.is_produtor ? 'broto' : 'usuario'" :tamanho="14" />
-              {{ usuario.is_produtor ? 'Produtor rural' : 'Cliente' }}
-            </span>
+            <SeletorImagemUnica
+              id="perfil-foto"
+              ref="seletorFoto"
+              v-model="arquivoFoto"
+              rotulo="Foto de perfil"
+              rotulo-oculto
+              empilhado
+              ajuda="Opcional. JPG, PNG ou WEBP com até 5 MB. Só você vê esta foto."
+              tamanho="xl"
+              :imagem-atual="usuario.foto_perfil"
+              :nome="usuario.nome"
+              :enviando="enviandoFoto"
+              :desabilitado="removendoFoto"
+              :erro="erroFoto"
+              @selecionar="erroFoto = ''"
+              @erro="erroFoto = ''"
+              @remover="modalRemoverFoto?.abrir()"
+            >
+              <template #apos-imagem>
+                <div>
+                  <h2 class="h5 fw-semibold mb-1">{{ usuario.nome }}</h2>
+                  <p class="small text-body-secondary text-break mb-3">{{ usuario.email }}</p>
+                  <span class="badge rounded-pill selo-status d-inline-flex align-items-center gap-1">
+                    <IconeSvg :nome="usuario.is_produtor ? 'broto' : 'usuario'" :tamanho="14" />
+                    {{ usuario.is_produtor ? 'Produtor rural' : 'Cliente' }}
+                  </span>
+                </div>
+              </template>
+              <template #acoes>
+                <div v-if="arquivoFoto" class="d-flex flex-wrap justify-content-center gap-2">
+                  <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" :disabled="enviandoFoto" @click="salvarFoto">
+                    <span v-if="enviandoFoto" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                    {{ enviandoFoto ? 'Salvando...' : 'Salvar imagem' }}
+                  </button>
+                  <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" :disabled="enviandoFoto" @click="cancelarFoto">
+                    Cancelar
+                  </button>
+                </div>
+              </template>
+            </SeletorImagemUnica>
           </div>
         </div>
 
@@ -207,6 +238,18 @@
         </section>
       </div>
     </div>
+
+    <ModalConfirmacao
+      ref="modalRemoverFoto"
+      titulo="Remover foto de perfil?"
+      texto-confirmar="Remover"
+      texto-carregando="Removendo..."
+      :carregando="removendoFoto"
+      @confirmar="removerFoto"
+      @fechado="aoFecharModalFoto"
+    >
+      <p class="mb-0">Sua foto deixa de aparecer no perfil e no menu da conta, e as iniciais do seu nome são exibidas no lugar.</p>
+    </ModalConfirmacao>
   </section>
 </template>
 
@@ -214,12 +257,15 @@
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
 import IconeSvg from '@/components/IconeSvg.vue'
+import ModalConfirmacao from '@/components/ModalConfirmacao.vue'
+import SeletorImagemUnica from '@/components/SeletorImagemUnica.vue'
 import { api } from '@/services/api.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { useNotificacoesStore } from '@/stores/notificacoes.js'
 import {
   calcularIdade, formatarCpf, formatarData, formatarTelefone, mascaraTelefone, somenteDigitos,
 } from '@/utils/formatacao.js'
+import { MENSAGEM_FALHA_REMOCAO_IMAGEM, mensagemErroEnvioImagem } from '@/utils/imagem.js'
 
 const GENEROS = { M: 'Masculino', F: 'Feminino', I: 'Prefiro não informar' }
 
@@ -238,9 +284,13 @@ const erroGeral = ref('')
 // Data local no formato aaaa-mm-dd (limite do campo de nascimento)
 const hoje = new Date().toLocaleDateString('sv-SE')
 
-const iniciais = computed(() =>
-  usuario.value?.nome?.split(' ').filter(Boolean).slice(0, 2).map(parte => parte[0]).join('').toUpperCase() || '?'
-)
+// Foto de perfil (RN-018): fluxo próprio, independente da edição das informações pessoais
+const arquivoFoto = ref(null)
+const enviandoFoto = ref(false)
+const removendoFoto = ref(false)
+const erroFoto = ref('')
+const seletorFoto = ref(null)
+const modalRemoverFoto = ref(null)
 
 const camposLeitura = computed(() => {
   const dados = usuario.value
@@ -303,6 +353,62 @@ async function iniciarEdicao() {
   document.getElementById('perfil-nome')?.focus()
 }
 
+function aplicarUsuario(dados) {
+  usuario.value = dados
+  authStore.atualizarUsuario(dados)
+}
+
+async function salvarFoto() {
+  erroFoto.value = ''
+  enviandoFoto.value = true
+  try {
+    aplicarUsuario(await api.usuarios.atualizarFoto(arquivoFoto.value))
+    arquivoFoto.value = null
+    notificacoes.notificar({ tipo: 'success', mensagem: 'Foto de perfil atualizada.', tempo: 4 })
+  } catch (falha) {
+    erroFoto.value = mensagemErroEnvioImagem(falha, 'foto_perfil')
+    // Arquivo recusado pelo backend sai da prévia e a foto atual volta a aparecer; em falha de rede, pode tentar de novo
+    if (falha?.status === 400) arquivoFoto.value = null
+  } finally {
+    enviandoFoto.value = false
+  }
+  // Espera o botão ser reabilitado para devolver o foco
+  await nextTick()
+  seletorFoto.value?.focar()
+}
+
+// Removida a foto, o botão "Remover imagem" some: o foco vai para "Escolher imagem"
+function aoFecharModalFoto() {
+  if (!usuario.value?.foto_perfil) seletorFoto.value?.focar()
+}
+
+function cancelarFoto() {
+  arquivoFoto.value = null
+  erroFoto.value = ''
+  seletorFoto.value?.limparErro()
+  seletorFoto.value?.focar()
+}
+
+async function removerFoto() {
+  removendoFoto.value = true
+  try {
+    await api.usuarios.removerFoto()
+  } catch (falha) {
+    // 404: não havia foto válida para remover; o estado final é o mesmo
+    if (falha?.status !== 404) {
+      notificacoes.notificar({ tipo: 'danger', mensagem: MENSAGEM_FALHA_REMOCAO_IMAGEM })
+      removendoFoto.value = false
+      modalRemoverFoto.value?.fechar()
+      return
+    }
+  }
+  aplicarUsuario({ ...usuario.value, foto_perfil: null })
+  erroFoto.value = ''
+  removendoFoto.value = false
+  modalRemoverFoto.value?.fechar()
+  notificacoes.notificar({ tipo: 'success', mensagem: 'Foto de perfil removida.', tempo: 4 })
+}
+
 function cancelarEdicao() {
   editando.value = false
 }
@@ -343,12 +449,6 @@ async function salvar() {
 </script>
 
 <style scoped>
-.avatar {
-  width: 5rem;
-  height: 5rem;
-  background-color: var(--cor-apoio);
-  color: var(--cor-primaria);
-}
 .icone-loja {
   width: 3rem;
   height: 3rem;

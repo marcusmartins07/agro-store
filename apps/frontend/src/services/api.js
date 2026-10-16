@@ -23,8 +23,9 @@ async function refreshAccessToken() {
   return dados.access
 }
 
-async function request(endpoint, options = {}, retry = true) {
-  const token = localStorage.getItem('access_token')
+// autenticar: false não envia o JWT (endpoints públicos que não devem depender da sessão salva)
+async function request(endpoint, options = {}, retry = true, { autenticar = true } = {}) {
+  const token = autenticar ? localStorage.getItem('access_token') : null
   const headers = { ...(options.headers || {}) }
 
   if (!(options.body instanceof FormData)) {
@@ -52,6 +53,16 @@ async function request(endpoint, options = {}, retry = true) {
 }
 
 const jsonBody = (body) => JSON.stringify(body)
+
+// Monta o multipart com um arquivo e, opcionalmente, campos de texto (valores vazios não são enviados)
+function comArquivo(campo, arquivo, campos = {}) {
+  const formData = new FormData()
+  for (const [chave, valor] of Object.entries(campos)) {
+    if (valor !== undefined && valor !== null && valor !== '') formData.append(chave, valor)
+  }
+  formData.append(campo, arquivo)
+  return formData
+}
 
 export const api = {
   produtos: {
@@ -84,15 +95,34 @@ export const api = {
     login: (cpf, password) => request('/usuarios/login/', { method: 'POST', body: jsonBody({ cpf, password }) }, false),
     cadastrar: (body) => request('/usuarios/cadastro/', { method: 'POST', body: jsonBody(body) }, false),
     refresh: (refresh) => request('/usuarios/token/refresh/', { method: 'POST', body: jsonBody({ refresh }) }, false),
+    solicitarRedefinicaoSenha: (email) => request('/usuarios/redefinir-senha/', {
+      method: 'POST',
+      body: jsonBody({ email }),
+    }, false, { autenticar: false }),
+    confirmarRedefinicaoSenha: ({ token, password, password_confirmacao }) => request('/usuarios/redefinir-senha/confirmar/', {
+      method: 'POST',
+      body: jsonBody({ token, password, password_confirmacao }),
+    }, false, { autenticar: false }),
   },
   usuarios: {
     me: () => request('/usuarios/me/'),
     atualizar: (body) => request('/usuarios/me/', { method: 'PATCH', body: jsonBody(body) }),
+    // Remoção da foto só pelo DELETE: enviar valor vazio no PATCH é recusado (RN-018)
+    atualizarFoto: (arquivo) => request('/usuarios/me/', { method: 'PATCH', body: comArquivo('foto_perfil', arquivo) }),
+    removerFoto: () => request('/usuarios/me/foto/', { method: 'DELETE' }),
   },
   lojas: {
-    criar: (body) => request('/lojas/lojas/', { method: 'POST', body: jsonBody(body) }),
+    // Com imagem, a criação vai em multipart (o navegador define o Content-Type); sem imagem, continua em JSON
+    criar: (body, imagem = null) => request('/lojas/lojas/', {
+      method: 'POST',
+      body: imagem ? comArquivo('imagem_perfil', imagem, body) : jsonBody(body),
+    }),
+    // Pública: sem JWT, para nunca disparar refresh nem redirecionar ao login a partir do detalhe do produto
+    obter: (lojaId) => request(`/lojas/lojas/${lojaId}/`, {}, false, { autenticar: false }),
     me: () => request('/lojas/me/'),
     atualizarMinha: (body) => request('/lojas/me/', { method: 'PATCH', body: jsonBody(body) }),
+    atualizarImagem: (arquivo) => request('/lojas/me/', { method: 'PATCH', body: comArquivo('imagem_perfil', arquivo) }),
+    removerImagem: () => request('/lojas/me/imagem/', { method: 'DELETE' }),
   },
   carrinhos: {
     listar: () => request('/carrinhos/'),

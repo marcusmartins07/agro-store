@@ -2,9 +2,11 @@
 %% Fonte da verdade: models do Django em apps/backend/agrostore/*/models.py (estado implementado, após a DB-010).
 %% Nomes de colunas seguem os models. docs/modelo-logico.sql é o modelo-alvo (PostgreSQL) e usa nomes em português
 %% (id_usuario, e_produtor, esta_ativa...). As divergências de on_delete e de restrições estão anotadas em cada tabela.
-%% Todas as tabelas, exceto USUARIO, GENERO e STATUS_PEDIDO, herdam data_criacao e data_atualizacao (BaseModel).
+%% Todas as tabelas, exceto USUARIO, GENERO, STATUS_PEDIDO e REDEFINICAO_SENHA, herdam data_criacao e data_atualizacao (BaseModel).
+%% REDEFINICAO_SENHA tem somente data_criacao. Versão 2.1 do modelo (DB-017).
 erDiagram
     GENERO ||--o{ USUARIO : classifica
+    USUARIO ||--o{ REDEFINICAO_SENHA : solicita
     USUARIO ||--o{ LOJA : "é proprietário de"
     LOJA ||--o{ PRODUTO : oferece
     CATEGORIA ||--o{ PRODUTO : classifica
@@ -52,6 +54,17 @@ erDiagram
         boolean is_staff
         boolean is_superuser
     }
+
+    REDEFINICAO_SENHA {
+        int id PK
+        int usuario_id FK
+        varchar(64) token_hash UK "somente o hash"
+        datetime data_expiracao "criação + 30 min"
+        datetime data_utilizacao "NULL = pendente"
+        datetime data_criacao
+    }
+    %% REDEFINICAO_SENHA (RN-020): uso único; data_utilizacao também é preenchida ao invalidar pendentes.
+    %% usuario com CASCADE (igual ao modelo-alvo). CHECK data_expiracao > data_criacao no model e no modelo-alvo.
 
     LOJA {
         int loja_id PK

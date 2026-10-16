@@ -31,6 +31,7 @@ Não é preciso instalar nenhuma dependência.
 | `fig10-estados-pedido.mmd` | Figura 10 - Diagrama de Estados do Pedido (Seção 4.2) | `stateDiagram-v2` |
 | `fig11-seq-imagens-produto.mmd` | Figura 11 - Diagrama de Sequência VI - Imagens do Produto (Seção 4.3) | `sequenceDiagram` |
 | `fig12-seq-avaliacao.mmd` | Figura 12 - Diagrama de Sequência VII - Avaliação de Item Entregue (Seção 4.6) | `sequenceDiagram` |
+| `fig13-seq-redefinicao-senha.mmd` | Figura 13 - Diagrama de Sequência VIII - Redefinição de Senha | `sequenceDiagram` |
 
 No `docs/TCC.md`, as figuras apontam para `diagramas/figNN-*.png`, um caminho relativo à pasta `docs/`. Ao converter com o pandoc,
 execute o comando a partir de `docs/` ou informe `--resource-path=docs`.

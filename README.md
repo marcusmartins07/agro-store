@@ -12,6 +12,9 @@ Monorepo com API Django e aplicação web Vue.
 - Cancelamento de pedidos pendentes pelo cliente, com restauração do estoque.
 - Avaliação de produtos comprados: na tela "Meus pedidos" (`/pedidos`), o cliente avalia cada item de pedido entregue (nota de 1 a 5 e comentário opcional). A rota antiga `/avaliacoes/:id` redireciona para `/pedidos`. Detalhes em [Avaliações](#avaliações-rn-010).
 - Favoritos, perfil do usuário e cadastro de clientes.
+- Foto de perfil do usuário: opcional, enviada, trocada ou removida pelo próprio usuário. Detalhes em [Imagem da loja e foto de perfil](#imagem-da-loja-e-foto-de-perfil-rn-018).
+- Imagem da loja: opcional, enviada na criação da loja ou depois, na área do produtor (`/minha-loja`, aba Minha loja). A página pública da loja ainda não exibe essa imagem (não implementada).
+- Redefinição de senha por e-mail (`/esqueci-senha` e `/redefinir-senha`), com link de uso único e validade de 30 minutos. Detalhes em [Redefinição de senha](#redefinição-de-senha-rn-020).
 - Área do produtor (`/minha-loja`): painel de indicadores, pedidos, produtos, preços, imagens e dados da loja.
 - Informação de retirada presencial na feira (sem pagamento online, entrega ou frete no MVP).
 
@@ -39,7 +42,7 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -r apps/backend/requirements.txt
 npm install
-python apps/backend/manage.py migrate
+npm run migrate
 ```
 
 No Linux/macOS, ative o ambiente com `source .venv/bin/activate`.
@@ -72,6 +75,26 @@ Validação:
 npm run check
 ```
 
+O arquivo `.env` da raiz (copie de `.env.example`) só é carregado quando o backend é iniciado por `node scripts/backend.mjs <comando>` ou pelos scripts do `package.json`. Rodar `python apps/backend/manage.py` direto não lê o `.env`. Para aplicar migrations de um app específico, use, por exemplo, `node scripts/backend.mjs migrate usuarios 0005`.
+
+## Variáveis de ambiente
+
+Os nomes e os valores de exemplo estão em `.env.example`. Nunca versione valores reais, principalmente senhas, chaves e `DJANGO_SECRET_KEY`.
+
+| Variável | Finalidade |
+| --- | --- |
+| `DJANGO_SECRET_KEY`, `DJANGO_DEBUG`, `DJANGO_ALLOWED_HOSTS` | Configuração básica do Django. |
+| `CORS_ALLOWED_ORIGINS` | Origens do frontend autorizadas a chamar a API. |
+| `DRF_NUM_PROXIES` | Quantidade de proxies reversos entre o cliente e o Django. O padrão é `0` (o cabeçalho `X-Forwarded-For` é ignorado). Defina `1` quando o backend rodar atrás de um proxy reverso; assim o limite de requisições por IP usa o IP real do cliente. Um valor errado faz o limite contar o IP do proxy ou aceitar IP forjado. |
+| `FRONTEND_URL` | Endereço do frontend usado no link do e-mail de redefinição de senha. Em desenvolvimento, o padrão é `http://localhost:5173`; com `DJANGO_DEBUG=false` é obrigatória, e o backend não inicia sem ela. |
+| `EMAIL_BACKEND` | Backend de e-mail do Django. O padrão (`console`) imprime as mensagens no terminal; em produção use `django.core.mail.backends.smtp.EmailBackend`. |
+| `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | Dados do servidor SMTP (usados com o backend SMTP). |
+| `EMAIL_TIMEOUT` | Segundos de espera pelo servidor SMTP (padrão `10`). |
+| `DEFAULT_FROM_EMAIL` | Remetente dos e-mails enviados. |
+| `VITE_API_URL`, `VITE_BACKEND_URL` | Endereço da API usado pelo frontend; vazio em desenvolvimento para usar o proxy do Vite. |
+| `DATABASE_URL`, `DATABASE_SSLMODE`, `DATABASE_CONN_MAX_AGE` | Banco de dados (vazio usa SQLite). |
+| `SUPABASE_STORAGE_BUCKET`, `SUPABASE_URL`, `SUPABASE_S3_REGION`, `SUPABASE_S3_ACCESS_KEY_ID`, `SUPABASE_S3_SECRET_ACCESS_KEY` | Armazenamento de imagens. Com `SUPABASE_STORAGE_BUCKET` vazio, os arquivos ficam em `apps/backend/media` (`MEDIA_ROOT`, servidos em `/media/`). Com o bucket definido (produção, Supabase Storage com bucket público), `SUPABASE_URL`, `SUPABASE_S3_REGION`, `SUPABASE_S3_ACCESS_KEY_ID` e `SUPABASE_S3_SECRET_ACCESS_KEY` passam a ser obrigatórios, e o backend não inicia se faltar alguma. As chaves ficam só no `.env` do ambiente. |
+
 ## Contrato de categorias
 
 - Cada produto possui uma categoria obrigatória; o MVP não usa subcategorias.
@@ -89,7 +112,7 @@ Os endpoints abaixo exigem JWT de um produtor com loja cadastrada. O backend sem
 - `POST /api/v1/produtos/precos/`: registra um novo preço vigente, encerrando automaticamente o preço anterior. Recebe `produto`, `preco_venda` e, opcionalmente, `porcentagem_desconto` entre 0 e 100.
 - `GET /api/v1/pedidos/minha-loja/`: lista pedidos da loja com itens, valores, data de criação (`data_criacao`) e somente nome/telefone do cliente.
 - `GET /api/v1/pedidos/status-disponiveis/` e `PATCH /api/v1/pedidos/{id}/status/`: consulta e atualiza o status pelo fluxo `Pendente → Em preparo → Pronto para retirada → Entregue`, com cancelamento permitido antes da retirada.
-- `PATCH /api/v1/lojas/me/`: altera apenas `nome`, `descricao` e `ativa`; outros campos (como `cnpj`) retornam `400`. Uma loja inativa preserva o histórico e não aceita novas compras.
+- `PATCH /api/v1/lojas/me/`: altera apenas `nome`, `descricao`, `ativa` e `imagem_perfil`; outros campos (como `cnpj`) retornam `400`. Uma loja inativa preserva o histórico e não aceita novas compras. Detalhes da imagem em [Imagem da loja e foto de perfil](#imagem-da-loja-e-foto-de-perfil-rn-018).
 
 Produtos não são excluídos: para tirá-los do catálogo, o produtor altera `ativo` para `false`, preservando o histórico dos pedidos.
 
@@ -111,7 +134,147 @@ No frontend, a área do produtor fica em `/minha-loja`, com as abas Painel, Pedi
 
 Na aba Produtos, a desativação é confirmada em um modal (`ModalConfirmacao.vue`) que informa que o produto sai do catálogo e que os pedidos são preservados; a reativação é imediata.
 
-Cada produtor pode cadastrar somente uma loja. Imagem de loja e alertas configuráveis de estoque permanecem como evoluções futuras.
+Cada produtor pode cadastrar somente uma loja. Alertas configuráveis de estoque permanecem como evolução futura.
+
+## Imagem da loja e foto de perfil (RN-018)
+
+Cada loja pode ter uma imagem e cada usuário (cliente ou produtor) pode ter uma foto de perfil. Ambas são opcionais e únicas. Sem imagem, a API devolve `null` e o frontend exibe um marcador (inicial do nome da loja ou iniciais do usuário).
+
+Regras comuns:
+
+- Formatos JPG, PNG e WEBP, de até 5 MB. O backend confere a extensão e o conteúdo do arquivo (assinatura), e salva com nome aleatório (`lojas/<uuid>.<ext>` e `usuarios/<uuid>.<ext>`).
+- Mensagens de recusa (`400`, no campo da imagem): "Envie uma imagem JPG, PNG ou WEBP válida." (extensão, conteúdo, campo vazio, `null` ou valor que não é arquivo) e "A imagem deve ter no máximo 5 MB.". Quando o envio é recusado, a imagem atual é mantida.
+- Enviar uma nova imagem substitui a anterior. Para remover sem enviar outra, use o `DELETE` da respectiva rota; enviar `""` ou `null` no `PATCH` retorna `400`.
+- O arquivo anterior é apagado do storage somente depois que a alteração é confirmada no banco e, no caso da loja, só se nenhuma outra loja usar o mesmo arquivo. Nomes fora do padrão gerado pelo sistema (valores antigos) são exibidos como `null` e nunca são apagados.
+- As imagens são devolvidas como URL absoluta. Os envios usam `multipart/form-data`.
+- Armazenamento: disco local (`MEDIA_ROOT`) em desenvolvimento; Supabase Storage em produção, quando `SUPABASE_STORAGE_BUCKET` está definido (ver [Variáveis de ambiente](#variáveis-de-ambiente)).
+- A imagem da loja e a foto do usuário não entram no snapshot do pedido.
+
+### Enviar ou trocar a foto de perfil
+
+- Método: PATCH
+- URL: `/api/v1/usuarios/me/`
+- Autenticação: JWT (qualquer usuário autenticado, apenas a própria conta)
+
+Payload esperado (`multipart/form-data`; os demais campos do perfil continuam opcionais):
+
+```text
+foto_perfil=<arquivo JPG, PNG ou WEBP>
+```
+
+Resposta esperada (`200`): o perfil completo, com `foto_perfil` como URL absoluta.
+
+```json
+{ "id": 7, "nome": "Maria Souza", "foto_perfil": "http://127.0.0.1:8000/media/usuarios/3f2a9c0d5b1e4f6a8c7d2e1b0a9f8e7d.png" }
+```
+
+O exemplo mostra só alguns campos; a resposta traz também `cpf`, `email`, `telefone`, `data_nascimento`, `genero`, `is_produtor`, `tem_loja` e `idade`.
+
+Possíveis erros:
+- 400 — `{"foto_perfil": ["Envie uma imagem JPG, PNG ou WEBP válida."]}` ou `{"foto_perfil": ["A imagem deve ter no máximo 5 MB."]}`.
+- 400 — campo não permitido (por exemplo `cpf`, `is_produtor`): `{"detail": "Somente nome, e-mail, celular, data de nascimento, gênero e foto de perfil podem ser alterados no perfil."}`
+- 401 — sem autenticação.
+
+`foto_perfil` (URL absoluta ou `null`) também aparece, dentro de `usuario`, nas respostas de `POST /api/v1/usuarios/login/` e `POST /api/v1/usuarios/cadastro/`, e em `GET /api/v1/usuarios/me/`. O cadastro não aceita foto. A foto só é exposta ao próprio usuário: nenhuma outra rota (avaliações, pedidos, loja) a devolve.
+
+### Remover a foto de perfil
+
+- Método: DELETE
+- URL: `/api/v1/usuarios/me/foto/`
+- Autenticação: JWT (própria conta)
+
+Resposta esperada (`204`), sem corpo.
+
+Possíveis erros:
+- 401 — sem autenticação.
+- 404 — `{"detail": "Você não possui foto de perfil."}` (sem foto ou com valor antigo fora do padrão, que é preservado).
+
+### Criar loja com imagem
+
+- Método: POST
+- URL: `/api/v1/lojas/lojas/`
+- Autenticação: JWT (produtor)
+
+Payload esperado (`multipart/form-data` ou JSON; `descricao`, `imagem_perfil` e `ativa` são opcionais, e `ativa` é `true` por padrão):
+
+```text
+nome=Loja Exemplo
+descricao=Mel e derivados
+cnpj=12345678000190
+imagem_perfil=<arquivo JPG, PNG ou WEBP>
+```
+
+Resposta esperada (`201`): a loja criada, com `imagem_perfil` como URL absoluta ou `null`.
+
+```json
+{
+  "loja_id": 1,
+  "proprietario": 7,
+  "proprietario_nome": "Maria Souza",
+  "nome": "Loja Exemplo",
+  "descricao": "Mel e derivados",
+  "cnpj": "12345678000190",
+  "imagem_perfil": "http://127.0.0.1:8000/media/lojas/9b1d4c7e2a5f4c3b8d6e0f1a2b3c4d5e.jpg",
+  "ativa": true
+}
+```
+
+Possíveis erros:
+- 400 — imagem inválida ou acima de 5 MB (a loja não é criada e o produtor corrige o arquivo); usuário que não é produtor ("Usuário precisa ser produtor para criar uma loja."); produtor que já possui loja ("Cada produtor pode possuir somente uma loja."); campos obrigatórios ausentes ou CNPJ já cadastrado.
+- 401 — sem autenticação.
+
+### Consultar lojas
+
+- Método: GET
+- URL: `/api/v1/lojas/lojas/` e `/api/v1/lojas/lojas/{id}/`
+- Autenticação: pública
+
+Resposta esperada (`200`): loja(s) no mesmo formato acima, incluindo `imagem_perfil` (URL absoluta ou `null`).
+
+`PATCH`, `PUT` e `DELETE` em `/api/v1/lojas/lojas/{id}/` retornam `405`: a loja só é alterada por `/api/v1/lojas/me/`, e não há exclusão (ver RN-019).
+
+### Consultar e alterar a própria loja
+
+- Método: GET | PATCH
+- URL: `/api/v1/lojas/me/`
+- Autenticação: JWT (produtor dono da loja)
+
+`GET` não recebe payload e retorna a loja do usuário. Payload esperado do `PATCH` (`multipart/form-data` ou JSON; todos os campos opcionais):
+
+```text
+nome=Novo nome
+descricao=Nova descrição
+ativa=true
+imagem_perfil=<arquivo JPG, PNG ou WEBP>
+```
+
+Resposta esperada (`200`): a loja atualizada, no formato da criação.
+
+Possíveis erros:
+- 400 — campo fora de `nome`, `descricao`, `ativa` e `imagem_perfil`: `{"detail": "Somente nome, descrição, imagem e status da loja podem ser alterados nesta área."}`
+- 400 — imagem inválida, acima de 5 MB, vazia ou `null`: `{"imagem_perfil": ["..."]}` (a imagem atual é mantida).
+- 401 — sem autenticação.
+- 404 — `{"detail": "Você não possui uma loja cadastrada."}`
+
+### Remover a imagem da loja
+
+- Método: DELETE
+- URL: `/api/v1/lojas/me/imagem/`
+- Autenticação: JWT (produtor dono da loja)
+
+Resposta esperada (`204`), sem corpo. A desativação da loja não apaga a imagem.
+
+Possíveis erros:
+- 401 — sem autenticação.
+- 404 — `{"detail": "Você não possui uma loja cadastrada."}` ou `{"detail": "A loja não possui imagem."}`
+
+### Limitações aceitas no v1
+
+- Se o banco falhar depois do upload do arquivo novo, o arquivo fica órfão no storage.
+- No Supabase, o bucket é público também para a foto do usuário. O nome do arquivo é um UUID e nenhum endpoint de terceiros devolve a foto, mas quem souber a URL consegue abri-la.
+- Troca de imagem pelo Admin do Django não é validada nem remove o arquivo anterior. A moderação de imagens é trabalho futuro.
+- Valores antigos fora do padrão gerado aparecem como `null` e permanecem no banco.
+- A mensagem de extensão inválida da imagem do produto (RN-016) é diferente da usada na loja e na foto do usuário.
 
 ## Disponibilidade por estoque (RN-017)
 
@@ -321,7 +484,7 @@ Elas ficam separadas por compatibilidade com PostgreSQL: misturar alteração de
 
 ### Procedimento para aplicar no Supabase
 
-Estado: **ainda não aplicado**. Aplique somente com autorização.
+Estado: **aplicado em 2026-10-16**. Conferido com `node scripts/backend.mjs showmigrations`: não há migration pendente no Supabase (inclui `usuarios` 0005). O procedimento abaixo fica como referência histórica; aplique migrations futuras somente com autorização.
 
 1. Faça backup (`pg_dump` ou painel do Supabase).
 2. Rode as consultas somente leitura:
@@ -336,11 +499,11 @@ Estado: **ainda não aplicado**. Aplique somente com autorização.
 3. Pare o backend publicado.
 4. Aplique um app por vez, rodando `--plan` antes de cada um: primeiro as pendentes de `lojas`, `usuarios` e `produtos`; `pedidos` por último.
    ```powershell
-   python apps/backend/manage.py migrate lojas --plan
-   python apps/backend/manage.py migrate lojas
+   node scripts/backend.mjs migrate lojas --plan
+   node scripts/backend.mjs migrate lojas
    # repita para usuarios e produtos; por fim:
-   python apps/backend/manage.py migrate pedidos --plan
-   python apps/backend/manage.py migrate pedidos
+   node scripts/backend.mjs migrate pedidos --plan
+   node scripts/backend.mjs migrate pedidos
    ```
 5. Publique o código novo junto com a migration, pois o código antigo depende de `Pedido.usuario`.
 
@@ -369,10 +532,96 @@ Público. Cria uma conta de cliente e retorna `access`, `refresh` e um objeto se
 
 Valida CPF, unicidade de CPF/e-mail, celular com 11 dígitos, idade mínima de 16 anos e senha de ao menos oito caracteres. Retorna `400` para dados inválidos ou duplicados.
 
+## Redefinição de senha (RN-020)
+
+O usuário que esqueceu a senha pede um link por e-mail e cadastra uma nova senha. Os dois endpoints são públicos (sem JWT) e limitados por IP.
+
+Fluxo:
+
+1. Em `/login`, o usuário abre "Esqueci minha senha" (`/esqueci-senha`) e informa o e-mail.
+2. A API responde sempre com a mesma mensagem, exista ou não conta com o e-mail. Só há envio quando existe exatamente uma conta ativa com aquele e-mail (comparação sem diferenciar maiúsculas).
+3. O e-mail traz o link `FRONTEND_URL/redefinir-senha#token=<código>`. O código vai no fragmento (`#`), que o navegador não envia ao servidor. A tela `/redefinir-senha` lê o código e o remove da URL e do histórico (`router.replace`); recarregar a página depois disso exige um novo link.
+4. O usuário informa a nova senha e a confirmação. A API confirma, e o frontend leva ao login com a mensagem de sucesso. Não há login automático; se existir sessão aberta no navegador, o frontend a encerra.
+
+Regras implementadas:
+
+- Código aleatório (`secrets.token_urlsafe`); o banco guarda apenas o hash SHA-256 (tabela `usuarios_redefinicaosenha`, migration `usuarios` 0005), nunca o código.
+- Cada link vale 30 minutos e pode ser usado uma única vez (`data_utilizacao` é preenchida).
+- Pedir um novo link marca como usados os links pendentes anteriores. Ao concluir a troca, os demais links pendentes também são invalidados.
+- Link inexistente, expirado, usado ou de conta inativa retorna sempre a mesma mensagem de erro.
+- A nova senha segue as validações do cadastro (mínimo de 8 caracteres, validadores de senha do Django, confirmação igual).
+- Limite por IP (DRF `ScopedRateThrottle`): 5 solicitações por hora e 10 confirmações por hora, com `429` e a mensagem "Muitas solicitações. Tente novamente mais tarde.".
+- Os JWT emitidos antes da troca continuam válidos até expirarem (decisão v1).
+
+### Solicitar link de redefinição
+
+- Método: POST
+- URL: `/api/v1/usuarios/redefinir-senha/`
+- Autenticação: pública
+
+Payload esperado:
+
+```json
+{ "email": "cliente@exemplo.com" }
+```
+
+Resposta esperada (`200`), igual para e-mail existente, inexistente ou de conta inativa:
+
+```json
+{ "detail": "Se houver uma conta com este e-mail, enviaremos um link para redefinir a senha." }
+```
+
+Possíveis erros:
+- 400 — `email` ausente ou com formato inválido (`{"email": ["..."]}`).
+- 429 — limite de 5 solicitações por hora por IP: `{"detail": "Muitas solicitações. Tente novamente mais tarde."}`
+
+### Confirmar nova senha
+
+- Método: POST
+- URL: `/api/v1/usuarios/redefinir-senha/confirmar/`
+- Autenticação: pública
+
+Payload esperado:
+
+```json
+{
+  "token": "<código recebido no link>",
+  "password": "NovaSenhaForte123",
+  "password_confirmacao": "NovaSenhaForte123"
+}
+```
+
+Resposta esperada (`200`):
+
+```json
+{ "detail": "Senha redefinida. Entre com a nova senha." }
+```
+
+Possíveis erros:
+- 400 — link inválido, expirado, já usado, invalidado, inexistente ou de conta inativa: `{"detail": "Este link de redefinição é inválido ou expirou. Solicite um novo."}`
+- 400 — campo ausente ou fora do formato (`token`, `password` com menos de 8 caracteres, `password_confirmacao`), no formato `{"campo": ["..."]}`.
+- 400 — com link válido: confirmação diferente (`{"password_confirmacao": ["As senhas não coincidem."]}`) ou senha recusada pelos validadores (`{"password": ["..."]}`).
+- 429 — limite de 10 confirmações por hora por IP: `{"detail": "Muitas solicitações. Tente novamente mais tarde."}`
+
+### E-mail em desenvolvimento e produção
+
+O envio usa `send_mail` do Django, configurado pelas variáveis `EMAIL_*` e `DEFAULT_FROM_EMAIL` (ver [Variáveis de ambiente](#variáveis-de-ambiente)).
+
+- Desenvolvimento: com o backend `console` (padrão do `.env.example`), o e-mail com o link aparece no terminal do backend.
+- Produção: use `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend` e informe `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` e `EMAIL_USE_TLS`. Recomenda-se uma conta própria do projeto (Gmail com senha de app, Mailtrap ou Brevo). As credenciais ficam somente no `.env` do ambiente, nunca no repositório.
+- Falhas de SMTP não alteram a resposta da API (continua `200`) e são registradas no log do backend sem o endereço de e-mail nem o código.
+
+### Limitações aceitas no v1
+
+- O envio SMTP é síncrono, dentro da requisição. A solicitação de uma conta existente pode demorar mais que a de um e-mail inexistente (diferença de tempo de resposta), e um SMTP lento prende a requisição por até `EMAIL_TIMEOUT` segundos. O envio assíncrono está previsto como tarefa futura (SCRUM-129).
+- O limite por IP usa o cache em memória do Django, por processo: com mais de um processo do backend, cada um conta separadamente, e o contador zera ao reiniciar. Atrás de proxy reverso, defina `DRF_NUM_PROXIES`.
+- Sessões já abertas (JWT emitidos antes da troca) não são encerradas na redefinição.
+- Não há limpeza periódica dos registros expirados ou usados, nem e-mail de aviso "senha alterada".
+
 ## Perfil do usuário
 
-- `GET /api/v1/usuarios/me/`: retorna os dados do usuário autenticado, incluindo `is_produtor`, `tem_loja` e `idade`.
-- `PATCH /api/v1/usuarios/me/`: altera `nome`, `email`, `telefone`, `data_nascimento` e `genero`, com as mesmas validações do cadastro (e-mail único, celular com 11 dígitos e idade mínima de 16 anos). CPF e papéis (`is_produtor`, `is_staff`) não podem ser alterados e retornam `400`.
+- `GET /api/v1/usuarios/me/`: retorna os dados do usuário autenticado, incluindo `foto_perfil` (URL absoluta ou `null`), `is_produtor`, `tem_loja` e `idade`.
+- `PATCH /api/v1/usuarios/me/`: altera `nome`, `email`, `telefone`, `data_nascimento`, `genero` e `foto_perfil` (ver [Imagem da loja e foto de perfil](#imagem-da-loja-e-foto-de-perfil-rn-018)), com as mesmas validações do cadastro (e-mail único, celular com 11 dígitos e idade mínima de 16 anos). CPF e papéis (`is_produtor`, `is_staff`) não podem ser alterados e retornam `400`.
 - Pedidos já realizados mantêm o snapshot dos dados do cliente; alterar o perfil não muda o histórico.
 
 ## Favoritos
