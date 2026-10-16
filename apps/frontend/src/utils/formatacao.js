@@ -58,3 +58,10 @@ export function calcularIdade(dataNascimento) {
   const aniversarioPassou = hoje.getMonth() + 1 > mes || (hoje.getMonth() + 1 === mes && hoje.getDate() >= dia)
   return hoje.getFullYear() - ano - (aniversarioPassou ? 0 : 1)
 }
+
+// Iniciais exibidas quando não há imagem: duas para pessoas, uma para lojas (RN-018)
+export function iniciaisDoNome(nome, quantidade = 2) {
+  const iniciais = String(nome ?? '').trim().split(/\s+/).filter(Boolean)
+    .slice(0, quantidade).map(parte => parte[0]).join('').toUpperCase()
+  return iniciais || '?'
+}

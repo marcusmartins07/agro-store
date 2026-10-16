@@ -1,31 +1,47 @@
 %% Figura 6 - Diagrama de Sequência III - Cadastro de Loja pelo Produtor
-%% Conferido em: lojas/views.py (LojaViewSet) e lojas/serializers.py (LojaSerializer.validate).
-%% O envio da imagem da loja não aparece: imagem_perfil é somente leitura até a BE-018 (RN-018).
+%% Conferido em: lojas/views.py (LojaViewSet), lojas/serializers.py (LojaSerializer, imagem_perfil e validate),
+%% main/campos.py e main/imagens.py (validar_imagem_enviada, nome_arquivo_aleatorio) e, no frontend,
+%% views/CriarLojaView.vue e services/api.js (lojas.criar).
+%% A imagem da loja é opcional (RN-018). As validações de campo (imagem e CNPJ) ocorrem antes das regras do produtor.
 sequenceDiagram
     autonumber
     actor P as Produtor
     participant F as Frontend
     participant A as API/Backend
+    participant S as Storage de arquivos
     participant B as Banco de dados
 
-    P->>F: Informa nome, descrição e CNPJ da loja
-    F->>A: POST /api/v1/lojas/lojas/ com token JWT
+    P->>F: Informa nome, descrição e CNPJ da loja e, se quiser, escolhe uma imagem
+    alt Imagem escolhida
+        F->>A: POST /api/v1/lojas/lojas/ multipart com imagem_perfil e token JWT
+    else Sem imagem
+        F->>A: POST /api/v1/lojas/lojas/ em JSON com token JWT
+    end
 
     alt Sem token válido
         A-->>F: 401 Não autenticado
     else Autenticado
+        opt Imagem enviada
+            A->>A: Confere extensão JPG, PNG ou WEBP, tamanho de até 5 MB e conteúdo do arquivo
+        end
         A->>B: Consulta lojas do usuário e CNPJ
         B-->>A: Resultado da consulta
-        alt CNPJ já cadastrado
+        alt Imagem inválida
+            A-->>F: 400 Envie uma imagem JPG, PNG ou WEBP válida ou A imagem deve ter no máximo 5 MB
+            F-->>P: Exibe o erro e a loja não é criada
+        else CNPJ já cadastrado
             A-->>F: 400 Já existe loja com este CNPJ
         else Usuário não é produtor
             A-->>F: 400 Usuário precisa ser produtor para criar uma loja
         else Produtor já possui loja (RN-013)
             A-->>F: 400 Cada produtor pode possuir somente uma loja
         else Dados válidos
+            opt Imagem enviada
+                A->>S: Grava o arquivo com nome aleatório
+            end
             A->>B: Grava a loja ativa, vinculada ao produtor autenticado
             B-->>A: Loja criada
-            A-->>F: 201 com os dados da loja
+            A-->>F: 201 com os dados da loja e a URL da imagem, se houver
             F-->>P: Exibe a loja cadastrada
         end
     end

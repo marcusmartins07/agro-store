@@ -70,3 +70,25 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         return hoje.year - self.data_nascimento.year - (
             (hoje.month, hoje.day) < (self.data_nascimento.month, self.data_nascimento.day)
         )
+
+
+class RedefinicaoSenha(models.Model):
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='redefinicoes_senha')
+    token_hash = models.CharField(max_length=64, unique=True)
+    data_expiracao = models.DateTimeField()
+    data_utilizacao = models.DateTimeField(null=True, blank=True)
+    data_criacao = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-data_criacao']
+        verbose_name = 'redefinição de senha'
+        verbose_name_plural = 'redefinições de senha'
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(data_expiracao__gt=models.F('data_criacao')),
+                name='redefinicao_senha_expiracao_apos_criacao',
+            ),
+        ]
+
+    def __str__(self):
+        return f'Redefinição de senha #{self.pk}'

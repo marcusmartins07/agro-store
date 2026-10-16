@@ -204,8 +204,8 @@ replicar o hexadecimal em views ou componentes.
 - `GaleriaProduto.vue`: carrossel com miniaturas do detalhe do produto. Recebe `produto.imagens`
   com a principal primeiro; sem imagens, exibe um único slide "Sem foto cadastrada".
 - `src/utils/formatacao.js`: `formatarPreco`, `temDesconto`, máscaras (`mascaraCpf`,
-  `mascaraTelefone`, `mascaraCnpj`), `formatarCpf`, `formatarTelefone`, `formatarData` e
-  `calcularIdade`; não duplicar formatação de moeda, data ou documentos nas views.
+  `mascaraTelefone`, `mascaraCnpj`), `formatarCpf`, `formatarTelefone`, `formatarData`,
+  `calcularIdade` e `iniciaisDoNome`; não duplicar formatação de moeda, data ou documentos nas views.
 - `src/utils/statusPedido.js`: ordem, classe do selo e próxima ação de cada status do pedido
   (espelho de exibição do fluxo do backend, que continua validando as transições).
 - `SeloStatus.vue`: badge de status com texto visível; `variante` aplica um selo que não é de pedido.
@@ -226,6 +226,24 @@ replicar o hexadecimal em views ou componentes.
   `enquadramentoInicial`, `nomeArquivo` e `erroExterno`; emite `aplicar({ arquivo, enquadramento })` e `cancelar`.
 - `src/utils/imagem.js`: recorte quadrado no navegador (Canvas, saída WEBP ou JPEG de até 1200 px) e download de
   imagens já salvas como blob para edição. O backend continua validando formato, tamanho e quantidade.
+- `AvatarImagem.vue`: foto de perfil ou imagem da loja (RN-018). Props `src`, `nome`, `tamanho` (`sm`, `md`, `lg`, `xl`),
+  `forma` (`circulo` ou `arredondado`), `quantidadeIniciais` (2 para pessoas, 1 para lojas) e `alt` (padrão vazio, porque o
+  nome aparece em texto ao lado). Sem `src` ou quando a imagem falha (`@error`), mostra o marcador de iniciais (`aria-hidden`).
+  Recorte por `object-fit: cover`, sem editor. Usado no perfil, no menu da conta, em `DadosLoja`, na criação da loja e no
+  detalhe do produto; os cards do catálogo não usam.
+- `SeletorImagemUnica.vue`: escolha de uma imagem única com prévia (`createObjectURL`/`revokeObjectURL`) e validação local
+  de tipo (JPG, PNG, WEBP) e de 5 MB com as mensagens da RN-018. `v-model` (File ou `null`), `imagemAtual`, `nome`, `id`,
+  `rotulo`, `rotuloOculto`, `ajuda`, `textoPendente` (anunciado em `aria-live`), `empilhado` (coluna centralizada, com o slot
+  `apos-imagem` entre a imagem e os botões), `forma`, `tamanho`, `quantidadeIniciais`, `desabilitado`, `enviando` e `erro`; emite
+  `selecionar`, `remover` (só com imagem salva e sem arquivo pendente) e `erro`; expõe `focar()` e `limparErro()`. Não chama
+  a API: o slot `acoes` recebe "Salvar imagem"/"Cancelar" (perfil e `DadosLoja`, com remoção por `ModalConfirmacao`) ou
+  "Descartar escolha" (criação da loja, enviada junto com o formulário). No perfil, o avatar do seletor é o único da página. Remoção só por DELETE; `mensagemErroEnvioImagem` e as mensagens
+  de falha ficam em `src/utils/imagem.js`.
+- `PainelAcesso.vue`: layout das telas de acesso (login, "Esqueci minha senha" e "Nova senha"): painel `.fundo-destaque`
+  `rounded-5` à esquerda no md+ (oculto no celular) e `.card rounded-5 sombra-suave` com o formulário. Slot padrão para o
+  conteúdo do card e slot `painel` para trocar o painel lateral. Sem o slot, mostra a marca "Bem-vindo à Agro Store"; a
+  prop `tituloNoPainel` a renderiza como `h1` (só no login, cujo título principal fica no painel), senão como texto, para
+  manter um único `h1` por página.
 - `ModalConfirmacao.vue`: modal Bootstrap para confirmar ações (ex.: desativar produto), no lugar de
   `window.confirm`. Recebe `titulo`, `textoConfirmar`, `textoCarregando`, `variante` (padrão `danger`) e
   `carregando` e `rolavel` (padrão `false`; aplica `modal-dialog-scrollable` para o corpo rolar com cabeçalho e
@@ -242,9 +260,9 @@ replicar o hexadecimal em views ou componentes.
 - Um mock nunca pode substituir uma validação ou regra de negócio do backend e
   deve ser identificado visualmente quando puder ser confundido com dado real
   (por exemplo, um rótulo "Imagem ilustrativa").
-- Mocks atuais: miniatura neutra no carrinho (o item do carrinho não traz
-  imagem) e aviso de "Esqueci minha senha" (recuperação de senha ainda não
-  existe). A galeria do produto usa as imagens reais da API desde a FE-005.
+- Mock atual: miniatura neutra no carrinho (o item do carrinho não traz
+  imagem). A galeria do produto usa as imagens reais da API desde a FE-005, e
+  a recuperação de senha usa a API real desde a FE-022 (RN-020).
 
 ### Área do produtor
 

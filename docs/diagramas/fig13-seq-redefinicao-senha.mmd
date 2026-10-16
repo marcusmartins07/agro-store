@@ -1,0 +1,53 @@
+%% Figura 13 - Diagrama de Sequência VIII - Redefinição de Senha (RN-020)
+%% Conferido em: usuarios/redefinicao_senha.py, usuarios/views.py (SolicitacaoRedefinicaoSenhaView, ConfirmacaoRedefinicaoSenhaView),
+%% usuarios/serializers.py (validar_nova_senha), settings.py (limites por IP, validade de 30 min, e-mail) e frontend
+%% views/EsqueciSenhaView.vue e views/RedefinirSenhaView.vue.
+sequenceDiagram
+    autonumber
+    actor U as Usuário
+    participant F as Frontend
+    participant A as API/Backend
+    participant B as Banco de dados
+    participant E as Servidor de e-mail
+
+    U->>F: Informa o e-mail na tela Esqueci minha senha
+    F->>A: POST /api/v1/usuarios/redefinir-senha/
+    alt Mais de 5 solicitações por hora do mesmo IP
+        A-->>F: 429 Muitas solicitações
+    else Dentro do limite
+        A->>B: Busca contas ativas com o e-mail (sem diferenciar maiúsculas)
+        alt Exatamente uma conta ativa
+            A->>A: Gera código aleatório e calcula seu hash
+            A->>B: Marca como usados os links pendentes e grava o novo hash (validade de 30 min)
+            A->>E: Envia o link com o código no fragmento da URL
+        else Nenhuma conta ou mais de uma conta ativa
+            A->>A: Não cria link nem envia e-mail
+        end
+        A-->>F: 200 mensagem neutra, igual nos dois casos
+        F-->>U: Exibe a mensagem neutra
+    end
+
+    U->>F: Abre o link recebido por e-mail
+    F->>F: Lê o código do fragmento e o remove da URL
+    U->>F: Informa a nova senha e a confirmação
+    F->>A: POST /api/v1/usuarios/redefinir-senha/confirmar/
+    alt Mais de 10 tentativas por hora do mesmo IP
+        A-->>F: 429 Muitas solicitações
+    else Dentro do limite
+        A->>B: Busca o hash do código (não usado, não expirado, conta ativa)
+        alt Link inválido, expirado, usado ou conta inativa
+            A-->>F: 400 link inválido ou expirado
+            F-->>U: Oferece solicitar um novo link
+        else Link válido
+            A->>A: Valida a nova senha (mesmas regras do cadastro)
+            alt Senha inválida ou confirmação diferente
+                A-->>F: 400 com os erros da senha
+                F-->>U: Exibe os erros nos campos
+            else Senha válida
+                A->>B: Marca o link como usado, grava a nova senha e invalida os demais links pendentes
+                A-->>F: 200 Senha redefinida
+                F->>F: Encerra a sessão local, se houver
+                F-->>U: Leva ao login para entrar com a nova senha
+            end
+        end
+    end

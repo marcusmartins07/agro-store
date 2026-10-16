@@ -231,6 +231,35 @@ export const useProdutorStore = defineStore('produtor', () => {
     }
   }
 
+  // Só o campo da imagem muda, para não descartar edições de nome e descrição ainda não salvas
+  async function salvarImagemLoja(arquivo) {
+    try {
+      const atualizada = await api.lojas.atualizarImagem(arquivo)
+      loja.value = { ...loja.value, imagem_perfil: atualizada?.imagem_perfil ?? null }
+      return loja.value
+    } catch (falha) {
+      const erroDaApi = new Error(extrairMensagemErro(falha))
+      erroDaApi.status = falha?.status
+      erroDaApi.campos = falha?.data || {}
+      throw erroDaApi
+    }
+  }
+
+  // 404 indica que não havia imagem (ou só um valor legado inválido): o estado final é o mesmo
+  async function removerImagemLoja() {
+    try {
+      await api.lojas.removerImagem()
+    } catch (falha) {
+      if (falha?.status !== 404) {
+        const erroDaApi = new Error(extrairMensagemErro(falha))
+        erroDaApi.status = falha?.status
+        throw erroDaApi
+      }
+    }
+    loja.value = { ...loja.value, imagem_perfil: null }
+    return loja.value
+  }
+
   async function recarregarProdutos() {
     try {
       produtos.value = await api.produtos.listarMeus()
@@ -254,7 +283,7 @@ export const useProdutorStore = defineStore('produtor', () => {
     loja, semLoja, produtos, pedidos, categorias, carregando, carregado, erro,
     produtosAtivos, produtosInativos, pedidosPorStatus, quantidadePendentes, quantidadeEmAndamento,
     pedidosDoMes, vendasDoMes, ticketMedio, vendasUltimosDias, produtosMaisVendidos,
-    carregar, atualizarStatus, salvarProduto, alternarAtivo, salvarLoja, limpar,
+    carregar, atualizarStatus, salvarProduto, alternarAtivo, salvarLoja, salvarImagemLoja, removerImagemLoja, limpar,
   }
 })
 

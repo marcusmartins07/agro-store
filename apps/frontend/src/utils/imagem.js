@@ -73,3 +73,18 @@ export async function recortarQuadrado(elementoImagem, enquadramento, nomeOrigin
 function gerarBlob(canvas, tipo) {
   return new Promise(resolver => canvas.toBlob(resolver, tipo, QUALIDADE_SAIDA))
 }
+
+export const MENSAGEM_FALHA_ENVIO_IMAGEM = 'Não foi possível enviar a imagem. Tente novamente.'
+export const MENSAGEM_FALHA_REMOCAO_IMAGEM = 'Não foi possível remover a imagem. Tente novamente.'
+
+// Mensagem de recusa do envio de uma imagem única (foto de perfil ou imagem da loja, RN-018).
+// Aceita o erro do service ({ status, data }) ou o da store (Error com status e campos).
+export function mensagemErroEnvioImagem(falha, campo) {
+  // 413: o servidor recusou o corpo da requisição antes de validar o campo
+  if (falha?.status === 413) return 'A imagem deve ter no máximo 5 MB.'
+  const dados = falha?.data || falha?.campos || {}
+  const mensagens = dados[campo]
+  if (mensagens) return Array.isArray(mensagens) ? mensagens[0] : String(mensagens)
+  if (falha?.status === 400 && dados.detail) return dados.detail
+  return MENSAGEM_FALHA_ENVIO_IMAGEM
+}

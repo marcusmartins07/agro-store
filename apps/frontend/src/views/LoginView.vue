@@ -1,109 +1,95 @@
 <template>
-  <div class="row g-4 align-items-stretch py-md-3">
-    <div class="col-md-6 d-none d-md-flex">
-      <div class="fundo-destaque rounded-5 p-5 d-flex flex-column justify-content-end w-100">
-        <IconeSvg nome="broto" :tamanho="40" class="mb-3" />
-        <h1 class="fw-semibold mb-3 titulo-boas-vindas">Bem-vindo à Agro Store</h1>
-        <p class="mb-0 opacity-75">Conectando as famílias agricultoras da Feira do Produtor Rural Willi Dummer a quem valoriza comida de verdade.</p>
-      </div>
+  <PainelAcesso titulo-no-painel>
+    <h1 class="h3 fw-semibold d-md-none mb-3">Bem-vindo à Agro Store</h1>
+
+    <div class="abas d-flex gap-1 p-1 rounded-3 mb-4" role="tablist" aria-label="Acesso à conta">
+      <button
+        id="aba-entrar"
+        type="button"
+        role="tab"
+        class="aba flex-fill rounded-2 py-2"
+        :class="{ ativa: aba === 'entrar' }"
+        :aria-selected="aba === 'entrar'"
+        aria-controls="painel-entrar"
+        @click="aba = 'entrar'"
+      >
+        Entrar
+      </button>
+      <button
+        id="aba-cadastrar"
+        type="button"
+        role="tab"
+        class="aba flex-fill rounded-2 py-2"
+        :class="{ ativa: aba === 'cadastrar' }"
+        :aria-selected="aba === 'cadastrar'"
+        aria-controls="painel-cadastrar"
+        @click="aba = 'cadastrar'"
+      >
+        Criar conta
+      </button>
     </div>
 
-    <div class="col-12 col-md-6">
-      <div class="card rounded-5 sombra-suave h-100">
-        <div class="card-body p-4 p-lg-5">
-          <h1 class="h3 fw-semibold d-md-none mb-3">Bem-vindo à Agro Store</h1>
-
-          <div class="abas d-flex gap-1 p-1 rounded-3 mb-4" role="tablist" aria-label="Acesso à conta">
-            <button
-              id="aba-entrar"
-              type="button"
-              role="tab"
-              class="aba flex-fill rounded-2 py-2"
-              :class="{ ativa: aba === 'entrar' }"
-              :aria-selected="aba === 'entrar'"
-              aria-controls="painel-entrar"
-              @click="aba = 'entrar'"
-            >
-              Entrar
-            </button>
-            <button
-              id="aba-cadastrar"
-              type="button"
-              role="tab"
-              class="aba flex-fill rounded-2 py-2"
-              :class="{ ativa: aba === 'cadastrar' }"
-              :aria-selected="aba === 'cadastrar'"
-              aria-controls="painel-cadastrar"
-              @click="aba = 'cadastrar'"
-            >
-              Criar conta
-            </button>
-          </div>
-
-          <form v-if="aba === 'entrar'" id="painel-entrar" role="tabpanel" aria-labelledby="aba-entrar" novalidate @submit.prevent="fazerLogin">
-            <div class="mb-3">
-              <label class="form-label fw-semibold small" for="login-cpf">CPF</label>
-              <input id="login-cpf" v-model="cpf" class="form-control" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" @input="cpf = mascaraCpf(cpf)" required>
-            </div>
-            <div class="mb-1">
-              <label class="form-label fw-semibold small" for="login-senha">Senha</label>
-              <div class="input-group">
-                <input id="login-senha" v-model="senha" :type="mostrarSenhaLogin ? 'text' : 'password'" class="form-control" autocomplete="current-password" required>
-                <button class="btn btn-outline-secondary" type="button" :aria-label="mostrarSenhaLogin ? 'Ocultar senha' : 'Mostrar senha'" @click="mostrarSenhaLogin = !mostrarSenhaLogin">
-                  {{ mostrarSenhaLogin ? 'Ocultar' : 'Mostrar' }}
-                </button>
-              </div>
-            </div>
-            <button type="button" class="btn btn-link btn-sm px-0" @click="avisarRecuperacaoSenha">Esqueci minha senha</button>
-            <button type="submit" class="btn btn-primary btn-lg rounded-pill w-100 fw-semibold mt-3" :disabled="carregandoLogin">
-              <span v-if="carregandoLogin" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-              {{ carregandoLogin ? 'Entrando...' : 'Entrar' }}
-            </button>
-          </form>
-
-          <form v-else id="painel-cadastrar" role="tabpanel" aria-labelledby="aba-cadastrar" novalidate @submit.prevent="fazerCadastro">
-            <div class="row g-3">
-              <div class="col-12"><label class="form-label small fw-semibold" for="cadastro-nome">Nome completo</label><input id="cadastro-nome" v-model.trim="cadastro.nome" class="form-control" autocomplete="name" required></div>
-              <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-cpf">CPF</label><input id="cadastro-cpf" v-model="cadastro.cpf" class="form-control" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" @input="cadastro.cpf = mascaraCpf(cadastro.cpf)" required></div>
-              <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-telefone">Celular</label><input id="cadastro-telefone" v-model="cadastro.telefone" class="form-control" inputmode="numeric" maxlength="15" placeholder="(00) 00000-0000" @input="cadastro.telefone = mascaraTelefone(cadastro.telefone)" required></div>
-              <div class="col-12"><label class="form-label small fw-semibold" for="cadastro-email">E-mail</label><input id="cadastro-email" v-model.trim="cadastro.email" type="email" class="form-control" autocomplete="email" required></div>
-              <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-data">Data de nascimento</label><input id="cadastro-data" v-model="cadastro.data_nascimento" type="date" class="form-control" required></div>
-              <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-genero">Gênero</label><select id="cadastro-genero" v-model="cadastro.genero" class="form-select" required><option disabled value="">Selecione</option><option value="M">Masculino</option><option value="F">Feminino</option><option value="I">Prefiro não informar</option></select></div>
-              <div class="col-12 col-sm-6">
-                <label class="form-label small fw-semibold" for="cadastro-senha">Senha</label>
-                <div class="input-group">
-                  <input id="cadastro-senha" v-model="cadastro.password" :type="mostrarSenhaCadastro ? 'text' : 'password'" class="form-control" minlength="8" autocomplete="new-password" aria-describedby="ajuda-senha" required>
-                  <button class="btn btn-outline-secondary" type="button" :aria-label="mostrarSenhaCadastro ? 'Ocultar senha' : 'Mostrar senha'" @click="mostrarSenhaCadastro = !mostrarSenhaCadastro">
-                    {{ mostrarSenhaCadastro ? 'Ocultar' : 'Mostrar' }}
-                  </button>
-                </div>
-                <div id="ajuda-senha" class="form-text">Use pelo menos 8 caracteres.</div>
-              </div>
-              <div class="col-12 col-sm-6">
-                <label class="form-label small fw-semibold" for="cadastro-confirmacao">Confirmar senha</label>
-                <div class="input-group">
-                  <input id="cadastro-confirmacao" v-model="cadastro.password_confirmacao" :type="mostrarConfirmacaoSenha ? 'text' : 'password'" class="form-control" minlength="8" autocomplete="new-password" required>
-                  <button class="btn btn-outline-secondary" type="button" :aria-label="mostrarConfirmacaoSenha ? 'Ocultar confirmação de senha' : 'Mostrar confirmação de senha'" @click="mostrarConfirmacaoSenha = !mostrarConfirmacaoSenha">
-                    {{ mostrarConfirmacaoSenha ? 'Ocultar' : 'Mostrar' }}
-                  </button>
-                </div>
-              </div>
-            </div>
-            <button type="submit" class="btn btn-primary btn-lg rounded-pill w-100 fw-semibold mt-4" :disabled="carregandoCadastro">
-              <span v-if="carregandoCadastro" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
-              {{ carregandoCadastro ? 'Criando conta...' : 'Criar conta' }}
-            </button>
-          </form>
+    <form v-if="aba === 'entrar'" id="painel-entrar" role="tabpanel" aria-labelledby="aba-entrar" novalidate @submit.prevent="fazerLogin">
+      <div class="mb-3">
+        <label class="form-label fw-semibold small" for="login-cpf">CPF</label>
+        <input id="login-cpf" v-model="cpf" class="form-control" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" @input="cpf = mascaraCpf(cpf)" required>
+      </div>
+      <div class="mb-1">
+        <label class="form-label fw-semibold small" for="login-senha">Senha</label>
+        <div class="input-group">
+          <input id="login-senha" v-model="senha" :type="mostrarSenhaLogin ? 'text' : 'password'" class="form-control" autocomplete="current-password" required>
+          <button class="btn btn-outline-secondary" type="button" :aria-label="mostrarSenhaLogin ? 'Ocultar senha' : 'Mostrar senha'" @click="mostrarSenhaLogin = !mostrarSenhaLogin">
+            {{ mostrarSenhaLogin ? 'Ocultar' : 'Mostrar' }}
+          </button>
         </div>
       </div>
-    </div>
-  </div>
+      <router-link :to="{ name: 'esqueci-senha' }" class="btn btn-link btn-sm px-0">Esqueci minha senha</router-link>
+      <button type="submit" class="btn btn-primary btn-lg rounded-pill w-100 fw-semibold mt-3" :disabled="carregandoLogin">
+        <span v-if="carregandoLogin" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+        {{ carregandoLogin ? 'Entrando...' : 'Entrar' }}
+      </button>
+    </form>
+
+    <form v-else id="painel-cadastrar" role="tabpanel" aria-labelledby="aba-cadastrar" novalidate @submit.prevent="fazerCadastro">
+      <div class="row g-3">
+        <div class="col-12"><label class="form-label small fw-semibold" for="cadastro-nome">Nome completo</label><input id="cadastro-nome" v-model.trim="cadastro.nome" class="form-control" autocomplete="name" required></div>
+        <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-cpf">CPF</label><input id="cadastro-cpf" v-model="cadastro.cpf" class="form-control" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" @input="cadastro.cpf = mascaraCpf(cadastro.cpf)" required></div>
+        <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-telefone">Celular</label><input id="cadastro-telefone" v-model="cadastro.telefone" class="form-control" inputmode="numeric" maxlength="15" placeholder="(00) 00000-0000" @input="cadastro.telefone = mascaraTelefone(cadastro.telefone)" required></div>
+        <div class="col-12"><label class="form-label small fw-semibold" for="cadastro-email">E-mail</label><input id="cadastro-email" v-model.trim="cadastro.email" type="email" class="form-control" autocomplete="email" required></div>
+        <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-data">Data de nascimento</label><input id="cadastro-data" v-model="cadastro.data_nascimento" type="date" class="form-control" required></div>
+        <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-genero">Gênero</label><select id="cadastro-genero" v-model="cadastro.genero" class="form-select" required><option disabled value="">Selecione</option><option value="M">Masculino</option><option value="F">Feminino</option><option value="I">Prefiro não informar</option></select></div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold" for="cadastro-senha">Senha</label>
+          <div class="input-group">
+            <input id="cadastro-senha" v-model="cadastro.password" :type="mostrarSenhaCadastro ? 'text' : 'password'" class="form-control" minlength="8" autocomplete="new-password" aria-describedby="ajuda-senha" required>
+            <button class="btn btn-outline-secondary" type="button" :aria-label="mostrarSenhaCadastro ? 'Ocultar senha' : 'Mostrar senha'" @click="mostrarSenhaCadastro = !mostrarSenhaCadastro">
+              {{ mostrarSenhaCadastro ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </div>
+          <div id="ajuda-senha" class="form-text">Use pelo menos 8 caracteres.</div>
+        </div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold" for="cadastro-confirmacao">Confirmar senha</label>
+          <div class="input-group">
+            <input id="cadastro-confirmacao" v-model="cadastro.password_confirmacao" :type="mostrarConfirmacaoSenha ? 'text' : 'password'" class="form-control" minlength="8" autocomplete="new-password" required>
+            <button class="btn btn-outline-secondary" type="button" :aria-label="mostrarConfirmacaoSenha ? 'Ocultar confirmação de senha' : 'Mostrar confirmação de senha'" @click="mostrarConfirmacaoSenha = !mostrarConfirmacaoSenha">
+              {{ mostrarConfirmacaoSenha ? 'Ocultar' : 'Mostrar' }}
+            </button>
+          </div>
+        </div>
+      </div>
+      <button type="submit" class="btn btn-primary btn-lg rounded-pill w-100 fw-semibold mt-4" :disabled="carregandoCadastro">
+        <span v-if="carregandoCadastro" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+        {{ carregandoCadastro ? 'Criando conta...' : 'Criar conta' }}
+      </button>
+    </form>
+  </PainelAcesso>
 </template>
 
 <script setup>
 import { reactive, ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import IconeSvg from '@/components/IconeSvg.vue'
+import PainelAcesso from '@/components/PainelAcesso.vue'
 import { useAuthStore } from '@/stores/auth.js'
 import { useNotificacoesStore } from '@/stores/notificacoes.js'
 import { mascaraCpf, mascaraTelefone, somenteDigitos } from '@/utils/formatacao.js'
@@ -139,11 +125,6 @@ function destinoAposAcesso() {
   const retorno = route.query.retorno
   if (typeof retorno === 'string' && /^\/(?![\/\\])/.test(retorno)) return retorno
   return { name: 'produtos' }
-}
-
-// MOCK: o backend ainda não tem recuperação de senha; o link do protótipo apenas informa o usuário
-function avisarRecuperacaoSenha() {
-  notificacoesStore.notificar({ tipo: 'info', mensagem: 'A recuperação de senha ainda não está disponível nesta versão.', tempo: 8 })
 }
 
 function validarLogin() {
@@ -211,9 +192,6 @@ async function fazerCadastro() {
 </script>
 
 <style scoped>
-.titulo-boas-vindas {
-  font-size: 2.5rem;
-}
 .abas {
   background-color: var(--cor-neutra);
 }

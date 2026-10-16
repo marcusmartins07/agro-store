@@ -58,6 +58,43 @@
     </div>
 
     <div class="col-12 col-lg-4 d-flex flex-column gap-4">
+      <section class="card rounded-4" aria-labelledby="titulo-imagem-loja">
+        <div class="card-body p-3 p-md-4">
+          <h2 id="titulo-imagem-loja" class="h6 fw-semibold mb-3 titulo-secao">Imagem da loja</h2>
+          <SeletorImagemUnica
+            id="loja-imagem"
+            ref="seletorImagem"
+            v-model="arquivoImagem"
+            rotulo="Imagem da loja"
+            rotulo-oculto
+            ajuda="Opcional. JPG, PNG ou WEBP com até 5 MB. Aparece no detalhe dos produtos e na área do produtor."
+            forma="arredondado"
+            tamanho="lg"
+            :quantidade-iniciais="1"
+            :imagem-atual="loja.imagem_perfil"
+            :nome="loja.nome"
+            :enviando="enviandoImagem"
+            :desabilitado="removendoImagem"
+            :erro="erroImagem"
+            @selecionar="erroImagem = ''"
+            @erro="erroImagem = ''"
+            @remover="modalRemoverImagem?.abrir()"
+          >
+            <template #acoes>
+              <div v-if="arquivoImagem" class="d-flex flex-wrap gap-2">
+                <button type="button" class="btn btn-primary btn-sm rounded-pill px-3" :disabled="enviandoImagem" @click="salvarImagem">
+                  <span v-if="enviandoImagem" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
+                  {{ enviandoImagem ? 'Salvando...' : 'Salvar imagem' }}
+                </button>
+                <button type="button" class="btn btn-outline-secondary btn-sm rounded-pill px-3" :disabled="enviandoImagem" @click="cancelarImagem">
+                  Cancelar
+                </button>
+              </div>
+            </template>
+          </SeletorImagemUnica>
+        </div>
+      </section>
+
       <section class="card rounded-4" aria-labelledby="titulo-vitrine">
         <div class="card-body p-3 p-md-4">
           <h2 id="titulo-vitrine" class="h6 fw-semibold mb-2 titulo-secao">Vitrine pública</h2>
@@ -88,14 +125,29 @@
         </div>
       </section>
     </div>
+
+    <ModalConfirmacao
+      ref="modalRemoverImagem"
+      titulo="Remover imagem da loja?"
+      texto-confirmar="Remover"
+      texto-carregando="Removendo..."
+      :carregando="removendoImagem"
+      @confirmar="removerImagem"
+      @fechado="aoFecharModalImagem"
+    >
+      <p class="mb-0">A imagem deixa de aparecer no detalhe dos produtos e na sua área de produtor, e a inicial do nome da loja é exibida no lugar.</p>
+    </ModalConfirmacao>
   </div>
 </template>
 
 <script setup>
-import { computed, ref, watch } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
+import ModalConfirmacao from '@/components/ModalConfirmacao.vue'
+import SeletorImagemUnica from '@/components/SeletorImagemUnica.vue'
 import { useNotificacoesStore } from '@/stores/notificacoes.js'
 import { useProdutorStore } from '@/stores/produtor.js'
 import { mascaraCnpj } from '@/utils/formatacao.js'
+import { MENSAGEM_FALHA_REMOCAO_IMAGEM, mensagemErroEnvioImagem } from '@/utils/imagem.js'
 
 const produtorStore = useProdutorStore()
 const notificacoes = useNotificacoesStore()
@@ -104,13 +156,22 @@ const erros = ref({})
 const erroGeral = ref('')
 const salvando = ref(false)
 
+// Imagem da loja (RN-018): fluxo próprio, independente do formulário de nome e descrição
+const arquivoImagem = ref(null)
+const enviandoImagem = ref(false)
+const removendoImagem = ref(false)
+const erroImagem = ref('')
+const seletorImagem = ref(null)
+const modalRemoverImagem = ref(null)
+
 const loja = computed(() => produtorStore.loja)
 const cnpjFormatado = computed(() => mascaraCnpj(loja.value?.cnpj || ''))
 const alterado = computed(() =>
   form.value.nome !== (loja.value?.nome || '') || form.value.descricao !== (loja.value?.descricao || '')
 )
 
-watch(loja, restaurar, { immediate: true })
+// Observa só nome e descrição: salvar ou remover a imagem não pode descartar uma edição em andamento
+watch(() => [loja.value?.nome, loja.value?.descricao], restaurar, { immediate: true })
 
 function restaurar() {
   form.value = { nome: loja.value?.nome || '', descricao: loja.value?.descricao || '' }
@@ -136,6 +197,51 @@ async function salvar() {
   } finally {
     salvando.value = false
   }
+}
+
+async function salvarImagem() {
+  erroImagem.value = ''
+  enviandoImagem.value = true
+  try {
+    await produtorStore.salvarImagemLoja(arquivoImagem.value)
+    arquivoImagem.value = null
+    notificacoes.notificar({ tipo: 'success', mensagem: 'Imagem da loja atualizada.', tempo: 4 })
+  } catch (falha) {
+    erroImagem.value = mensagemErroEnvioImagem(falha, 'imagem_perfil')
+    // Arquivo recusado pelo backend sai da prévia e a imagem atual volta a aparecer; em falha de rede, pode tentar de novo
+    if (falha?.status === 400) arquivoImagem.value = null
+  } finally {
+    enviandoImagem.value = false
+  }
+  // Espera o botão ser reabilitado para devolver o foco
+  await nextTick()
+  seletorImagem.value?.focar()
+}
+
+function cancelarImagem() {
+  arquivoImagem.value = null
+  erroImagem.value = ''
+  seletorImagem.value?.limparErro()
+  seletorImagem.value?.focar()
+}
+
+async function removerImagem() {
+  removendoImagem.value = true
+  try {
+    await produtorStore.removerImagemLoja()
+    erroImagem.value = ''
+    notificacoes.notificar({ tipo: 'success', mensagem: 'Imagem da loja removida.', tempo: 4 })
+  } catch {
+    notificacoes.notificar({ tipo: 'danger', mensagem: MENSAGEM_FALHA_REMOCAO_IMAGEM })
+  } finally {
+    removendoImagem.value = false
+    modalRemoverImagem.value?.fechar()
+  }
+}
+
+// Removida a imagem, o botão "Remover imagem" some: o foco vai para "Escolher imagem"
+function aoFecharModalImagem() {
+  if (!loja.value?.imagem_perfil) seletorImagem.value?.focar()
 }
 
 async function desativar() {

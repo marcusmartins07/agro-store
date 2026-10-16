@@ -43,7 +43,7 @@
         <div class="col-12 col-md-6 d-flex flex-column gap-4">
           <div>
             <p class="d-flex align-items-center gap-2 small text-body-secondary mb-2">
-              <IconeSvg nome="loja" :tamanho="16" />
+              <AvatarImagem :src="imagemLoja" :nome="produto.loja_nome" tamanho="sm" forma="arredondado" :quantidade-iniciais="1" />
               <span><span class="visually-hidden">Loja:</span> {{ produto.loja_nome }}</span>
             </p>
             <h1 class="fw-semibold mb-2 titulo-produto">{{ produto.nome }}</h1>
@@ -155,6 +155,7 @@ import { useRoute, useRouter } from 'vue-router'
 import AvaliacaoEstrelas from '@/components/AvaliacaoEstrelas.vue'
 import GaleriaProduto from '@/components/GaleriaProduto.vue'
 import IconeSvg from '@/components/IconeSvg.vue'
+import AvatarImagem from '@/components/AvatarImagem.vue'
 import SeletorQuantidade from '@/components/SeletorQuantidade.vue'
 import { textoRetirada } from '@/data/feira.js'
 import { api } from '@/services/api.js'
@@ -179,6 +180,8 @@ const avaliacoes = ref([])
 const carregandoAvaliacoes = ref(true)
 const erroAvaliacoes = ref(false)
 const quantidade = ref(1)
+// Só a imagem da loja é guardada (RN-018); os demais dados da loja não são exibidos aqui
+const imagemLoja = ref(null)
 const adicionando = ref(false)
 
 // ── Produto ──────────────────────────────────────────────────────────────────
@@ -238,6 +241,7 @@ watch(produtoId, () => {
 
 function carregarPagina() {
   quantidade.value = 1
+  imagemLoja.value = null
   carregarProduto()
   carregarAvaliacoes()
 }
@@ -263,7 +267,21 @@ async function carregarProduto() {
   } finally {
     if (id === produtoId.value) carregando.value = false
   }
-  if (id === produtoId.value && produto.value) rolarParaHash()
+  if (id === produtoId.value && produto.value) {
+    rolarParaHash()
+    carregarImagemLoja(id, produto.value.loja)
+  }
+}
+
+// Falha ou loja sem imagem mostram só a inicial; resposta de um produto anterior é descartada
+async function carregarImagemLoja(id, lojaId) {
+  if (!lojaId) return
+  try {
+    const loja = await api.lojas.obter(lojaId)
+    if (id === produtoId.value) imagemLoja.value = loja?.imagem_perfil || null
+  } catch (falha) {
+    console.error(falha)
+  }
 }
 
 // A seção de avaliações só existe depois que o produto carrega; o scrollBehavior do router

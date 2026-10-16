@@ -108,6 +108,9 @@ This work presents the development of Agro Store, a digital commercialization pl
 
 [Figura 12 - Diagrama de Sequência VII - Avaliação de Item Entregue](#figura-12---diagrama-de-sequência-vii---avaliação-de-item-entregue)
 
+<!-- orientador: revisar -->
+[Figura 13 - Diagrama de Sequência VIII - Redefinição de Senha](#figura-13---diagrama-de-sequência-viii---redefinição-de-senha)
+
 **LISTA DE QUADROS**
 
 Quadro 1 - Cronograma de atividades 43
@@ -130,6 +133,9 @@ HTTP Hypertext Transfer Protocol
 
 IBGE Instituto Brasileiro de Geografia e Estatística
 
+<!-- orientador: revisar -->
+IP Internet Protocol
+
 JSON JavaScript Object Notation
 
 JWT JSON Web Token
@@ -148,7 +154,13 @@ REST Representational State Transfer
 
 SKU Stock Keeping Unit
 
+<!-- orientador: revisar -->
+SMTP Simple Mail Transfer Protocol
+
 SQL Structured Query Language
+
+<!-- orientador: revisar -->
+TLS Transport Layer Security
 
 UML Unified Modeling Language
 
@@ -252,15 +264,17 @@ UML Unified Modeling Language
 >
 > [**4.7 Preservação do Histórico de Pedidos**](#preservação-do-histórico-de-pedidos)
 >
-> [**4.8 Verificação das Funcionalidades**](#verificação-das-funcionalidades)
+> <!-- orientador: revisar -->
+> [**4.8 Redefinição de Senha**](#redefinição-de-senha)
+>
+> [**4.9 Verificação das Funcionalidades**](#verificação-das-funcionalidades)
 
 [**5 LIMITAÇÕES E TRABALHOS FUTUROS**](#limitações-e-trabalhos-futuros)
 
-> [**5.1 Funcionalidades em Desenvolvimento**](#funcionalidades-em-desenvolvimento)
+> <!-- orientador: revisar -->
+> [**5.1 Limitações das Funcionalidades Implementadas**](#limitações-das-funcionalidades-implementadas)
 >
-> [**5.2 Limitações das Funcionalidades Implementadas**](#limitações-das-funcionalidades-implementadas)
->
-> [**5.3 Trabalhos Futuros**](#trabalhos-futuros)
+> [**5.2 Trabalhos Futuros**](#trabalhos-futuros)
 
 [**6 CRONOGRAMA 43**](#cronograma)
 
@@ -410,6 +424,9 @@ Este capítulo descreve o conjunto de métodos e técnicas que foram adotados pa
 
 - Limitar a quantidade de cada item do carrinho ao estoque disponível do produto, ajustando automaticamente os carrinhos afetados quando o estoque diminuir e impedindo a finalização de itens sem estoque.
 
+<!-- orientador: revisar -->
+- Permitir que o usuário que esqueceu a senha solicite, informando o e-mail da conta, o envio de um *link* de redefinição com validade de trinta minutos e uso único, por meio do qual possa cadastrar uma nova senha, submetida às mesmas validações do cadastro, sem que o sistema revele se o e-mail informado pertence a uma conta e sem autenticar o usuário automaticamente ao final do processo.
+
 ### 3.1.2 Requisitos não funcionais {#requisitos-não-funcionais}
 
 - O sistema deve expor seus recursos por meio de uma API REST com retorno de dados no formato JSON, seguindo os princípios arquiteturais REST.
@@ -427,6 +444,9 @@ Este capítulo descreve o conjunto de métodos e técnicas que foram adotados pa
 - A arquitetura modular do backend, organizada em aplicações de domínio independentes, deve possibilitar a adição de novos módulos e funcionalidades sem impacto sobre os módulos existentes, favorecendo a escalabilidade do sistema.
 
 - O sistema deve impedir a venda de quantidade superior ao estoque disponível, inclusive quando houver pedidos simultâneos para o mesmo produto, por meio de controle de concorrência no banco de dados.
+
+<!-- orientador: revisar -->
+- O processo de redefinição de senha deve armazenar apenas o resumo criptográfico (*hash*) do código enviado por e-mail, nunca o código em si, e limitar a quantidade de solicitações e de tentativas de confirmação por endereço de origem, reduzindo o risco de uso indevido e de tentativas sucessivas de adivinhação.
 
 ## 3.2 Modelagem {#modelagem}
 
@@ -450,7 +470,7 @@ Nesta seção são apresentados o Diagrama Entidade-Relacionamento (DER) e o Mod
 O diagrama confeccionado para este trabalho apresenta as seguintes entidades, com suas respectivas relações.
 
 <!-- orientador: revisar -->
-**Cliente**: representa os usuários cadastrados no sistema, armazenando os dados necessários para identificação, autenticação e controle de acesso, como nome, CPF, e-mail, telefone celular, data de nascimento, senha, último login, além de indicadores como e_produtor, esta_ativo e e_superusuario. Relaciona-se com a entidade Loja, permitindo que usuários com perfil de produtor estejam vinculados a uma loja cadastrada na plataforma. Também se relaciona com as entidades Favorito, Avaliação, Carrinho e Pedido_Cliente, uma vez que um cliente pode favoritar produtos, avaliar produtos adquiridos, possuir carrinhos de compra e ter seus dados preservados no momento da compra. O vínculo entre o cliente e os pedidos que realiza não é registrado diretamente na entidade Pedido, mas por intermédio da entidade Pedido_Cliente, na cardinalidade (1,1) para (0,n): um cliente pode estar associado a nenhum ou a diversos registros de Pedido_Cliente, enquanto cada registro pertence a exatamente um cliente.
+**Cliente**: representa os usuários cadastrados no sistema, armazenando os dados necessários para identificação, autenticação e controle de acesso, como nome, CPF, e-mail, telefone celular, data de nascimento, foto de perfil (opcional), senha, último login, além de indicadores como e_produtor, esta_ativo e e_superusuario. Relaciona-se com a entidade Loja, permitindo que usuários com perfil de produtor estejam vinculados a uma loja cadastrada na plataforma. Também se relaciona com as entidades Favorito, Avaliação, Carrinho, Pedido_Cliente e Redefinicao_Senha, uma vez que um cliente pode favoritar produtos, avaliar produtos adquiridos, possuir carrinhos de compra, ter seus dados preservados no momento da compra e solicitar a redefinição de sua senha. O vínculo entre o cliente e os pedidos que realiza não é registrado diretamente na entidade Pedido, mas por intermédio da entidade Pedido_Cliente, na cardinalidade (1,1) para (0,n): um cliente pode estar associado a nenhum ou a diversos registros de Pedido_Cliente, enquanto cada registro pertence a exatamente um cliente.
 
 **Loja**: representa as lojas cadastradas pelos produtores rurais na plataforma, armazenando informações como nome, descrição, CNPJ, imagem de perfil e situação de atividade. Relaciona-se com a entidade Cliente, pois uma loja pertence a um usuário produtor, e com a entidade Pedido, visto que uma loja pode receber diversos pedidos. Também se relaciona com a entidade Carrinho, permitindo que os itens adicionados pelos clientes sejam organizados conforme a loja responsável pelos produtos.
 
@@ -485,11 +505,16 @@ A concentração do vínculo com o cliente e do *snapshot* em uma mesma entidade
 
 **Gênero**: armazena os dados referentes aos gêneros disponíveis para classificação dos clientes cadastrados no sistema, por meio do atributo gênero. Relaciona-se com a entidade Cliente, permitindo associar os usuários ao respectivo gênero informado no cadastro.
 
+<!-- orientador: revisar -->
+**Redefinicao_Senha**: armazena as solicitações de redefinição de senha realizadas pelos clientes, contendo o resumo criptográfico (*hash*) do código enviado por e-mail, a data de expiração, a data de utilização e a data de criação. Relaciona-se com a entidade Cliente na cardinalidade (0,n) para (1,1): cada solicitação pertence a exatamente um cliente, enquanto um cliente pode não possuir nenhuma solicitação ou acumular diversas ao longo do tempo, uma vez que o histórico das solicitações é preservado. A data de utilização, quando preenchida, indica que o *link* correspondente já foi utilizado ou invalidado e não pode mais ser aceito.
+
 Abaixo, apresenta-se a Figura 1, referente ao Diagrama Entidade-Relacionamento, confeccionado na etapa de modelagem do sistema.
 
 ###### 
 
 ###### Figura 1 - Modelo Conceitual do Diagrama Entidade-Relacionamento
+
+<!-- autor: substituir a Figura 1 pela variante 2.1 sem telefone/tipo_telefone -->
 
 ![](media/image1.png){width="8.810859580052494in" height="5.338041338582677in"}
 
@@ -498,12 +523,15 @@ Abaixo, apresenta-se a Figura 1, referente ao Diagrama Entidade-Relacionamento, 
 ### 3.2.4 Modelo Lógico {#modelo-lógico}
 
 <!-- orientador: revisar -->
-A partir do modelo conceitual, foi elaborado o modelo lógico do banco de dados, apresentado na Figura 2. Nessa representação, as entidades são convertidas em tabelas, com a definição dos tipos de dados de cada coluna, das chaves primárias e das chaves estrangeiras responsáveis por materializar os relacionamentos entre os dados. Os relacionamentos N:N identificados no DER, como o vínculo entre pedidos e produtos, entre clientes e produtos favoritados e entre carrinhos e produtos, dão origem às tabelas associativas pedido_produto, favorito e carrinho_produto. Além disso, as restrições de unicidade, como as aplicadas a cpf, email, cnpj, sku e status, contribuem para assegurar a integridade dos dados prevista nos requisitos não funcionais do sistema.
+A partir do modelo conceitual, foi elaborado o modelo lógico do banco de dados, apresentado na Figura 2. Nessa representação, as entidades são convertidas em tabelas, com a definição dos tipos de dados de cada coluna, das chaves primárias e das chaves estrangeiras responsáveis por materializar os relacionamentos entre os dados. Os relacionamentos N:N identificados no DER, como o vínculo entre pedidos e produtos, entre clientes e produtos favoritados e entre carrinhos e produtos, dão origem às tabelas associativas pedido_produto, favorito e carrinho_produto. Além disso, as restrições de unicidade, como as aplicadas a cpf, email, cnpj, sku, status e token_hash, contribuem para assegurar a integridade dos dados prevista nos requisitos não funcionais do sistema.
 
 <!-- orientador: revisar -->
 A tabela de imagens dos produtos possui, além da chave estrangeira para o produto, uma restrição de unicidade condicional, isto é, aplicada apenas às linhas que atendem a uma condição: entre as imagens de um mesmo produto, somente uma pode estar marcada como principal. Dessa forma, o próprio banco de dados impede a existência de duas imagens principais para o mesmo produto, enquanto o limite de cinco imagens por produto é verificado pela aplicação.
 
 No modelo lógico, a tabela pedido possui chaves estrangeiras apenas para loja e status_pedido, enquanto a referência ao cliente fica na tabela pedido_cliente, por meio da coluna id_usuario, de preenchimento obrigatório. A coluna id_pedido dessa tabela é única, o que materializa a relação um-para-um com o pedido. Para preservar o histórico de pedidos, as chaves estrangeiras de pedido_cliente para o usuário e de pedido para a loja utilizam a regra de exclusão restritiva (ON DELETE RESTRICT), segundo a qual o banco de dados recusa a exclusão de um registro enquanto existirem outros registros que dependem dele. Assim, não é possível excluir um usuário ou uma loja que possua pedidos associados. Essa escolha substitui a exclusão em cascata (ON DELETE CASCADE), na qual a remoção do registro principal provocaria a remoção automática dos pedidos vinculados e, consequentemente, a perda do histórico de vendas e de compras.
+
+<!-- orientador: revisar -->
+A tabela redefinicao_senha possui chave estrangeira obrigatória para o usuário e uma restrição de unicidade sobre a coluna token_hash, que armazena o *hash* do código enviado no *link* de redefinição. O *hash* é o resultado de uma função criptográfica de mão única, que transforma um valor em uma sequência de tamanho fixo da qual não é possível recuperar o valor original [CITAÇÃO NECESSÁRIA]; no sistema, utiliza-se o algoritmo SHA-256 [CITAÇÃO NECESSÁRIA]. Assim, mesmo que o conteúdo do banco de dados seja exposto, os códigos dos *links* válidos não podem ser obtidos a partir dele. A tabela possui ainda uma restrição de verificação (CHECK), isto é, uma condição que toda linha deve satisfazer para ser gravada, que exige que a data de expiração seja posterior à data de criação. Diferentemente das tabelas ligadas aos pedidos, a chave estrangeira para o usuário utiliza a exclusão em cascata (ON DELETE CASCADE): como os registros de redefinição de senha são auxiliares ao acesso e não compõem o histórico comercial, não há razão para que impeçam a exclusão de um usuário, e são removidos junto com ele.
 
 ###### Figura 2 - Modelo Lógico do Diagrama Entidade-Relacionamento
 
@@ -524,7 +552,7 @@ Conforme detalhado nos requisitos do sistema, a distinção entre os perfis de u
 <!-- -->
 
 <!-- orientador: revisar -->
-- **Visitante:** representa a pessoa que acessa a plataforma sem estar autenticada. Pode consultar o catálogo, o detalhe dos produtos e as avaliações publicadas, além de criar sua conta de cliente.
+- **Visitante:** representa a pessoa que acessa a plataforma sem estar autenticada. Pode consultar o catálogo, o detalhe dos produtos e as avaliações publicadas, além de criar sua conta de cliente e, caso já possua conta e tenha esquecido a senha, solicitar a redefinição.
 
 <!-- orientador: revisar -->
 - **Cliente:** representa o usuário consumidor da plataforma, responsável por acessar o catálogo de produtos, adicionar itens ao carrinho, realizar pedidos, acompanhar o andamento das compras, cancelar pedidos ainda pendentes, editar seus dados de perfil, favoritar produtos e avaliar os itens de pedidos entregues. Esse ator utiliza o sistema com o objetivo de consultar os produtos disponibilizados pelos produtores rurais e realizar pedidos para posterior retirada na feira física.
@@ -547,6 +575,9 @@ Conforme detalhado nos requisitos do sistema, a distinção entre os perfis de u
 - **Efetuar login:** caso de uso base para todos os atores. Realiza a autenticação do usuário na plataforma, permitindo o acesso às funcionalidades de acordo com o perfil identificado.
 
 <!-- orientador: revisar -->
+- **Redefinir senha:** caso de uso disponível a qualquer usuário cadastrado que não esteja autenticado por ter esquecido a senha. O usuário informa o e-mail da conta e recebe, por e-mail, um *link* válido por trinta minutos e de uso único, por meio do qual cadastra uma nova senha. A resposta à solicitação é sempre a mesma, exista ou não uma conta com o e-mail informado, e, após a troca, o usuário deve efetuar login com a nova senha. O fluxo é detalhado na Seção 4.8.
+
+<!-- orientador: revisar -->
 - **Visualizar catálogo de produtos:** permite ao visitante e ao cliente consultar os produtos disponíveis na plataforma, visualizando informações como nome, descrição, preço, imagens, categoria e loja responsável pela oferta.
 
 - **Gerenciar carrinho:** permite ao cliente adicionar produtos ao carrinho, alterar quantidades, remover itens e consultar os valores relacionados aos produtos selecionados antes da geração do pedido.
@@ -560,7 +591,7 @@ Conforme detalhado nos requisitos do sistema, a distinção entre os perfis de u
 - **Cancelar pedido pendente:** permite ao cliente cancelar um pedido próprio enquanto ele estiver com o status Pendente.
 
 <!-- orientador: revisar -->
-- **Editar perfil:** permite ao usuário alterar seus dados pessoais, com exceção do CPF e do perfil de acesso.
+- **Editar perfil:** permite ao usuário alterar seus dados pessoais, com exceção do CPF e do perfil de acesso, bem como enviar, trocar ou remover sua foto de perfil, que é opcional.
 
 <!-- orientador: revisar -->
 - **Favoritar produto:** permite ao usuário autenticado, seja cliente ou produtor, marcar produtos de interesse para facilitar consultas futuras. Essa funcionalidade cria um vínculo entre o usuário e o produto favoritado.
@@ -572,10 +603,10 @@ Conforme detalhado nos requisitos do sistema, a distinção entre os perfis de u
 - **Consultar avaliações do produto:** permite a qualquer pessoa, autenticada ou não, consultar as avaliações publicadas na página de detalhe do produto.
 
 <!-- orientador: revisar -->
-- **Cadastrar loja:** funcionalidade atribuída ao produtor rural. Permite que o usuário com perfil de produtor cadastre sua loja na plataforma, informando nome, descrição e CNPJ. Cada produtor pode possuir somente uma loja.
+- **Cadastrar loja:** funcionalidade atribuída ao produtor rural. Permite que o usuário com perfil de produtor cadastre sua loja na plataforma, informando nome, descrição e CNPJ e, opcionalmente, uma imagem da loja. Cada produtor pode possuir somente uma loja.
 
 <!-- orientador: revisar -->
-- **Gerenciar loja:** permite ao produtor rural consultar e atualizar o nome e a descrição de sua loja, bem como desativá-la, mantendo os dados de apresentação disponíveis aos clientes da plataforma.
+- **Gerenciar loja:** permite ao produtor rural consultar e atualizar o nome, a descrição e a imagem de sua loja, bem como desativá-la, mantendo os dados de apresentação disponíveis aos clientes da plataforma.
 
 <!-- orientador: revisar -->
 - **Gerenciar produtos, preços e imagens:** permite ao produtor rural cadastrar, consultar, atualizar e desativar produtos vinculados à sua loja, incluindo informações como nome, descrição, categoria, estoque, código de barras, preços e imagens. O SKU é gerado automaticamente pelo sistema.
@@ -718,25 +749,28 @@ O Diagrama de Sequência III busca representar visualmente o processo de cadastr
 
   - **Banco de dados:** componente responsável por armazenar os dados da loja cadastrada.
 
+  <!-- orientador: revisar -->
+  - **Storage de arquivos:** componente responsável por armazenar o arquivo da imagem da loja, quando enviada.
+
 <!-- -->
 
 - **Fluxo de Eventos:**
 
   <!-- orientador: revisar -->
 
-  - **Informa dados da loja:** o fluxo inicia-se quando o produtor preenche os dados necessários para criação da loja: nome, descrição e CNPJ. O envio da imagem da loja ainda não está disponível nessa etapa (seção 5.1).
+  - **Informa dados da loja:** o fluxo inicia-se quando o produtor preenche os dados necessários para criação da loja: nome, descrição e CNPJ. Opcionalmente, o produtor pode escolher, nessa mesma etapa, uma imagem para a loja, enviada junto com os demais dados; caso a imagem seja recusada pela validação, a loja não é criada e o produtor pode corrigir o arquivo, conforme descrito na Seção 4.4.
 
   - **Envia dados da loja:** o *frontend* encaminha as informações para a API/Backend.
 
   - **Verifica autenticação:** a API/Backend valida se o usuário está autenticado no sistema. Caso não esteja, a requisição é recusada.
 
-  - **Valida os dados da loja:** a API/Backend consulta o banco de dados e verifica, nesta ordem, se o CNPJ já está cadastrado, se o usuário possui perfil de produtor e se ele já possui uma loja, uma vez que cada produtor pode possuir somente uma loja. Em qualquer desses casos, a API/Backend retorna um erro de validação com a mensagem correspondente, e o processo é interrompido.
+  - **Valida os dados da loja:** quando uma imagem é enviada, a API/Backend confere sua extensão (JPG, PNG ou WEBP), seu tamanho, de até 5 MB, e seu conteúdo; se a imagem for recusada, é retornada a mensagem correspondente, e a loja não é criada. Em seguida, a API/Backend consulta o banco de dados e verifica, nesta ordem, se o CNPJ já está cadastrado, se o usuário possui perfil de produtor e se ele já possui uma loja, uma vez que cada produtor pode possuir somente uma loja. Em qualquer desses casos, a API/Backend retorna um erro de validação com a mensagem correspondente, e o processo é interrompido.
 
-  - **Salva loja vinculada ao produtor:** caso os dados sejam válidos, a API/Backend solicita ao banco de dados a criação da loja, já ativa, vinculando-a ao usuário autenticado.
+  - **Salva loja vinculada ao produtor:** caso os dados sejam válidos, a API/Backend grava a imagem, quando enviada, no armazenamento de arquivos, com um nome gerado aleatoriamente, e solicita ao banco de dados a criação da loja, já ativa, vinculando-a ao usuário autenticado.
 
   - **Confirma criação da loja:** o banco de dados confirma o armazenamento das informações.
 
-  - **Retorna dados da loja:** a API/Backend devolve ao *frontend* os dados cadastrados.
+  - **Retorna dados da loja:** a API/Backend devolve ao *frontend* os dados cadastrados, incluindo o endereço da imagem, quando houver.
 
   - **Exibe loja cadastrada:** o *frontend* apresenta ao produtor a confirmação do cadastro.
 
@@ -902,7 +936,7 @@ A seguir, apresenta-se a Figura 9, referente ao Diagrama de Atividades I, que de
 Este capítulo apresenta os resultados do desenvolvimento do Agro Store, descrevendo as funcionalidades implementadas no MVP (Produto Mínimo Viável, do inglês *Minimum Viable Product*), isto é, a versão do sistema que reúne o conjunto mínimo de funcionalidades necessário para demonstrar a proposta. O código do sistema foi organizado em um único repositório, que contém dois projetos independentes: a API REST, desenvolvida em Python com Django e Django REST Framework, e a interface web, desenvolvida com Vue.js. Durante o desenvolvimento, utilizou-se o banco de dados SQLite, enquanto o PostgreSQL é o banco de dados adotado para a versão final.
 
 <!-- orientador: revisar -->
-Ao longo da implementação, os requisitos levantados no Capítulo 3 foram detalhados em regras de negócio, isto é, em definições sobre como o sistema deve se comportar em cada situação. As seções a seguir apresentam essas regras e as decisões técnicas adotadas para garantir sua consistência. As regras críticas são sempre validadas no *backend*, de modo que a interface não seja a única camada de proteção. A Seção 4.8 descreve a verificação das funcionalidades, e as limitações identificadas são apresentadas no Capítulo 5.
+Ao longo da implementação, os requisitos levantados no Capítulo 3 foram detalhados em regras de negócio, isto é, em definições sobre como o sistema deve se comportar em cada situação. As seções a seguir apresentam essas regras e as decisões técnicas adotadas para garantir sua consistência. As regras críticas são sempre validadas no *backend*, de modo que a interface não seja a única camada de proteção. A Seção 4.9 descreve a verificação das funcionalidades, e as limitações identificadas são apresentadas no Capítulo 5.
 
 <!-- orientador: revisar -->
 ## 4.1 Regras de Negócio de Estoque {#regras-de-negócio-de-estoque}
@@ -960,9 +994,17 @@ Para padronizar a apresentação dos produtos, cujos cartões no catálogo utili
 <!-- orientador: revisar -->
 ## 4.4 Área do Produtor e Perfil do Usuário {#área-do-produtor-e-perfil-do-usuário}
 
-Todo usuário autenticado dispõe de uma página de perfil, na qual pode alterar nome, e-mail, telefone celular, data de nascimento e gênero, com as mesmas validações aplicadas no cadastro. O CPF, por ser o identificador utilizado no acesso ao sistema, e o perfil de acesso não podem ser alterados pelo próprio usuário. A alteração do perfil não modifica os pedidos já realizados, que preservam os dados do cliente no momento da compra, conforme a Seção 4.7. Ao usuário que não possui perfil de produtor, a interface apresenta apenas a orientação para procurar a organização da feira, sem oferecer a criação de loja. Na página de pedidos, o cliente consulta o histórico de compras, que pode ser filtrado por status, cancela os pedidos pendentes e avalia os itens de pedidos entregues.
+Todo usuário autenticado dispõe de uma página de perfil, na qual pode alterar nome, e-mail, telefone celular, data de nascimento e gênero, com as mesmas validações aplicadas no cadastro, além de gerenciar sua foto de perfil, descrita adiante nesta seção. O CPF, por ser o identificador utilizado no acesso ao sistema, e o perfil de acesso não podem ser alterados pelo próprio usuário. A alteração do perfil não modifica os pedidos já realizados, que preservam os dados do cliente no momento da compra, conforme a Seção 4.7. Ao usuário que não possui perfil de produtor, a interface apresenta apenas a orientação para procurar a organização da feira, sem oferecer a criação de loja. Na página de pedidos, o cliente consulta o histórico de compras, que pode ser filtrado por status, cancela os pedidos pendentes e avalia os itens de pedidos entregues.
 
-O produtor dispõe de uma área própria, organizada em quatro partes. O painel inicial apresenta indicadores de acompanhamento, como vendas do mês, pedidos no mês, ticket médio, vendas dos últimos sete dias e produtos mais vendidos, considerando apenas os pedidos não cancelados. Esses indicadores são calculados na interface, a partir dos pedidos da loja, e têm caráter exclusivamente informativo, não substituindo relatórios gerenciais. A segunda parte é um quadro de pedidos no estilo *kanban*, método de organização visual do trabalho em colunas que representam as etapas de um processo [CITAÇÃO NECESSÁRIA]; nele, cada coluna corresponde a um status, e cada pedido apresenta somente as ações permitidas pelo ciclo descrito na Seção 4.2. A terceira parte reúne os produtos da loja, com os indicadores de estoque descritos na Seção 4.1.1, e permite cadastrar e editar produtos, preços e imagens. Os produtos não são excluídos, pois a exclusão afetaria os itens de pedidos já realizados: o produtor pode desativá-los, após confirmação em uma janela de diálogo, e reativá-los a qualquer momento. A quarta parte permite alterar o nome e a descrição da loja e desativá-la. O CNPJ e o proprietário não podem ser alterados nessa área, e a desativação da loja preserva o histórico de pedidos e impede novas compras.
+O produtor dispõe de uma área própria, organizada em quatro partes. O painel inicial apresenta indicadores de acompanhamento, como vendas do mês, pedidos no mês, ticket médio, vendas dos últimos sete dias e produtos mais vendidos, considerando apenas os pedidos não cancelados. Esses indicadores são calculados na interface, a partir dos pedidos da loja, e têm caráter exclusivamente informativo, não substituindo relatórios gerenciais. A segunda parte é um quadro de pedidos no estilo *kanban*, método de organização visual do trabalho em colunas que representam as etapas de um processo [CITAÇÃO NECESSÁRIA]; nele, cada coluna corresponde a um status, e cada pedido apresenta somente as ações permitidas pelo ciclo descrito na Seção 4.2. A terceira parte reúne os produtos da loja, com os indicadores de estoque descritos na Seção 4.1.1, e permite cadastrar e editar produtos, preços e imagens. Os produtos não são excluídos, pois a exclusão afetaria os itens de pedidos já realizados: o produtor pode desativá-los, após confirmação em uma janela de diálogo, e reativá-los a qualquer momento. A quarta parte, denominada Dados da loja, permite alterar o nome, a descrição e a imagem da loja e desativá-la. O CNPJ e o proprietário não podem ser alterados nessa área, e a desativação da loja preserva o histórico de pedidos e impede novas compras, sem impedir que o proprietário continue a editar o nome, a descrição e a imagem da loja inativa.
+
+<!-- orientador: revisar -->
+Complementarmente, o sistema permite que cada usuário possua uma foto de perfil e que cada loja possua uma imagem de apresentação, ambas opcionais e únicas. A foto de perfil é enviada, trocada ou removida pelo próprio usuário na página de perfil e é exibida somente a ele, nessa página e no menu da conta; ela não aparece em avaliações, em pedidos nem na área do produtor, o que limita a exposição de um dado pessoal. Quando o usuário não possui foto, a interface apresenta as iniciais do seu nome. A imagem da loja pode ser escolhida já no cadastro da loja, conforme descrito na Seção 3.2.5.2.3, ou enviada posteriormente na parte Dados da loja, e somente o proprietário pode enviá-la, trocá-la ou removê-la. Ela é exibida na parte Dados da loja, onde é gerenciada, e na página de detalhe do produto, junto ao nome da loja, apenas como identificação; os cartões do catálogo continuam a apresentar a imagem principal do produto. Quando a loja não possui imagem, a interface apresenta a inicial do nome da loja.
+
+<!-- orientador: revisar -->
+Ambas as imagens seguem as mesmas validações adotadas para as imagens dos produtos (Seção 4.3): o *backend* aceita apenas arquivos JPG, PNG ou WEBP com até 5 MB, conferindo tanto a extensão quanto o conteúdo do arquivo, e armazena cada um com um nome gerado aleatoriamente. Quando o envio é recusado, a imagem atual é mantida. Diferentemente das imagens dos produtos, o envio de uma nova imagem substitui a anterior, e a remoção pode ser feita sem o envio de outra, mediante confirmação em uma janela de diálogo. O arquivo substituído ou removido é excluído do armazenamento somente após a confirmação da transação no banco de dados, isto é, depois que a alteração foi efetivamente gravada, o que evita apagar um arquivo ainda referenciado caso a gravação falhe. Valores antigos de imagem da loja que não seguem o padrão de nome gerado pelo sistema são exibidos como ausência de imagem e não são apagados. A foto de perfil e a imagem da loja não fazem parte do *snapshot* do pedido (Seção 4.7), de modo que sua troca ou remoção não altera os pedidos já realizados. Os arquivos são armazenados no disco local durante o desenvolvimento e no Supabase Storage, serviço de armazenamento de arquivos em nuvem [CITAÇÃO NECESSÁRIA], no ambiente de produção.
+
+<!-- autor: registrar aqui, se desejar, a validação manual no navegador da foto de perfil e da imagem da loja, após concluí-la -->
 
 <!-- orientador: revisar -->
 ## 4.5 Favoritos {#favoritos}
@@ -994,24 +1036,45 @@ Conforme descrito nas Seções 3.2.3 e 3.2.4, o vínculo entre o pedido e o clie
 Complementarmente, o sistema impede a exclusão de registros dos quais o histórico depende. Um usuário que possua pedidos e um produtor cuja loja tenha recebido pedidos não podem ser excluídos: a tentativa de exclusão pela área administrativa é recusada, e são exibidos os pedidos que a impedem. A loja não possui operação própria de exclusão, nem na área administrativa nem na API, e a API também não oferece a exclusão de usuários. Para encerrar o acesso de um usuário, o administrador o desativa, mantendo a conta; para encerrar a atividade de uma loja, utiliza-se a desativação, descrita na Seção 4.4. Os pedidos, por sua vez, ficam disponíveis na área administrativa apenas para consulta, sem a possibilidade de inclusão, edição ou exclusão, e a alteração de status ocorre exclusivamente pela API, respeitando o fluxo descrito na Seção 4.2.
 
 <!-- orientador: revisar -->
-## 4.8 Verificação das Funcionalidades {#verificação-das-funcionalidades}
+## 4.8 Redefinição de Senha {#redefinição-de-senha}
 
-As regras de negócio descritas neste capítulo foram verificadas por meio de testes automatizados do *backend*, que simulam as requisições à API e conferem as respostas e os dados gravados no banco de dados. Na data de redação desta seção, 15 de outubro de 2026, a suíte de testes do *backend* reunia 176 testes automatizados, todos executados com sucesso no banco de dados SQLite. Entre eles, estão os testes que verificam a retirada do produto sem estoque do catálogo, os limites do indicador de estoque baixo, a recusa de estoque negativo, o ajuste dos carrinhos, as transições de status e a devolução do estoque no cancelamento, o vínculo do cliente com os pedidos, o bloqueio da exclusão de usuários com pedidos e as regras de avaliação. Complementarmente, as telas relacionadas ao controle de estoque foram inspecionadas visualmente nas larguras de 375 e 1280 pixels, representativas de *smartphones* e de computadores de mesa, respectivamente, em atenção ao requisito não funcional de responsividade da interface.
+Como o acesso ao sistema depende de CPF e senha, um usuário que esquece a senha ficaria impedido de utilizar a plataforma sem um meio de recuperá-la. Para atender a essa necessidade, foi implementado um fluxo de redefinição de senha baseado no envio de um *link*, isto é, de um endereço de acesso, para o e-mail cadastrado na conta. Na tela de login, a opção "Esqueci minha senha" conduz a uma tela na qual o usuário informa esse e-mail. A API responde sempre com a mesma mensagem, "Se houver uma conta com este e-mail, enviaremos um link para redefinir a senha.", exista ou não uma conta associada ao endereço informado. Essa resposta neutra impede que a funcionalidade seja utilizada para descobrir quais e-mails estão cadastrados na plataforma, prática conhecida como enumeração de contas [CITAÇÃO NECESSÁRIA]. O e-mail é comparado sem diferenciar letras maiúsculas e minúsculas, e contas inativas não recebem o *link*, embora a resposta permaneça a mesma. O fluxo completo é apresentado na Figura 13.
+
+Quando existe uma conta ativa com o e-mail informado, o *backend* gera um código aleatório e registra, na tabela redefinicao_senha, somente o *hash* desse código, conforme descrito na Seção 3.2.4, junto com a data de expiração. O código em si é enviado apenas no *link* do e-mail. Cada *link* vale por trinta minutos e pode ser utilizado uma única vez, condição registrada pelo preenchimento da data de utilização. Ao solicitar um novo *link*, os anteriores que ainda não foram utilizados são invalidados, de modo que apenas o mais recente permanece válido. No *link*, o código é posicionado no fragmento do endereço, a parte que sucede o caractere "#" e que o navegador não envia ao servidor nas requisições [CITAÇÃO NECESSÁRIA]. Ao abrir a tela de redefinição, a interface lê o código e o remove imediatamente da barra de endereços e do histórico de navegação, mantendo-o apenas na memória da própria tela, o que reduz o risco de exposição do código em registros de acesso, no histórico do navegador ou no compartilhamento acidental do endereço.
+
+Na tela de redefinição, o usuário informa a nova senha e sua confirmação. A nova senha é submetida às mesmas validações aplicadas no cadastro: deve possuir no mínimo oito caracteres, atender aos critérios de segurança de senha do *backend* e coincidir com a confirmação. Um *link* expirado, já utilizado, invalidado ou inexistente é recusado com a mensagem "Este link de redefinição é inválido ou expirou. Solicite um novo.", e a interface oferece a opção de solicitar um novo *link*; a mesma mensagem é apresentada quando a conta foi desativada, para não revelar o estado da conta. A marcação do *link* como utilizado e a gravação da nova senha ocorrem em uma única transação, e a marcação só é efetivada se o *link* ainda estiver pendente e dentro do prazo, o que impede que duas tentativas simultâneas utilizem o mesmo *link*. Concluída a troca, os demais *links* pendentes do usuário também são invalidados. O usuário não é autenticado automaticamente: a interface encerra a sessão local que eventualmente exista no navegador, apresenta a mensagem "Senha redefinida. Entre com a nova senha." e o encaminha à tela de login, exigindo que a nova senha seja efetivamente informada para o acesso.
+
+Os dois serviços da API envolvidos no fluxo, o de solicitação e o de confirmação, são públicos, pois são utilizados por quem não consegue se autenticar. Para limitar o uso abusivo, como o envio massivo de e-mails ou tentativas sucessivas de adivinhar códigos, o *backend* restringe a quantidade de requisições por endereço IP (*Internet Protocol*) de origem: até cinco solicitações de *link* e até dez tentativas de confirmação por hora. Ao exceder esses limites, a API recusa a requisição com a mensagem "Muitas solicitações. Tente novamente mais tarde.".
+
+O envio do e-mail utiliza o recurso nativo do Django. Em ambiente de desenvolvimento, a mensagem é apenas exibida no console do servidor, enquanto, em produção, é enviada por um servidor SMTP (*Simple Mail Transfer Protocol*), protocolo padrão de envio de mensagens eletrônicas [CITAÇÃO NECESSÁRIA], configurado por variáveis de ambiente, de modo que as credenciais de acesso não ficam registradas no código-fonte. O e-mail é enviado somente após a gravação da solicitação no banco de dados e, em caso de falha no envio, o erro é registrado no servidor, sem alteração da resposta neutra apresentada ao usuário. Cabe destacar que esse e-mail constitui uma mensagem transacional, isto é, uma resposta direta a uma ação iniciada pelo próprio usuário e necessária para concluí-la. Ele não se confunde com as notificações ativas tratadas no Capítulo 5, como os avisos de mudança de status dos pedidos ou de estoque baixo, que seriam enviadas por iniciativa do sistema e permanecem como trabalho futuro.
+
+As regras desse fluxo, como a resposta neutra, a validade e o uso único dos *links*, a invalidação dos *links* anteriores, as validações da nova senha e os limites de requisições, foram verificadas por testes automatizados do *backend*, nos mesmos moldes descritos na Seção 4.9.
+
+<!-- orientador: revisar -->
+Além dos testes automatizados, o fluxo foi validado manualmente em ambiente real em 16 de outubro de 2026. Nessa validação, o *backend* foi executado com o banco de dados PostgreSQL hospedado no Supabase e com envio efetivo de e-mails por meio do servidor SMTP do Gmail, na porta 587 e com criptografia TLS (*Transport Layer Security*), protocolo que protege a comunicação entre a aplicação e o servidor de e-mail [CITAÇÃO NECESSÁRIA], configurado por variáveis de ambiente; o *frontend* foi executado localmente. A solicitação de redefinição obteve a resposta neutra prevista, com código HTTP (*Hypertext Transfer Protocol*) 200, que indica sucesso no processamento da requisição, e gerou um registro de redefinição com expiração exatamente trinta minutos após sua criação e data de utilização ainda não preenchida. Verificou-se também que a nova solicitação invalidou uma solicitação anterior da mesma conta, conforme a regra descrita nesta seção. O e-mail foi recebido na caixa de entrada do destinatário e, a partir do *link* recebido, a nova senha foi cadastrada com sucesso pela tela de redefinição. A recusa de um *link* já utilizado e o acesso com a nova senha não foram repetidos manualmente nessa validação, permanecendo verificados pelos testes automatizados do *backend*.
+
+<!-- autor: registrar aqui, se desejar, a validação manual das telas "Esqueci minha senha" e "Crie uma nova senha" no navegador, após concluí-la -->
+
+###### Figura 13 - Diagrama de Sequência VIII - Redefinição de Senha
+
+![](diagramas/fig13-seq-redefinicao-senha.png){width="6.3in"}
+
+**Fonte:** Confeccionado pelo autor (2026).
+
+<!-- orientador: revisar -->
+## 4.9 Verificação das Funcionalidades {#verificação-das-funcionalidades}
+
+As regras de negócio descritas neste capítulo foram verificadas por meio de testes automatizados do *backend*, que simulam as requisições à API e conferem as respostas e os dados gravados no banco de dados. Na data de redação desta seção, 16 de outubro de 2026, a suíte completa de testes do *backend* reunia 246 testes automatizados, todos executados com sucesso no banco de dados SQLite. Entre eles, estão os testes que verificam a retirada do produto sem estoque do catálogo, os limites do indicador de estoque baixo, a recusa de estoque negativo, o ajuste dos carrinhos, as transições de status e a devolução do estoque no cancelamento, o vínculo do cliente com os pedidos, o bloqueio da exclusão de usuários com pedidos, as regras de avaliação, a redefinição de senha e o envio, a troca e a remoção da imagem da loja e da foto de perfil. Complementarmente, as telas relacionadas ao controle de estoque foram inspecionadas visualmente nas larguras de 375 e 1280 pixels, representativas de *smartphones* e de computadores de mesa, respectivamente, em atenção ao requisito não funcional de responsividade da interface.
 
 <!-- autor: registrar aqui a validação manual da tela de avaliações no navegador, se desejar; não há testes de usabilidade com usuários a relatar -->
 
 # [5 LIMITAÇÕES E TRABALHOS FUTUROS]{.smallcaps} {#limitações-e-trabalhos-futuros}
 
 <!-- orientador: revisar -->
-Este capítulo reúne as funcionalidades que ainda estão em desenvolvimento, as limitações identificadas nas funcionalidades implementadas e as evoluções que podem ser exploradas em trabalhos futuros.
+Este capítulo reúne as limitações identificadas nas funcionalidades implementadas e as evoluções que podem ser exploradas em trabalhos futuros.
 
 <!-- orientador: revisar -->
-## 5.1 Funcionalidades em Desenvolvimento {#funcionalidades-em-desenvolvimento}
-
-Está em desenvolvimento a possibilidade de cada loja possuir uma imagem de apresentação e de cada usuário possuir uma foto de perfil, ambas opcionais. As regras dessa funcionalidade foram definidas, e a estrutura do banco de dados já contempla os campos correspondentes. No entanto, o envio, a troca e a remoção dessas imagens pela API e pela interface ainda não foram concluídos. Por esse motivo, na versão descrita neste trabalho, o cadastro da loja não inclui o envio de imagem, e a foto de perfil do usuário não está disponível.
-
-<!-- orientador: revisar -->
-## 5.2 Limitações das Funcionalidades Implementadas {#limitações-das-funcionalidades-implementadas}
+## 5.1 Limitações das Funcionalidades Implementadas {#limitações-das-funcionalidades-implementadas}
 
 O controle de estoque implementado atende às necessidades do MVP, mas apresenta limitações que podem orientar trabalhos futuros, no âmbito de um controle de estoque mais avançado. A sinalização de estoque baixo é apenas visual e depende do acesso do produtor à plataforma. Uma evolução possível é a notificação ativa, por e-mail ou por notificação *push*. O limite de cinco unidades é único para todos os produtos e poderia passar a ser configurável por produto, considerando as diferentes unidades de venda e o giro de cada item. Quando a quantidade de um item do carrinho é reduzida sem chegar a zero, o cliente não recebe um aviso específico. Esse aviso exigiria armazenar a quantidade escolhida originalmente. Por fim, a proibição de estoque negativo é hoje garantida apenas pela validação da API. A restrição equivalente no banco de dados, que reforçaria a integridade independentemente da aplicação, está planejada e ainda não foi implementada.
 
@@ -1025,10 +1088,16 @@ Nas avaliações, não há edição pelo autor: uma avaliação enviada só pode
 Quanto aos dados pessoais, a preservação do histórico impede a exclusão de usuários que possuam pedidos, e o *snapshot* mantém dados como nome, CPF, e-mail e telefone registrados em cada pedido. O sistema ainda não dispõe de um procedimento de anonimização desses dados, que seria necessário para atender a solicitações de eliminação de dados pessoais previstas na LGPD (Lei Geral de Proteção de Dados Pessoais) [CITAÇÃO NECESSÁRIA] sem comprometer a integridade do histórico de vendas.
 
 <!-- orientador: revisar -->
-Por fim, o desenvolvimento e os testes automatizados foram realizados com o banco de dados SQLite. A alteração que transferiu o vínculo do cliente para a entidade Pedido_Cliente, descrita na Seção 4.7, ainda não foi aplicada ao banco de dados PostgreSQL do ambiente de produção, e o comportamento do bloqueio por linha descrito na Seção 4.1.3 ainda precisa ser verificado nesse banco de dados.
+Na redefinição de senha, descrita na Seção 4.8, as sessões já abertas antes da troca não são encerradas: os tokens JWT emitidos anteriormente continuam válidos até expirarem pelo prazo normal, de até cento e vinte minutos para o token de acesso e de um dia para o token de renovação. Assim, se a senha tiver sido redefinida por suspeita de acesso indevido, uma sessão já aberta por terceiros não é interrompida de imediato. Além disso, o usuário não recebe um aviso por e-mail informando que a senha foi alterada, o envio do e-mail de redefinição ocorre durante o próprio processamento da solicitação, o que pode aumentar o tempo de resposta quando o servidor de e-mail estiver lento, e os registros de solicitações expiradas ou já utilizadas não são removidos periodicamente.
 
 <!-- orientador: revisar -->
-## 5.3 Trabalhos Futuros {#trabalhos-futuros}
+Quanto às imagens descritas na Seção 4.4, a página pública da loja ainda não foi construída; quando existir, a imagem da loja também será exibida nela, e o nome da loja na página de detalhe do produto passará a conduzir a essa página. Além disso, a versão atual apresenta três limitações. Primeiro, embora a foto de perfil seja exibida apenas ao próprio usuário na interface, o arquivo fica acessível a quem conhecer o seu endereço; o nome gerado aleatoriamente torna esse endereço difícil de descobrir, mas não constitui um controle de acesso. Segundo, como o arquivo é gravado no armazenamento antes da confirmação da transação no banco de dados, uma falha nessa gravação pode deixar um arquivo sem referência no armazenamento, denominado arquivo órfão, que ocupa espaço sem ser utilizado; situação semelhante ocorre quando a remoção do arquivo anterior falha, caso em que o erro é apenas registrado no servidor. Terceiro, a troca dessas imagens pela área administrativa não aplica as mesmas validações de formato e de tamanho adotadas no envio pelo usuário.
+
+<!-- orientador: revisar -->
+Por fim, o desenvolvimento e os testes automatizados foram realizados com o banco de dados SQLite. A alteração que transferiu o vínculo do cliente para a entidade Pedido_Cliente, descrita na Seção 4.7, já foi aplicada ao banco de dados PostgreSQL do ambiente de produção; contudo, o comportamento do bloqueio por linha descrito na Seção 4.1.3 ainda precisa ser verificado nesse banco de dados.
+
+<!-- orientador: revisar -->
+## 5.2 Trabalhos Futuros {#trabalhos-futuros}
 
 A partir das limitações identificadas e do escopo definido para o MVP, as seguintes evoluções podem ser exploradas em trabalhos futuros:
 
@@ -1036,13 +1105,20 @@ A partir das limitações identificadas e do escopo definido para o MVP, as segu
 
 - Agrupamento, em uma única compra, dos pedidos gerados para diferentes lojas em uma mesma finalização, permitindo ao cliente consultar a compra como um todo;
 
-- Conclusão da imagem da loja e da foto de perfil do usuário, descritas na Seção 5.1, bem como a moderação dessas imagens pelo administrador;
+<!-- orientador: revisar -->
+- Página pública da loja, com a apresentação da loja, de sua imagem e de seus produtos, acessível também a partir do nome da loja na página de detalhe do produto;
+
+<!-- orientador: revisar -->
+- Moderação, pelo administrador, das imagens das lojas e das fotos de perfil, com as mesmas validações aplicadas ao envio pelo usuário, e separação da imagem da loja em logotipo e imagem de capa;
 
 - Edição das avaliações pelo autor e exibição das avaliações de produtos desativados;
 
 - Procedimento de anonimização de dados pessoais, em conformidade com a LGPD;
 
-- Aplicação das alterações do banco de dados e verificação do controle de concorrência no PostgreSQL do ambiente de produção;
+<!-- orientador: revisar -->
+- Evoluções da segurança da conta: envio assíncrono do e-mail de redefinição de senha, isto é, realizado em segundo plano, sem que a resposta ao usuário dependa da conclusão do envio; encerramento imediato das sessões JWT abertas após a troca de senha; envio de um e-mail de aviso informando que a senha foi alterada; troca de senha pela página de perfil, mediante a informação da senha atual; e remoção periódica dos registros de redefinição expirados ou já utilizados;
+
+- Verificação do controle de concorrência no PostgreSQL do ambiente de produção;
 
 - Pagamento online e integração com meios de pagamento;
 
