@@ -196,6 +196,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
         raise MethodNotAllowed('PATCH', detail='Use o endpoint de status para atualizar pedidos.')
 
     def _validar_item_checkout(self, item):
+        if item.produto.loja_id != item.carrinho.loja_id:
+            return f"O produto {item.produto.nome} não pertence à loja do carrinho."
         if not item.produto.ativo:
             return f"O produto {item.produto.nome} está inativo."
         if not item.carrinho.loja.ativa:

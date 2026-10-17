@@ -375,6 +375,8 @@ Campos novos do item (somente leitura): `estoque` (inteiro, estoque atual do pro
 Possíveis erros:
 - 401 — sem autenticação.
 
+O campo `loja` do carrinho é somente leitura. A rota `/api/v1/carrinhos/{id}/` aceita apenas `GET` (detalhe, somente do dono do carrinho); `PUT`, `PATCH` e `DELETE` nela respondem `405`. A alteração de quantidade e a remoção de itens são feitas pelas rotas `/api/v1/carrinhos/itens/{id}/`.
+
 ### Adicionar produto ao carrinho
 
 - Método: POST
@@ -431,6 +433,7 @@ Resposta esperada (`201`): lista de pedidos criados, um por loja. Os produtos s�
 Possíveis erros (nenhum pedido é criado em caso de erro):
 - 400 — item com quantidade 0: `{"detail": "O produto <nome> está sem estoque. Remova-o da seleção para finalizar."}`
 - 400 — `{"detail": "O produto <nome> não possui estoque suficiente."}`
+- 400 — `{"detail": "O produto <nome> não pertence à loja do carrinho."}` (a finalização inteira é recusada, sem criar pedidos nem baixar estoque).
 - 400 — produto inativo, loja inativa, produto sem preço vigente ou item inválido (`"Um ou mais itens do carrinho são inválidos."`).
 - 401 — sem autenticação.
 

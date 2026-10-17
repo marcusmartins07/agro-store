@@ -619,6 +619,41 @@ class PedidoCheckoutTests(APITestCase):
         self.produto_a.refresh_from_db()
         self.assertEqual(self.produto_a.estoque, 10)
 
+    def _forcar_item_de_outra_loja(self, item, produto):
+        CarrinhoProduto.objects.filter(pk=item.pk).update(produto=produto)
+        item.refresh_from_db()
+        return item
+
+    def test_rejeita_checkout_com_item_de_produto_de_outra_loja_que_a_do_carrinho(self):
+        item = self._forcar_item_de_outra_loja(self._adicionar_item(self.produto_a, 2), self.produto_b)
+
+        response = self._checkout(item)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data, {'detail': 'O produto Cenoura não pertence à loja do carrinho.'})
+        self.assertFalse(Pedido.objects.exists())
+        self.assertFalse(PedidoProduto.objects.exists())
+        self.produto_a.refresh_from_db()
+        self.produto_b.refresh_from_db()
+        self.assertEqual((self.produto_a.estoque, self.produto_b.estoque), (10, 8))
+        self.assertTrue(CarrinhoProduto.objects.filter(pk=item.pk).exists())
+
+    def test_rejeita_checkout_inteiro_quando_um_dos_itens_tem_loja_divergente(self):
+        item_valido = self._adicionar_item(self.produto_nao_selecionado, 1)
+        item_divergente = self._forcar_item_de_outra_loja(self._adicionar_item(self.produto_a, 2), self.produto_b)
+
+        response = self._checkout(item_valido, item_divergente)
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('não pertence à loja do carrinho', response.data['detail'])
+        self.assertFalse(Pedido.objects.exists())
+        self.assertFalse(PedidoCliente.objects.exists())
+        estoques = {p.pk: p.estoque for p in Produto.objects.all()}
+        self.assertEqual(estoques[self.produto_a.pk], 10)
+        self.assertEqual(estoques[self.produto_b.pk], 8)
+        self.assertEqual(estoques[self.produto_nao_selecionado.pk], 6)
+        self.assertEqual(CarrinhoProduto.objects.count(), 2)
+
     def test_cliente_sobe_item_zerado_apos_reposicao_e_finaliza_o_pedido(self):
         item = self._adicionar_item(self.produto_a, 0)
         self.assertEqual(self._checkout(item).status_code, status.HTTP_400_BAD_REQUEST)
