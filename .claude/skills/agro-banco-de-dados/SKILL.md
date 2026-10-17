@@ -56,12 +56,21 @@ aprovação conforme `AGENTS.md`.
 - Loja e usuário têm uma imagem única cada (`Loja.imagem_perfil` e `Usuario.foto_perfil`, `FileField` de 255,
   `''` quando vazio), substituída na troca. `imagem_perfil` era texto e virou arquivo sem mudar a coluna
   (migration `lojas/0002`), preservando os caminhos legados. Extensões e nome aleatório ficam em `main/imagens.py`.
+- Telefones pertencem ao usuário (`Telefone`, cascata com o usuário; RN-021): usuário (1,1) — (0,n) telefone,
+  com tipo obrigatório (`TipoTelefone.descricao`, PROTECT; tipos fixos Celular, Fixo e Comercial carregados pela
+  migration `usuarios/0007`), `numero` texto de até 11 dígitos (somente dígitos, com DDD, sem unicidade) e
+  `e_principal`. A restrição única condicional `telefone_principal_unico_por_usuario` impede dois principais; o
+  mínimo de 1 telefone e os dígitos por tipo (`TipoTelefone.DIGITOS_POR_TIPO`) são validados na API e no admin.
+  Exceção legada: contas sem telefone antes da DB-018 e contas criadas por `createsuperuser` podem ter 0 telefones.
+  `Usuario.telefone` foi copiado como principal (`usuarios/0007`) e removido (`usuarios/0008`).
 - Carrinho pertence a um usuário e uma loja. `carrinho_produto` é o item do
   carrinho e é único por carrinho e produto.
 - Pedido pertence à loja e ao status; `pedido.loja` é PROTECT. O cliente fica em
   `pedido_cliente.usuario` (obrigatório, PROTECT/RESTRICT), junto com o snapshot.
   Pedidos e suas referências centrais não podem ser apagados em cascata.
-- `pedido_cliente` é o snapshot um-para-um do cliente. `pedido_produto` mantém
+- `pedido_cliente` é o snapshot um-para-um do cliente, exceto o telefone (RN-021): o telefone não é
+  copiado para o pedido (`PedidoCliente.telefone` removido em `pedidos/0006`) e é consultado no telefone
+  principal atual do cliente. `pedido_produto` mantém
   nome, quantidade e valores do momento da compra; sua referência ao produto é
   opcional e deve usar `SET NULL` se o produto for removido.
 - Favoritos são únicos por usuário e produto. Avaliações possuem nota de 1 a 5

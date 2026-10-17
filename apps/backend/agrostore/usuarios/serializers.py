@@ -8,14 +8,12 @@ from rest_framework import serializers
 
 from agrostore.main.campos import CampoImagemUnica
 from agrostore.main.imagens import remover_arquivo_apos_commit
-from .models import Genero, Usuario
+from . import telefones as servico_telefones
+from .models import Genero, Telefone, TipoTelefone, Usuario
+from .telefones import somente_digitos
 
 
 PASTA_FOTO_USUARIO = 'usuarios'
-
-
-def somente_digitos(valor):
-    return ''.join(caractere for caractere in valor if caractere.isdigit())
 
 
 def cpf_valido(cpf):
@@ -28,13 +26,6 @@ def cpf_valido(cpf):
         if digito_verificador != int(cpf[indice]):
             return False
     return True
-
-
-def validar_telefone(valor):
-    telefone = somente_digitos(valor)
-    if len(telefone) != 11:
-        raise serializers.ValidationError('Informe um celular brasileiro com 11 dígitos.')
-    return telefone
 
 
 def validar_genero(valor):
@@ -77,12 +68,53 @@ def validar_nova_senha(senha, confirmacao, usuario):
         raise serializers.ValidationError({'password': erro.messages}) from erro
 
 
+class TipoTelefoneSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TipoTelefone
+        fields = ['id', 'descricao']
+
+
+class TelefoneSerializer(serializers.ModelSerializer):
+    """Telefone do próprio usuário (RN-021). O dono vem sempre do usuário autenticado, nunca do corpo da requisição."""
+
+    # Aceita o número formatado; o valor salvo tem somente dígitos.
+    numero = serializers.CharField(max_length=20)
+    tipo = serializers.PrimaryKeyRelatedField(
+        queryset=TipoTelefone.objects.all(),
+        error_messages={
+            'does_not_exist': servico_telefones.MENSAGEM_TIPO_INDISPONIVEL,
+            'incorrect_type': servico_telefones.MENSAGEM_TIPO_INDISPONIVEL,
+        },
+    )
+    tipo_descricao = serializers.CharField(source='tipo.descricao', read_only=True)
+    e_principal = serializers.BooleanField(required=False)
+
+    class Meta:
+        model = Telefone
+        fields = ['id', 'numero', 'tipo', 'tipo_descricao', 'e_principal']
+
+    def validate(self, attrs):
+        # Na edição parcial, junta o que veio com o que já está salvo para revalidar o número ao trocar o tipo.
+        if 'numero' in attrs or 'tipo' in attrs:
+            numero = attrs.get('numero', getattr(self.instance, 'numero', ''))
+            tipo = attrs.get('tipo', getattr(self.instance, 'tipo', None))
+            try:
+                attrs['numero'] = servico_telefones.validar_numero_por_tipo(numero, tipo)
+            except servico_telefones.RegraTelefoneViolada as erro:
+                raise serializers.ValidationError({'numero': str(erro)}) from erro
+        if self.instance is not None and attrs.get('e_principal') is False and self.instance.e_principal:
+            raise serializers.ValidationError({'e_principal': servico_telefones.MENSAGEM_DESMARCAR_PRINCIPAL})
+        return attrs
+
+
 class UsuarioPerfilSerializer(serializers.ModelSerializer):
     idade = serializers.ReadOnlyField()
     tem_loja = serializers.SerializerMethodField()
     genero = serializers.SerializerMethodField()
     # RN-018: a foto é exibida só ao próprio usuário; este serializer fica restrito ao perfil e à autenticação.
     foto_perfil = CampoImagemUnica(pasta=PASTA_FOTO_USUARIO, read_only=True)
+    # RN-021: lista com o principal primeiro (ordenação do model); vazia nas contas da exceção legada.
+    telefones = TelefoneSerializer(many=True, read_only=True)
 
     class Meta:
         model = Usuario
@@ -91,7 +123,7 @@ class UsuarioPerfilSerializer(serializers.ModelSerializer):
             'nome',
             'cpf',
             'email',
-            'telefone',
+            'telefones',
             'data_nascimento',
             'genero',
             'foto_perfil',
@@ -111,14 +143,25 @@ class UsuarioPerfilSerializer(serializers.ModelSerializer):
 
 class CadastroClienteSerializer(serializers.ModelSerializer):
     cpf = serializers.CharField(max_length=14)
-    telefone = serializers.CharField(max_length=15)
+    # RN-021: o telefone informado no cadastro, com o seu tipo, vira o principal.
+    telefone = serializers.CharField(max_length=20, write_only=True)
+    tipo_telefone = serializers.PrimaryKeyRelatedField(
+        queryset=TipoTelefone.objects.all(),
+        write_only=True,
+        error_messages={
+            'does_not_exist': servico_telefones.MENSAGEM_TIPO_INDISPONIVEL,
+            'incorrect_type': servico_telefones.MENSAGEM_TIPO_INDISPONIVEL,
+        },
+    )
     genero = serializers.CharField(max_length=2)
     password = serializers.CharField(write_only=True, min_length=8, trim_whitespace=False)
     password_confirmacao = serializers.CharField(write_only=True, trim_whitespace=False)
 
     class Meta:
         model = Usuario
-        fields = ['nome', 'cpf', 'email', 'telefone', 'data_nascimento', 'genero', 'password', 'password_confirmacao']
+        fields = [
+            'nome', 'cpf', 'email', 'telefone', 'tipo_telefone', 'data_nascimento', 'genero', 'password', 'password_confirmacao',
+        ]
 
     def validate_cpf(self, valor):
         cpf = somente_digitos(valor)
@@ -127,9 +170,6 @@ class CadastroClienteSerializer(serializers.ModelSerializer):
         if Usuario.objects.filter(cpf=cpf).exists():
             raise serializers.ValidationError('Já existe uma conta cadastrada com este CPF.')
         return cpf
-
-    def validate_telefone(self, valor):
-        return validar_telefone(valor)
 
     def validate_email(self, valor):
         return validar_email_unico(valor)
@@ -141,19 +181,34 @@ class CadastroClienteSerializer(serializers.ModelSerializer):
         return validar_data_nascimento(valor)
 
     def validate(self, attrs):
+        # Telefone e senha são validados juntos para devolver os dois erros na mesma resposta.
+        erros = {}
+        try:
+            attrs['telefone'] = servico_telefones.validar_numero_por_tipo(attrs['telefone'], attrs['tipo_telefone'])
+        except servico_telefones.RegraTelefoneViolada as erro:
+            erros['telefone'] = [str(erro)]
         usuario = Usuario(
             nome=attrs['nome'],
             cpf=attrs['cpf'],
             email=attrs['email'],
-            telefone=attrs['telefone'],
         )
-        validar_nova_senha(attrs['password'], attrs['password_confirmacao'], usuario)
+        try:
+            validar_nova_senha(attrs['password'], attrs['password_confirmacao'], usuario)
+        except serializers.ValidationError as erro:
+            erros.update(erro.detail)
+        if erros:
+            raise serializers.ValidationError(erros)
         return attrs
 
     def create(self, validated_data):
         validated_data.pop('password_confirmacao')
         password = validated_data.pop('password')
-        return Usuario.objects.create_user(password=password, **validated_data)
+        numero = validated_data.pop('telefone')
+        tipo = validated_data.pop('tipo_telefone')
+        with transaction.atomic():
+            usuario = Usuario.objects.create_user(password=password, **validated_data)
+            servico_telefones.criar_telefone(usuario, numero, tipo, e_principal=True)
+        return usuario
 
 
 class UsuarioAtualizacaoSerializer(serializers.ModelSerializer):
@@ -161,16 +216,13 @@ class UsuarioAtualizacaoSerializer(serializers.ModelSerializer):
 
     # Declarado sem o UniqueValidator automático para usar a mensagem de validar_email_unico
     email = serializers.EmailField(max_length=254)
-    telefone = serializers.CharField(max_length=15)
     genero = serializers.CharField(max_length=2)
     foto_perfil = CampoImagemUnica(pasta=PASTA_FOTO_USUARIO)
 
     class Meta:
         model = Usuario
-        fields = ['nome', 'email', 'telefone', 'data_nascimento', 'genero', 'foto_perfil']
-
-    def validate_telefone(self, valor):
-        return validar_telefone(valor)
+        # Telefones são gerenciados em /me/telefones/ (RN-021).
+        fields = ['nome', 'email', 'data_nascimento', 'genero', 'foto_perfil']
 
     def validate_email(self, valor):
         return validar_email_unico(valor, usuario_atual=self.instance)

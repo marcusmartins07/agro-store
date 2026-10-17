@@ -53,8 +53,50 @@
     <form v-else id="painel-cadastrar" role="tabpanel" aria-labelledby="aba-cadastrar" novalidate @submit.prevent="fazerCadastro">
       <div class="row g-3">
         <div class="col-12"><label class="form-label small fw-semibold" for="cadastro-nome">Nome completo</label><input id="cadastro-nome" v-model.trim="cadastro.nome" class="form-control" autocomplete="name" required></div>
-        <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-cpf">CPF</label><input id="cadastro-cpf" v-model="cadastro.cpf" class="form-control" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" @input="cadastro.cpf = mascaraCpf(cadastro.cpf)" required></div>
-        <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-telefone">Celular</label><input id="cadastro-telefone" v-model="cadastro.telefone" class="form-control" inputmode="numeric" maxlength="15" placeholder="(00) 00000-0000" @input="cadastro.telefone = mascaraTelefone(cadastro.telefone)" required></div>
+        <div class="col-12"><label class="form-label small fw-semibold" for="cadastro-cpf">CPF</label><input id="cadastro-cpf" v-model="cadastro.cpf" class="form-control" inputmode="numeric" maxlength="14" placeholder="000.000.000-00" @input="cadastro.cpf = mascaraCpf(cadastro.cpf)" required></div>
+        <div class="col-12">
+          <div v-if="tiposTelefoneStore.erro" id="alerta-tipos-telefone" class="alert alert-warning small py-2 d-flex flex-wrap align-items-center gap-2 mb-3" role="alert">
+            <span>Não foi possível carregar os tipos de telefone.</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="carregarTiposTelefone">Tentar novamente</button>
+          </div>
+          <div class="row g-3">
+            <div class="col-12 col-sm-5">
+              <label class="form-label small fw-semibold" for="cadastro-telefone-tipo">Tipo de telefone</label>
+              <select
+                id="cadastro-telefone-tipo"
+                v-model="cadastro.tipo_telefone"
+                class="form-select"
+                :disabled="!tiposDisponiveis"
+                :aria-describedby="tiposTelefoneStore.erro ? 'alerta-tipos-telefone' : null"
+                required
+              >
+                <option v-if="tiposTelefoneStore.carregando" value="">Carregando tipos...</option>
+                <template v-else>
+                  <option disabled value="">Selecione</option>
+                  <option v-for="tipo in tiposTelefoneStore.tipos" :key="tipo.id" :value="tipo.id">{{ tipo.descricao }}</option>
+                </template>
+              </select>
+            </div>
+            <div class="col-12 col-sm-7">
+              <label class="form-label small fw-semibold" for="cadastro-telefone">Número do telefone</label>
+              <input
+                id="cadastro-telefone"
+                v-model="cadastro.telefone"
+                class="form-control"
+                inputmode="numeric"
+                autocomplete="tel-national"
+                maxlength="15"
+                :placeholder="placeholderTelefone(descricaoTipoCadastro)"
+                :disabled="!tiposDisponiveis"
+                :aria-describedby="tiposTelefoneStore.erro ? 'ajuda-telefone ajuda-telefone-principal alerta-tipos-telefone' : 'ajuda-telefone ajuda-telefone-principal'"
+                required
+                @input="cadastro.telefone = mascaraTelefone(cadastro.telefone)"
+              >
+              <div id="ajuda-telefone" class="form-text">{{ ajudaTelefone(descricaoTipoCadastro) }}</div>
+            </div>
+          </div>
+          <div id="ajuda-telefone-principal" class="form-text">Este será seu telefone principal. Você poderá adicionar outros no perfil.</div>
+        </div>
         <div class="col-12"><label class="form-label small fw-semibold" for="cadastro-email">E-mail</label><input id="cadastro-email" v-model.trim="cadastro.email" type="email" class="form-control" autocomplete="email" required></div>
         <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-data">Data de nascimento</label><input id="cadastro-data" v-model="cadastro.data_nascimento" type="date" class="form-control" required></div>
         <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-genero">Gênero</label><select id="cadastro-genero" v-model="cadastro.genero" class="form-select" required><option disabled value="">Selecione</option><option value="M">Masculino</option><option value="F">Feminino</option><option value="I">Prefiro não informar</option></select></div>
@@ -78,7 +120,12 @@
           </div>
         </div>
       </div>
-      <button type="submit" class="btn btn-primary btn-lg rounded-pill w-100 fw-semibold mt-4" :disabled="carregandoCadastro">
+      <button
+        type="submit"
+        class="btn btn-primary btn-lg rounded-pill w-100 fw-semibold mt-4"
+        :disabled="carregandoCadastro || !tiposDisponiveis"
+        :aria-describedby="tiposTelefoneStore.erro ? 'alerta-tipos-telefone' : null"
+      >
         <span v-if="carregandoCadastro" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
         {{ carregandoCadastro ? 'Criando conta...' : 'Criar conta' }}
       </button>
@@ -87,17 +134,21 @@
 </template>
 
 <script setup>
-import { reactive, ref } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PainelAcesso from '@/components/PainelAcesso.vue'
 import { useAuthStore } from '@/stores/auth.js'
 import { useNotificacoesStore } from '@/stores/notificacoes.js'
-import { mascaraCpf, mascaraTelefone, somenteDigitos } from '@/utils/formatacao.js'
+import { useTiposTelefoneStore } from '@/stores/tiposTelefone.js'
+import {
+  ajudaTelefone, mascaraCpf, mascaraTelefone, placeholderTelefone, somenteDigitos, validarTelefonePorTipo,
+} from '@/utils/formatacao.js'
 
 const route = useRoute()
 const router = useRouter()
 const authStore = useAuthStore()
 const notificacoesStore = useNotificacoesStore()
+const tiposTelefoneStore = useTiposTelefoneStore()
 const aba = ref('entrar')
 const cpf = ref('')
 const senha = ref('')
@@ -106,7 +157,23 @@ const mostrarSenhaCadastro = ref(false)
 const mostrarConfirmacaoSenha = ref(false)
 const carregandoLogin = ref(false)
 const carregandoCadastro = ref(false)
-const cadastro = reactive({ nome: '', cpf: '', telefone: '', email: '', data_nascimento: '', genero: '', password: '', password_confirmacao: '' })
+const cadastro = reactive({
+  nome: '', cpf: '', tipo_telefone: '', telefone: '', email: '', data_nascimento: '', genero: '', password: '', password_confirmacao: '',
+})
+
+// Telefone do cadastro (RN-021): tipos vindos da API, sem ids fixos no código
+const tiposDisponiveis = computed(() => !tiposTelefoneStore.carregando && !tiposTelefoneStore.erro && tiposTelefoneStore.tipos.length > 0)
+const descricaoTipoCadastro = computed(() => tiposTelefoneStore.descricaoDoTipo(cadastro.tipo_telefone))
+
+async function carregarTiposTelefone() {
+  await tiposTelefoneStore.carregar()
+  if (!cadastro.tipo_telefone) cadastro.tipo_telefone = tiposTelefoneStore.idPorDescricao('Celular') ?? ''
+}
+
+// A aba "Entrar" não depende dos tipos: só carrega ao abrir "Criar conta"
+watch(aba, (abaAtual) => {
+  if (abaAtual === 'cadastrar') carregarTiposTelefone()
+})
 
 function mensagemErro(erro, fallback) {
   const dados = erro?.data
@@ -143,7 +210,8 @@ function validarCadastro() {
   const camposObrigatorios = [
     [cadastro.nome, 'Informe o nome completo.'],
     [cadastro.cpf, 'Informe o CPF.'],
-    [cadastro.telefone, 'Informe o celular.'],
+    [cadastro.tipo_telefone, 'Selecione o tipo de telefone.'],
+    [somenteDigitos(cadastro.telefone), 'Informe o telefone.'],
     [cadastro.email, 'Informe o e-mail.'],
     [cadastro.data_nascimento, 'Informe a data de nascimento.'],
     [cadastro.genero, 'Selecione o gênero.'],
@@ -153,6 +221,11 @@ function validarCadastro() {
   const campoInvalido = camposObrigatorios.find(([valor]) => !valor)
   if (campoInvalido) {
     notificarErro(campoInvalido[1])
+    return false
+  }
+  const erroTelefone = validarTelefonePorTipo(cadastro.telefone, descricaoTipoCadastro.value)
+  if (erroTelefone) {
+    notificarErro(erroTelefone)
     return false
   }
   if (cadastro.password.length < 8) {

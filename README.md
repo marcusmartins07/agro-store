@@ -8,10 +8,11 @@ Monorepo com API Django e aplicação web Vue.
 - Controle de disponibilidade por estoque: produto com estoque 0 sai da listagem do catálogo (o detalhe continua acessível, com a compra bloqueada) e volta quando o estoque é reposto. Detalhes em [Disponibilidade por estoque](#disponibilidade-por-estoque-rn-017).
 - Indicador de estoque baixo (1 a 5 unidades) na área do produtor.
 - Carrinho salvo no backend, com ajuste automático da quantidade quando o estoque diminui.
-- Finalização do carrinho com um pedido por loja, baixa de estoque e snapshot de cliente e produtos.
+- Finalização do carrinho com um pedido por loja, baixa de estoque e snapshot de cliente (sem o telefone, ver RN-021) e de produtos.
 - Cancelamento de pedidos pendentes pelo cliente, com restauração do estoque.
 - Avaliação de produtos comprados: na tela "Meus pedidos" (`/pedidos`), o cliente avalia cada item de pedido entregue (nota de 1 a 5 e comentário opcional). A rota antiga `/avaliacoes/:id` redireciona para `/pedidos`. Detalhes em [Avaliações](#avaliações-rn-010).
 - Favoritos, perfil do usuário e cadastro de clientes.
+- Telefones do usuário: um ou mais por conta, com tipo (Celular, Fixo ou Comercial) e exatamente um principal, gerenciados no perfil. Detalhes em [Telefones do usuário](#telefones-do-usuário-rn-021).
 - Foto de perfil do usuário: opcional, enviada, trocada ou removida pelo próprio usuário. Detalhes em [Imagem da loja e foto de perfil](#imagem-da-loja-e-foto-de-perfil-rn-018).
 - Imagem da loja: opcional, enviada na criação da loja ou depois, na área do produtor (`/minha-loja`, aba Minha loja). A página pública da loja ainda não exibe essa imagem (não implementada).
 - Redefinição de senha por e-mail (`/esqueci-senha` e `/redefinir-senha`), com link de uso único e validade de 30 minutos. Detalhes em [Redefinição de senha](#redefinição-de-senha-rn-020).
@@ -110,7 +111,7 @@ Os endpoints abaixo exigem JWT de um produtor com loja cadastrada. O backend sem
 - `GET /api/v1/produtos/meus/`: lista todos os produtos da loja, inclusive inativos.
 - `POST /api/v1/produtos/` e `PATCH /api/v1/produtos/{id}/`: cadastra ou altera produtos da própria loja. Estoque negativo retorna `400` (ver [Disponibilidade por estoque](#disponibilidade-por-estoque-rn-017)).
 - `POST /api/v1/produtos/precos/`: registra um novo preço vigente, encerrando automaticamente o preço anterior. Recebe `produto`, `preco_venda` e, opcionalmente, `porcentagem_desconto` entre 0 e 100.
-- `GET /api/v1/pedidos/minha-loja/`: lista pedidos da loja com itens, valores, data de criação (`data_criacao`) e somente nome/telefone do cliente.
+- `GET /api/v1/pedidos/minha-loja/`: lista pedidos da loja com itens, valores, data de criação (`data_criacao`) e somente nome/telefone do cliente (`cliente: {nome, telefone}`). O `telefone` é o telefone principal atual do cliente e só vem nos pedidos `Pendente`, `Em preparo` e `Pronto para retirada`; em pedidos `Entregue` e `Cancelado`, ou se o cliente não tem telefone, vem `null` (ver [Telefones do usuário](#telefones-do-usuário-rn-021)). O mesmo vale para a resposta de `PATCH /api/v1/pedidos/{id}/status/`.
 - `GET /api/v1/pedidos/status-disponiveis/` e `PATCH /api/v1/pedidos/{id}/status/`: consulta e atualiza o status pelo fluxo `Pendente → Em preparo → Pronto para retirada → Entregue`, com cancelamento permitido antes da retirada.
 - `PATCH /api/v1/lojas/me/`: altera apenas `nome`, `descricao`, `ativa` e `imagem_perfil`; outros campos (como `cnpj`) retornam `400`. Uma loja inativa preserva o histórico e não aceita novas compras. Detalhes da imagem em [Imagem da loja e foto de perfil](#imagem-da-loja-e-foto-de-perfil-rn-018).
 
@@ -168,11 +169,11 @@ Resposta esperada (`200`): o perfil completo, com `foto_perfil` como URL absolut
 { "id": 7, "nome": "Maria Souza", "foto_perfil": "http://127.0.0.1:8000/media/usuarios/3f2a9c0d5b1e4f6a8c7d2e1b0a9f8e7d.png" }
 ```
 
-O exemplo mostra só alguns campos; a resposta traz também `cpf`, `email`, `telefone`, `data_nascimento`, `genero`, `is_produtor`, `tem_loja` e `idade`.
+O exemplo mostra só alguns campos; a resposta traz também `cpf`, `email`, `telefones`, `data_nascimento`, `genero`, `is_produtor`, `tem_loja` e `idade`.
 
 Possíveis erros:
 - 400 — `{"foto_perfil": ["Envie uma imagem JPG, PNG ou WEBP válida."]}` ou `{"foto_perfil": ["A imagem deve ter no máximo 5 MB."]}`.
-- 400 — campo não permitido (por exemplo `cpf`, `is_produtor`): `{"detail": "Somente nome, e-mail, celular, data de nascimento, gênero e foto de perfil podem ser alterados no perfil."}`
+- 400 — campo não permitido (por exemplo `cpf`, `is_produtor`): `{"detail": "Somente nome, e-mail, data de nascimento, gênero e foto de perfil podem ser alterados no perfil. Os telefones são gerenciados em /me/telefones/."}` (inclui o envio de `telefone`).
 - 401 — sem autenticação.
 
 `foto_perfil` (URL absoluta ou `null`) também aparece, dentro de `usuario`, nas respostas de `POST /api/v1/usuarios/login/` e `POST /api/v1/usuarios/cadastro/`, e em `GET /api/v1/usuarios/me/`. O cadastro não aceita foto. A foto só é exposta ao próprio usuário: nenhuma outra rota (avaliações, pedidos, loja) a devolve.
@@ -459,7 +460,7 @@ O cliente autenticado pode cancelar somente seus próprios pedidos com status `P
 
 O dono de um pedido é identificado pelo registro `PedidoCliente` (tabela `pedidos_pedidocliente`, relação um-para-um com `Pedido`, acessível por `pedido.cliente`). A tabela `Pedido` não possui mais o campo `usuario`.
 
-- `PedidoCliente.usuario` é uma chave estrangeira obrigatória para o usuário (`related_name='pedidos_cliente'`) e convive com o snapshot do cliente no momento da compra: nome, CPF, e-mail, telefone, data de nascimento e gênero.
+- `PedidoCliente.usuario` é uma chave estrangeira obrigatória para o usuário (`related_name='pedidos_cliente'`) e convive com o snapshot do cliente no momento da compra: nome, CPF, e-mail, data de nascimento e gênero. O telefone não faz parte do snapshot (RN-021): o produtor vê o telefone principal atual do cliente nos pedidos em aberto.
 - No checkout (`POST /api/v1/pedidos/`), o `PedidoCliente` é criado logo após o `Pedido`, na mesma transação. Se qualquer etapa falhar, nada é gravado.
 - "Meus pedidos", detalhe e cancelamento filtram por `cliente__usuario`; a avaliação de produto confere a titularidade do pedido pelo mesmo caminho. O produtor continua filtrado por `loja__proprietario`.
 - O contrato JSON da API não mudou: nenhum payload expõe `usuario`.
@@ -481,6 +482,17 @@ Movem o usuário de `Pedido` para `PedidoCliente`, em três migrations separadas
 3. `0005_remover_pedido_usuario` (schema): torna `PedidoCliente.usuario` obrigatório e remove `Pedido.usuario`.
 
 Elas ficam separadas por compatibilidade com PostgreSQL: misturar alteração de dados e de schema na mesma transação causa o erro "pending trigger events".
+
+### Migrations dos telefones (usuarios 0006 a 0008 e pedidos 0006)
+
+Criam `tipo_telefone` e `telefone`, copiam o antigo `Usuario.telefone` e removem os campos antigos (RN-021):
+
+1. `usuarios` 0006 (schema): cria `tipo_telefone` e `telefone`.
+2. `usuarios` 0007 (dados): popula os tipos e copia o telefone de cada usuário como principal.
+3. `usuarios` 0008 (schema): remove `Usuario.telefone`.
+4. `pedidos` 0006 (schema): remove `PedidoCliente.telefone`.
+
+> **Atenção antes de aplicar no Supabase:** faça backup antes. A remoção do telefone do snapshot dos pedidos (`pedidos` 0006) é irreversível, pois os dados não são recuperáveis ao reverter. Publique o backend junto com o frontend novo, pois o frontend antigo depende de `telefone` no cadastro, no perfil e nos pedidos. Após aplicar, rode `telefones_fora_do_padrao` (ver [Telefones do usuário](#telefones-do-usuário-rn-021)). Estas migrations ainda não foram aplicadas no Supabase.
 
 ### Procedimento para aplicar no Supabase
 
@@ -523,6 +535,7 @@ Público. Cria uma conta de cliente e retorna `access`, `refresh` e um objeto se
   "cpf": "52998224725",
   "email": "cliente@exemplo.com",
   "telefone": "51999990000",
+  "tipo_telefone": 1,
   "data_nascimento": "2000-05-10",
   "genero": "M",
   "password": "SenhaForte123",
@@ -530,7 +543,9 @@ Público. Cria uma conta de cliente e retorna `access`, `refresh` e um objeto se
 }
 ```
 
-Valida CPF, unicidade de CPF/e-mail, celular com 11 dígitos, idade mínima de 16 anos e senha de ao menos oito caracteres. Retorna `400` para dados inválidos ou duplicados.
+`tipo_telefone` é o `id` de um tipo retornado por `GET /api/v1/tipos-telefone/`. O telefone informado vira o telefone principal da conta. A resposta traz `usuario.telefones` (lista com `id`, `numero`, `tipo`, `tipo_descricao` e `e_principal`); o campo `usuario.telefone` não existe mais.
+
+Valida CPF, unicidade de CPF/e-mail, telefone conforme o tipo (ver [Telefones do usuário](#telefones-do-usuário-rn-021)), idade mínima de 16 anos e senha de ao menos oito caracteres. Retorna `400` para dados inválidos ou duplicados, por exemplo `{"telefone": ["Celular deve ter 11 dígitos com DDD."]}` ou `{"tipo_telefone": ["Informe um tipo de telefone válido."]}`.
 
 ## Redefinição de senha (RN-020)
 
@@ -620,9 +635,106 @@ O envio usa `send_mail` do Django, configurado pelas variáveis `EMAIL_*` e `DEF
 
 ## Perfil do usuário
 
-- `GET /api/v1/usuarios/me/`: retorna os dados do usuário autenticado, incluindo `foto_perfil` (URL absoluta ou `null`), `is_produtor`, `tem_loja` e `idade`.
-- `PATCH /api/v1/usuarios/me/`: altera `nome`, `email`, `telefone`, `data_nascimento`, `genero` e `foto_perfil` (ver [Imagem da loja e foto de perfil](#imagem-da-loja-e-foto-de-perfil-rn-018)), com as mesmas validações do cadastro (e-mail único, celular com 11 dígitos e idade mínima de 16 anos). CPF e papéis (`is_produtor`, `is_staff`) não podem ser alterados e retornam `400`.
-- Pedidos já realizados mantêm o snapshot dos dados do cliente; alterar o perfil não muda o histórico.
+- `GET /api/v1/usuarios/me/`: retorna os dados do usuário autenticado, incluindo `foto_perfil` (URL absoluta ou `null`), `telefones` (principal primeiro; `[]` em conta legada sem telefone), `is_produtor`, `tem_loja` e `idade`.
+- `PATCH /api/v1/usuarios/me/`: altera `nome`, `email`, `data_nascimento`, `genero` e `foto_perfil` (ver [Imagem da loja e foto de perfil](#imagem-da-loja-e-foto-de-perfil-rn-018)), com as mesmas validações do cadastro (e-mail único e idade mínima de 16 anos). CPF, telefone e papéis (`is_produtor`, `is_staff`) não podem ser alterados por aqui e retornam `400`. Os telefones são gerenciados em `/api/v1/usuarios/me/telefones/` (ver [Telefones do usuário](#telefones-do-usuário-rn-021)).
+- Pedidos já realizados mantêm o snapshot dos dados do cliente (nome, CPF, e-mail, data de nascimento e gênero); alterar o perfil não muda o histórico. O telefone é exceção (RN-021): não é copiado para o pedido.
+
+## Telefones do usuário (RN-021)
+
+Cada usuário (cliente ou produtor) tem um ou mais telefones, cada um com um tipo. Tabelas `tipo_telefone` (`descricao`: Celular, Fixo, Comercial) e `telefone` (usuário 0..n, `numero` como texto só com dígitos, `e_principal`). Os campos `Usuario.telefone` e `PedidoCliente.telefone` foram removidos.
+
+Regras implementadas:
+
+- Validação no backend pela quantidade de dígitos, com DDD: Celular 11, Fixo 10, Comercial 10 ou 11. Ao trocar o tipo, o número é validado de novo. Não há limite de telefones nem unicidade (o mesmo número pode estar em usuários diferentes). DDD e nono dígito não são validados.
+- Exatamente um telefone principal por usuário. Definir outro como principal desmarca o anterior. O último telefone não pode ser excluído; para excluir o principal, defina antes outro como principal.
+- Exceção legada: contas antigas sem telefone e criadas por `createsuperuser` podem ter 0 telefones. O primeiro telefone cadastrado vira o principal automaticamente, e a falta de telefone não bloqueia login nem compra.
+- Admin do Django: os telefones são editados somente como inline do usuário (mínimo de 1, exatamente 1 principal).
+- Pedidos: o telefone não entra no snapshot. Para o produtor, `cliente.telefone` é o telefone principal atual do cliente nos pedidos `Pendente`, `Em preparo` e `Pronto para retirada`; nos demais, ou sem telefone, é `null`. Nas respostas de pedidos do cliente, `cliente` não traz `telefone`.
+
+### Listar tipos de telefone
+
+- Método: GET
+- URL: `/api/v1/tipos-telefone/`
+- Autenticação: pública (somente leitura)
+
+Resposta esperada (`200`):
+
+```json
+[
+  { "id": 1, "descricao": "Celular" },
+  { "id": 2, "descricao": "Fixo" },
+  { "id": 3, "descricao": "Comercial" }
+]
+```
+
+### Listar telefones
+
+- Método: GET
+- URL: `/api/v1/usuarios/me/telefones/`
+- Autenticação: JWT (qualquer usuário autenticado, apenas os próprios telefones)
+
+Resposta esperada (`200`), principal primeiro:
+
+```json
+[
+  { "id": 4, "numero": "51999990000", "tipo": 1, "tipo_descricao": "Celular", "e_principal": true },
+  { "id": 5, "numero": "5133330000", "tipo": 2, "tipo_descricao": "Fixo", "e_principal": false }
+]
+```
+
+Possíveis erros:
+- 401 — sem autenticação.
+
+### Adicionar telefone
+
+- Método: POST
+- URL: `/api/v1/usuarios/me/telefones/`
+- Autenticação: JWT (própria conta)
+
+Payload esperado (`e_principal` é opcional; o primeiro telefone da conta vira principal automaticamente):
+
+```json
+{ "numero": "5133330000", "tipo": 2, "e_principal": false }
+```
+
+Resposta esperada (`201`): o telefone criado, no mesmo formato da listagem.
+
+Possíveis erros:
+- 400 — número inválido para o tipo: `{"numero": ["..."]}`.
+- 400 — tipo inexistente: `{"tipo": ["Informe um tipo de telefone válido."]}`.
+- 401 — sem autenticação.
+
+### Ver, editar e excluir telefone
+
+- Método: GET | PATCH | DELETE
+- URL: `/api/v1/usuarios/me/telefones/{id}/`
+- Autenticação: JWT (própria conta)
+
+Payload esperado do `PATCH` (todos opcionais): `numero`, `tipo` e `e_principal`. Enviar `e_principal: true` define o telefone como principal e desmarca os outros; trocar o `tipo` revalida o número.
+
+```json
+{ "e_principal": true }
+```
+
+Resposta esperada: `GET` e `PATCH` retornam `200` com o telefone; `DELETE` retorna `204`, sem corpo. `PUT` retorna `405`.
+
+Possíveis erros:
+- 400 — número inválido para o tipo: `{"numero": ["..."]}`.
+- 400 — tipo inexistente: `{"tipo": ["Informe um tipo de telefone válido."]}`.
+- 400 — tentativa de desmarcar o principal: `{"e_principal": ["Defina outro telefone como principal."]}`.
+- 400 — exclusão do único telefone: `{"detail": "Você precisa manter ao menos um telefone."}`.
+- 400 — exclusão do principal havendo outros: `{"detail": "Defina outro telefone como principal antes de excluir este."}`.
+- 401 — sem autenticação.
+- 404 — telefone inexistente ou de outro usuário.
+- 405 — `PUT`.
+
+### Telefones fora do padrão (migração)
+
+Na migração, o antigo `Usuario.telefone` foi copiado como telefone principal: 11 dígitos viram Celular, 10 viram Fixo, e valor fora do padrão entra como Celular. Valor vazio não gera telefone. O telefone do snapshot dos pedidos não é aproveitado. Para listar os casos a corrigir (somente leitura; mostra apenas os ids, nunca o número):
+
+```powershell
+node scripts/backend.mjs telefones_fora_do_padrao
+```
 
 ## Favoritos
 

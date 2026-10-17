@@ -1,12 +1,14 @@
 %% Figura 2 - Modelo Lógico do Banco de Dados (Agro Store)
-%% Fonte da verdade: models do Django em apps/backend/agrostore/*/models.py (estado implementado, após a DB-010).
+%% Fonte da verdade: models do Django em apps/backend/agrostore/*/models.py (estado implementado, após a DB-018, versão 2.2: tipo_telefone e telefone; telefone removido de usuario e pedido_cliente).
 %% Nomes de colunas seguem os models. docs/modelo-logico.sql é o modelo-alvo (PostgreSQL) e usa nomes em português
 %% (id_usuario, e_produtor, esta_ativa...). As divergências de on_delete e de restrições estão anotadas em cada tabela.
-%% Todas as tabelas, exceto USUARIO, GENERO, STATUS_PEDIDO e REDEFINICAO_SENHA, herdam data_criacao e data_atualizacao (BaseModel).
-%% REDEFINICAO_SENHA tem somente data_criacao. Versão 2.1 do modelo (DB-017).
+%% Todas as tabelas, exceto USUARIO, GENERO, STATUS_PEDIDO, TIPO_TELEFONE e REDEFINICAO_SENHA, herdam data_criacao e data_atualizacao (BaseModel).
+%% REDEFINICAO_SENHA tem somente data_criacao. Versão 2.2 do modelo (DB-018: telefones do usuário, RN-021).
 erDiagram
     GENERO ||--o{ USUARIO : classifica
     USUARIO ||--o{ REDEFINICAO_SENHA : solicita
+    USUARIO ||--o{ TELEFONE : possui
+    TIPO_TELEFONE ||--o{ TELEFONE : classifica
     USUARIO ||--o{ LOJA : "é proprietário de"
     LOJA ||--o{ PRODUTO : oferece
     CATEGORIA ||--o{ PRODUTO : classifica
@@ -45,7 +47,6 @@ erDiagram
         varchar(254) email UK
         date data_nascimento
         varchar(2) genero_id FK
-        varchar(11) telefone "celular, somente dígitos"
         varchar(255) foto_perfil "opcional"
         varchar(128) password "hash"
         datetime last_login
@@ -54,6 +55,23 @@ erDiagram
         boolean is_staff
         boolean is_superuser
     }
+
+    TIPO_TELEFONE {
+        int id PK
+        varchar(30) descricao UK "Celular, Fixo, Comercial"
+    }
+    %% TIPO_TELEFONE (RN-021): tipos fixos carregados por migration (usuarios/0007).
+
+    TELEFONE {
+        int id PK
+        int usuario_id FK
+        int tipo_id FK
+        varchar(11) numero "somente dígitos, com DDD"
+        boolean e_principal "1 principal por usuário"
+    }
+    %% TELEFONE (RN-021): usuario com CASCADE e tipo com PROTECT (RESTRICT no modelo-alvo).
+    %% UniqueConstraint condicional telefone_principal_unico_por_usuario (no máximo 1 principal).
+    %% Mínimo de 1 telefone e dígitos por tipo validados na API/admin; contas legadas e createsuperuser podem ter 0.
 
     REDEFINICAO_SENHA {
         int id PK
@@ -162,11 +180,10 @@ erDiagram
         varchar(150) nome
         varchar(11) cpf
         varchar(254) email
-        varchar(11) telefone
         date data_nascimento
         varchar(55) genero
     }
-    %% PEDIDO_CLIENTE: snapshot do cliente no momento da compra. usuario com PROTECT (RESTRICT no modelo-alvo).
+    %% PEDIDO_CLIENTE: snapshot do cliente no momento da compra, exceto o telefone (RN-021: telefone principal atual do cliente). usuario com PROTECT (RESTRICT no modelo-alvo).
 
     PEDIDO_PRODUTO {
         int pedido_produto_id PK

@@ -206,6 +206,15 @@ replicar o hexadecimal em views ou componentes.
 - `src/utils/formatacao.js`: `formatarPreco`, `temDesconto`, máscaras (`mascaraCpf`,
   `mascaraTelefone`, `mascaraCnpj`), `formatarCpf`, `formatarTelefone`, `formatarData`,
   `calcularIdade` e `iniciaisDoNome`; não duplicar formatação de moeda, data ou documentos nas views.
+  `mascaraTelefone` aplica `(XX) XXXX-XXXX` até 10 dígitos e `(XX) XXXXX-XXXX` com 11 (máx. 11);
+  `placeholderTelefone`, `ajudaTelefone` e `validarTelefonePorTipo` espelham a RN-021 (Celular 11, Fixo 10,
+  Comercial 10 ou 11) apenas para exibição.
+- `FormularioTelefone.vue`: formulário de apresentação de um telefone (RN-021), com tipo e número, máscara dinâmica
+  e erros no próprio campo. Props `idSufixo`, `tipos`, `telefone`, `tipoPadrao`, `erros` (`numero`, `tipo`, `geral`),
+  `enviando` e `primeiro`; emite `salvar({ tipo, numero })` com o número só com dígitos e `cancelar`; expõe `focar()`.
+  Não chama a API: o `PerfilView.vue` coordena o envio.
+- `src/stores/tiposTelefone.js`: tipos de telefone públicos, carregados uma vez (cache) e reaproveitados pelo cadastro
+  e pelo perfil; nunca usar ids fixos (localizar Celular pela `descricao`).
 - `src/utils/statusPedido.js`: ordem, classe do selo e próxima ação de cada status do pedido
   (espelho de exibição do fluxo do backend, que continua validando as transições).
 - `SeloStatus.vue`: badge de status com texto visível; `variante` aplica um selo que não é de pedido.
