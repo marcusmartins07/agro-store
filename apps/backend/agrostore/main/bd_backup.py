@@ -1,4 +1,5 @@
-from agrostore.usuarios.models import Usuario, Genero
+from agrostore.usuarios.models import Usuario, Genero, TipoTelefone
+from agrostore.usuarios.telefones import criar_telefone
 from agrostore.produtos.models  import Categoria, Produto, PrecoProduto
 from django.contrib.auth.hashers import make_password
 from datetime import date
@@ -25,6 +26,7 @@ def insert_usuarios():
             "email": "marcus@email.com",
             "data_nascimento": date(2000, 5, 10),
             "genero": "M",
+            "telefone": "51999990000",
             "password": "123456",
             "is_produtor": False
         },
@@ -34,6 +36,7 @@ def insert_usuarios():
             "email": "vinicius@email.com",
             "data_nascimento": date(2000, 5, 7),
             "genero": "M",
+            "telefone": "51999990001",
             "password": "123456",
             "is_produtor": True
         }
@@ -54,6 +57,12 @@ def insert_usuarios():
                 password=usuario['password'],
                 is_produtor=usuario['is_produtor']
             )
+
+        # RN-021: celular fictício como principal, somente se o usuário ainda não tiver telefone.
+        usuario_semente = Usuario.objects.get(cpf=usuario['cpf'])
+        if not usuario_semente.telefones.exists():
+            celular = TipoTelefone.objects.get(descricao=TipoTelefone.CELULAR)
+            criar_telefone(usuario_semente, usuario['telefone'], celular, e_principal=True)
             
 def insert_categorias_produto():
     categorias = [

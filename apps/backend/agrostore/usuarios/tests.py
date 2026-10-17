@@ -25,7 +25,20 @@ from agrostore.lojas.models import Loja
 from agrostore.pedidos.models import Pedido, PedidoCliente, PedidoProduto, StatusPedido
 from agrostore.produtos.models import Categoria, Produto
 from . import redefinicao_senha
-from .models import Genero, RedefinicaoSenha, Usuario
+from .models import Genero, RedefinicaoSenha, Telefone, TipoTelefone, Usuario
+
+
+def criar_telefone_teste(usuario, numero='51999990000', tipo='Celular', e_principal=True):
+    """Cria o telefone direto no banco (o seed dos tipos vem da migration 0007)."""
+    tipo_telefone, _ = TipoTelefone.objects.get_or_create(descricao=tipo)
+    return Telefone.objects.create(usuario=usuario, tipo=tipo_telefone, numero=numero, e_principal=e_principal)
+
+
+def criar_usuario_com_telefone(numero='51999990000', tipo='Celular', **campos):
+    usuario = Usuario.objects.create_user(**campos)
+    if numero:
+        criar_telefone_teste(usuario, numero, tipo)
+    return usuario
 
 
 class CadastroClienteTests(APITestCase):
@@ -35,18 +48,19 @@ class CadastroClienteTests(APITestCase):
         self.genero, _ = Genero.objects.get_or_create(id_genero='M', defaults={'genero': 'Masculino'})
         self.dados_validos = {
             'nome': 'Cliente de Teste', 'cpf': '529.982.247-25', 'email': 'cliente@example.com',
-            'telefone': '(51) 99999-0000', 'data_nascimento': '2000-05-10', 'genero': 'M',
+            'telefone': '(51) 99999-0000', 'tipo_telefone': TipoTelefone.objects.get(descricao='Celular').pk,
+            'data_nascimento': '2000-05-10', 'genero': 'M',
             'password': 'SenhaForte123', 'password_confirmacao': 'SenhaForte123',
         }
 
     def criar_usuario(self, **campos):
         dados = {
             'cpf': '11144477735', 'email': 'existente@example.com', 'nome': 'Usuário Existente',
-            'telefone': '51999990000', 'data_nascimento': date(2000, 1, 1), 'genero': self.genero,
+            'data_nascimento': date(2000, 1, 1), 'genero': self.genero,
             'password': 'SenhaForte123',
         }
         dados.update(campos)
-        return Usuario.objects.create_user(**dados)
+        return criar_usuario_com_telefone(**dados)
 
     def test_cadastra_cliente_normalizado_e_retorna_tokens(self):
         response = self.client.post(self.url_cadastro, self.dados_validos, format='json')
@@ -55,7 +69,10 @@ class CadastroClienteTests(APITestCase):
         self.assertIn('refresh', response.data)
         self.assertNotIn('password', response.data['usuario'])
         usuario = Usuario.objects.get(cpf='52998224725')
-        self.assertEqual(usuario.telefone, '51999990000')
+        telefone = usuario.telefones.get()
+        self.assertEqual(telefone.numero, '51999990000')
+        self.assertEqual(telefone.tipo.descricao, 'Celular')
+        self.assertTrue(telefone.e_principal)
         self.assertFalse(usuario.is_produtor)
 
     def test_rejeita_cpf_invalido(self):
@@ -125,15 +142,15 @@ class AtualizacaoPerfilTests(APITestCase):
     def setUp(self):
         self.genero, _ = Genero.objects.get_or_create(id_genero='M', defaults={'genero': 'Masculino'})
         Genero.objects.get_or_create(id_genero='F', defaults={'genero': 'Feminino'})
-        self.usuario = Usuario.objects.create_user(
+        self.usuario = criar_usuario_com_telefone(
             cpf='52998224725', email='perfil@example.com', password='SenhaForte123', nome='Cliente Perfil',
-            telefone='51999990000', data_nascimento=date(2000, 1, 1), genero=self.genero,
+            data_nascimento=date(2000, 1, 1), genero=self.genero,
         )
         self.client.force_authenticate(self.usuario)
 
     def test_atualiza_dados_pessoais_normalizados(self):
         dados = {
-            'nome': 'Cliente Atualizado', 'email': 'NOVO@Example.com', 'telefone': '(51) 98888-7777',
+            'nome': 'Cliente Atualizado', 'email': 'NOVO@Example.com',
             'data_nascimento': '1995-03-20', 'genero': 'F',
         }
         response = self.client.patch(self.url_perfil, dados, format='json')
@@ -143,7 +160,6 @@ class AtualizacaoPerfilTests(APITestCase):
         self.assertEqual(response.data['genero'], 'F')
         self.usuario.refresh_from_db()
         self.assertEqual(self.usuario.email, 'novo@example.com')
-        self.assertEqual(self.usuario.telefone, '51988887777')
 
     def test_mantem_o_proprio_email_sem_acusar_duplicidade(self):
         response = self.client.patch(self.url_perfil, {'email': 'perfil@example.com', 'nome': 'Outro Nome'}, format='json')
@@ -250,9 +266,9 @@ class FotoPerfilAPITests(APITestCase):
         shutil.rmtree(MEDIA_ROOT_TESTES_USUARIO, ignore_errors=True)
         os.makedirs(MEDIA_ROOT_TESTES_USUARIO, exist_ok=True)
         self.genero, _ = Genero.objects.get_or_create(id_genero='M', defaults={'genero': 'Masculino'})
-        self.usuario = Usuario.objects.create_user(
+        self.usuario = criar_usuario_com_telefone(
             cpf='52998224725', email='foto@example.com', password='SenhaForte123', nome='Cliente Foto',
-            telefone='51999990000', data_nascimento=date(2000, 1, 1), genero=self.genero,
+            data_nascimento=date(2000, 1, 1), genero=self.genero,
         )
         self.client.force_authenticate(self.usuario)
 
@@ -331,7 +347,8 @@ class FotoPerfilAPITests(APITestCase):
                 self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
                 self.assertEqual(
                     response.data['detail'],
-                    'Somente nome, e-mail, celular, data de nascimento, gênero e foto de perfil podem ser alterados no perfil.',
+                    'Somente nome, e-mail, data de nascimento, gênero e foto de perfil podem ser alterados no perfil. '
+                    'Os telefones são gerenciados em /me/telefones/.',
                 )
 
         self.usuario.refresh_from_db()
@@ -403,7 +420,8 @@ class FotoPerfilAPITests(APITestCase):
         login = self.client.post('/api/v1/usuarios/login/', {'cpf': '52998224725', 'password': 'SenhaForte123'}, format='json')
         cadastro = self.client.post('/api/v1/usuarios/cadastro/', {
             'nome': 'Cliente Novo', 'cpf': '111.444.777-35', 'email': 'novo-foto@example.com',
-            'telefone': '(51) 98888-0000', 'data_nascimento': '2000-05-10', 'genero': 'M',
+            'telefone': '(51) 98888-0000', 'tipo_telefone': TipoTelefone.objects.get(descricao='Celular').pk,
+            'data_nascimento': '2000-05-10', 'genero': 'M',
             'password': 'SenhaForte123', 'password_confirmacao': 'SenhaForte123',
         }, format='json')
 
@@ -418,9 +436,9 @@ class FotoPerfilNaoExpostaATerceirosTests(APITestCase):
 
     def setUp(self):
         genero, _ = Genero.objects.get_or_create(id_genero='M', defaults={'genero': 'Masculino'})
-        self.cliente = Usuario.objects.create_user(
+        self.cliente = criar_usuario_com_telefone(
             cpf='52998224725', email='cliente-foto@example.com', password='SenhaForte123', nome='Cliente Foto',
-            telefone='51999990000', data_nascimento=date(2000, 1, 1), genero=genero, foto_perfil=FOTO_GERENCIADA,
+            data_nascimento=date(2000, 1, 1), genero=genero, foto_perfil=FOTO_GERENCIADA,
         )
         self.produtor = Usuario.objects.create_user(
             cpf='11144477735', email='produtor-foto@example.com', password='SenhaForte123', nome='Produtor Foto',
@@ -434,7 +452,7 @@ class FotoPerfilNaoExpostaATerceirosTests(APITestCase):
         pedido = Pedido.objects.create(loja=self.loja, status=StatusPedido.objects.create(status='Entregue'))
         PedidoCliente.objects.create(
             pedido=pedido, usuario=self.cliente, nome=self.cliente.nome, cpf=self.cliente.cpf, email=self.cliente.email,
-            telefone=self.cliente.telefone, data_nascimento=self.cliente.data_nascimento, genero=str(genero),
+            data_nascimento=self.cliente.data_nascimento, genero=str(genero),
         )
         item = PedidoProduto.objects.create(
             pedido=pedido, produto=self.produto, nome_produto=self.produto.nome, quantidade=1,
@@ -487,11 +505,11 @@ class RedefinicaoSenhaBaseTests(APITestCase):
     def criar_usuario(self, **campos):
         dados = {
             'cpf': '11144477735', 'email': 'cliente@example.com', 'nome': 'Cliente de Teste',
-            'telefone': '51999990000', 'data_nascimento': date(2000, 1, 1), 'genero': self.genero,
+            'data_nascimento': date(2000, 1, 1), 'genero': self.genero,
             'password': self.senha_antiga,
         }
         dados.update(campos)
-        return Usuario.objects.create_user(**dados)
+        return criar_usuario_com_telefone(**dados)
 
     def criar_link(self, usuario=None):
         token = redefinicao_senha.gerar_token()
@@ -808,7 +826,8 @@ class QaRedefinicaoSenhaComplementaresTests(RedefinicaoSenhaBaseTests):
     def test_cadastro_continua_exigindo_validacao_de_senha(self):
         dados = {
             'nome': 'Novo Cliente', 'cpf': '52998224725', 'email': 'novo@example.com', 'telefone': '51988887777',
-            'data_nascimento': '2000-01-01', 'genero': 'M', 'password': '12345678', 'password_confirmacao': '12345678',
+            'tipo_telefone': TipoTelefone.objects.get(descricao='Celular').pk, 'data_nascimento': '2000-01-01', 'genero': 'M',
+            'password': '12345678', 'password_confirmacao': '12345678',
         }
         resposta = self.client.post('/api/v1/usuarios/cadastro/', dados, format='json')
 

@@ -33,18 +33,55 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
 - O produtor/agricultor precisa estar autenticado para cadastrar produtos.
 - Usuários não autenticados podem visualizar áreas públicas, quando liberadas.
 - O cadastro público cria somente contas de cliente e deve retornar tokens JWT para iniciar a sessão automaticamente.
-- O cadastro exige nome, CPF válido e único, e-mail único, celular brasileiro com 11 dígitos, data de nascimento,
-  gênero e senha com no mínimo 8 caracteres. O cliente deve ter pelo menos 16 anos.
-- CPF e telefone são persistidos somente com dígitos. CPF, e-mail, idade e telefone são validados no backend.
+- O cadastro exige nome, CPF válido e único, e-mail único, um telefone com seu tipo (que se torna o principal, conforme RN-021),
+  data de nascimento, gênero e senha com no mínimo 8 caracteres. O cliente deve ter pelo menos 16 anos.
+- CPF e telefones são persistidos somente com dígitos. CPF, e-mail, idade e telefones (quantidade de dígitos conforme o tipo, RN-021)
+  são validados no backend.
 - O cadastro não aceita campos de privilégios, incluindo `is_produtor`, `is_staff` ou permissões.
 - O cadastro de cliente não cria loja nem inicia solicitação para perfil de produtor.
 - Cadastro, aprovação de produtor, ativação de loja e notificações administrativas serão definidos em tarefa futura.
-- No perfil, o usuário pode alterar nome, e-mail, celular, data de nascimento, gênero e foto de perfil, com as mesmas validações do cadastro.
+- No perfil, o usuário pode alterar nome, e-mail, data de nascimento, gênero e foto de perfil, com as mesmas validações do cadastro,
+  e gerenciar seus telefones (adicionar, editar, excluir e definir o principal) conforme a RN-021.
   CPF e papéis (`is_produtor`, `is_staff`) não podem ser alterados pelo próprio usuário.
 - Foto de perfil (RN-018): todo usuário (cliente ou produtor) pode ter uma única foto de perfil, opcional, enviada, trocada ou removida
   (sem precisar enviar outra) somente pelo próprio usuário na tela de perfil. Sem foto, o sistema exibe as iniciais do nome.
   A foto é exibida apenas ao próprio usuário (perfil e menu da conta); não aparece em avaliações, pedidos ou na área do produtor.
   As regras comuns de arquivo estão em "Imagem da loja e foto de perfil" na seção do produtor e da loja.
+- Telefones do usuário (RN-021): cada usuário (cliente ou produtor) tem um ou mais telefones, cada um com um tipo:
+  Celular, Fixo ou Comercial. Os telefones pertencem somente ao usuário; o contato da loja não faz parte desta regra (DB-013).
+  Não há limite de quantidade de telefones por usuário.
+  Todo usuário tem no mínimo 1 telefone e exatamente 1 marcado como principal; o cadastro e a API garantem esse mínimo
+  nas contas novas e na exclusão de telefones (salvo a exceção legada descrita abaixo).
+  No cadastro, o usuário informa 1 telefone e o seu tipo, que se torna o principal.
+  No perfil, somente o próprio usuário pode adicionar, editar (número e tipo), excluir e definir o telefone principal.
+  Definir outro telefone como principal desmarca o anterior. O último telefone não pode ser excluído; para excluir o principal,
+  o usuário precisa antes definir outro como principal.
+  O número é validado no backend conforme o tipo, contando somente os dígitos (com DDD): Celular com 11 dígitos,
+  Fixo com 10 dígitos e Comercial com 10 ou 11 dígitos. O telefone é guardado como texto, somente com dígitos.
+  Ao editar o tipo, o número é validado novamente de acordo com o novo tipo.
+  Não há restrição de unicidade: o mesmo número pode estar cadastrado para usuários diferentes.
+  Os tipos de telefone são fixos (Celular, Fixo, Comercial, gravados na coluna `descricao` do tipo), não são cadastrados pelo usuário e podem ser consultados publicamente,
+  pois são necessários no cadastro, feito sem login.
+  O administrador pode consultar e corrigir telefones de usuários pela área administrativa do Django, sob as mesmas regras
+  (mínimo de 1 telefone e exatamente 1 principal); nenhuma permissão administrativa nova é criada.
+  Exceção ao snapshot do cliente (RN-021): o telefone não faz parte do snapshot do pedido. Nos pedidos com status `Pendente`,
+  `Em preparo` ou `Pronto para retirada`, o produtor vê o nome do cliente registrado no momento da compra e o telefone principal
+  atual do cliente; trocar o telefone principal no perfil muda o contato exibido nesses pedidos.
+  Nos pedidos `Entregue` e `Cancelado`, o telefone do cliente não é exibido.
+  O telefone continua visível nos pedidos em aberto mesmo que o cliente seja desativado.
+  Justificativa: o telefone serve apenas como contato operacional para a retirada, e só o número atual permite contatar o cliente;
+  não copiar o telefone em cada pedido e não exibi-lo em pedidos encerrados reduz a exposição de dado pessoal (minimização, LGPD).
+  Os demais dados do snapshot (nome, CPF, e-mail, data de nascimento e gênero) continuam preservados no pedido.
+  Decisão v1: a validação considera apenas a quantidade de dígitos; a validação de DDD e do nono dígito fica para o futuro.
+  Decisão v1: o telefone do produtor não é exibido ao cliente; o contato da loja continua em tarefa própria (DB-013).
+  Migração: somente o antigo telefone único do usuário (`Usuario.telefone`) é copiado para a nova estrutura, como telefone principal.
+  Número com 11 dígitos vira Celular, com 10 dígitos vira Fixo, e valor fora do padrão entra como Celular e é listado para correção.
+  Valor vazio não gera telefone. Depois da cópia, o campo antigo é removido.
+  O telefone gravado no snapshot dos pedidos (`PedidoCliente.telefone`) não é aproveitado na migração e é removido.
+  Exceção legada (RN-021): contas antigas sem telefone e contas criadas pela linha de comando (superusuário) podem ficar com 0 telefones.
+  Nessas contas, o primeiro telefone cadastrado vira o principal automaticamente, e o perfil exibe um aviso pedindo o cadastro
+  enquanto a lista estiver vazia. Na área administrativa do Django, o administrador precisa informar ao menos 1 telefone ao salvar o usuário.
+  A falta de telefone não bloqueia o login nem a compra; nos pedidos dessas contas, o produtor não vê telefone.
 - Redefinição de senha (RN-020): o usuário que esqueceu a senha informa o e-mail da conta na tela "Esqueci minha senha"
   e recebe por e-mail um link para cadastrar uma nova senha. A resposta é sempre a mesma mensagem neutra,
   exista ou não conta com aquele e-mail, para não revelar quais contas existem; o e-mail é comparado sem diferenciar maiúsculas.
@@ -67,6 +104,7 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
   Decisão v1: sessões já abertas (JWT emitidos antes da troca) não são encerradas e expiram pelo tempo normal;
   a invalidação imediata de sessões e o aviso por e-mail de "senha alterada" ficam para o futuro.
 - Alterar o perfil não muda pedidos já realizados: eles mantêm o snapshot dos dados do cliente.
+  Exceção (RN-021): o telefone não faz parte do snapshot; nos pedidos em aberto, o produtor vê o telefone principal atual do cliente.
 - O usuário que não é produtor vê apenas uma orientação para procurar a organização da feira; o frontend não oferece criação de loja para ele.
 
 ## Produtor, agricultor e loja
@@ -172,7 +210,7 @@ Ao finalizar o carrinho, o backend deve:
 6. Agrupar itens por loja/produtor.
 7. Criar um pedido separado para cada loja/produtor.
 8. Criar os itens de cada pedido.
-9. Criar snapshot dos dados do cliente.
+9. Criar snapshot dos dados do cliente (sem o telefone, conforme RN-021).
 10. Criar snapshot dos dados dos produtos.
 11. Baixar estoque ao gerar o pedido.
 12. Ajustar os carrinhos de outros clientes afetados pela baixa de estoque (RN-017).
@@ -187,7 +225,7 @@ Ao finalizar o carrinho, o backend deve:
 
 - Ao finalizar o carrinho, o sistema deve separar os itens por produtor/loja.
 - Deve ser criado um pedido separado para cada produtor/loja.
-- O pedido deve preservar snapshot dos dados do cliente.
+- O pedido deve preservar snapshot dos dados do cliente, exceto o telefone (RN-021), que é consultado no cadastro atual do cliente.
 - O pedido deve preservar snapshot dos dados do produto.
 - O cliente deve visualizar apenas seus próprios pedidos.
 - O produtor/agricultor deve visualizar apenas pedidos relacionados aos seus produtos ou loja.
@@ -258,7 +296,8 @@ Em preparo -> Cancelado
 
 Decisão v1: o produtor deve respeitar estritamente esse fluxo ao atualizar pedidos da sua própria loja.
 Na área do produtor, o quadro de pedidos só permite avançar para o próximo status ou cancelar quando o fluxo permite; não há retorno de status.
-Para organizar a retirada, o produtor pode consultar somente nome e telefone do cliente no pedido.
+Para organizar a retirada, o produtor pode consultar somente o nome do cliente registrado no pedido e, nos pedidos `Pendente`,
+`Em preparo` e `Pronto para retirada`, o telefone principal atual do cliente (RN-021).
 
 - O cliente pode cancelar somente pedidos próprios com status `Pendente`.
 - O cancelamento é imediato, preserva o pedido no histórico como `Cancelado` e não exige motivo no MVP.
@@ -338,6 +377,10 @@ Adicionar novas regras abaixo conforme o projeto evoluir.
 - E-mail de aviso "sua senha foi alterada" após a redefinição (RN-020).
 - Troca de senha pela tela de perfil, informando a senha atual.
 - Limpeza periódica dos registros de redefinição de senha expirados ou já utilizados (RN-020).
+
+### Telefones do usuário (fora da RN-021)
+
+- Validação de DDD e do nono dígito do celular (RN-021).
 
 ### Regras pendentes de definição
 - Se o produtor poderá recusar pedido.

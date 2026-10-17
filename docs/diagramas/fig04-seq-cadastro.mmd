@@ -8,19 +8,22 @@ sequenceDiagram
     participant A as API/Backend
     participant B as Banco de dados
 
-    C->>F: Preenche nome, CPF, e-mail, celular, data de nascimento, gênero, senha e confirmação
+    C->>F: Abre a tela de cadastro
+    F->>A: GET /api/v1/tipos-telefone/ (público)
+    A-->>F: Tipos de telefone (Celular, Fixo, Comercial)
+    C->>F: Preenche nome, CPF, e-mail, telefone e tipo, data de nascimento, gênero, senha e confirmação
     F->>A: POST /api/v1/usuarios/cadastro/
     A->>B: Consulta CPF e e-mail já cadastrados
     B-->>A: Resultado da consulta
-    A->>A: Valida CPF, e-mail único, celular com 11 dígitos, idade mínima de 16 anos, gênero e senha
+    A->>A: Valida CPF, e-mail único, dígitos do telefone conforme o tipo (Celular 11, Fixo 10, Comercial 10 ou 11, com DDD), idade mínima de 16 anos, gênero e senha
 
     alt Dados inválidos ou já cadastrados
         A-->>F: 400 com a mensagem de cada campo
         F-->>C: Exibe os erros para correção
     else Dados válidos
         A->>A: Gera o hash da senha
-        A->>B: Grava o usuário como cliente
-        B-->>A: Usuário criado
+        A->>B: Grava o usuário como cliente e o telefone principal (mesma transação)
+        B-->>A: Usuário e telefone criados
         A->>A: Gera tokens JWT de acesso e de renovação
         A-->>F: 201 com tokens e dados do perfil
         F->>F: Guarda a sessão

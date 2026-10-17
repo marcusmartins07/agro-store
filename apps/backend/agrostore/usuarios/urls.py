@@ -1,4 +1,5 @@
 from django.urls import path
+from rest_framework.routers import SimpleRouter
 from rest_framework_simplejwt.views import TokenRefreshView
 
 from .views import (
@@ -8,7 +9,12 @@ from .views import (
     MeView,
     MinhaFotoView,
     SolicitacaoRedefinicaoSenhaView,
+    TelefoneViewSet,
 )
+
+# SimpleRouter: este módulo é incluído duas vezes em agrostore/urls.py e não precisa da página raiz do DefaultRouter.
+router = SimpleRouter()
+router.register('me/telefones', TelefoneViewSet, basename='telefone')
 
 
 urlpatterns = [
@@ -19,4 +25,5 @@ urlpatterns = [
     path('me/foto/', MinhaFotoView.as_view(), name='me-foto'),
     path('redefinir-senha/', SolicitacaoRedefinicaoSenhaView.as_view(), name='redefinir-senha'),
     path('redefinir-senha/confirmar/', ConfirmacaoRedefinicaoSenhaView.as_view(), name='redefinir-senha-confirmar'),
+    *router.urls,
 ]

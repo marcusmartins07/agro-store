@@ -110,8 +110,8 @@
         </section>
       </div>
 
-      <div class="col-12 col-lg-8">
-        <section class="card rounded-4 h-100" aria-labelledby="titulo-informacoes">
+      <div class="col-12 col-lg-8 d-flex flex-column gap-4">
+        <section class="card rounded-4" aria-labelledby="titulo-informacoes">
           <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
               <h2 id="titulo-informacoes" class="h5 fw-semibold mb-0">Informações pessoais</h2>
@@ -172,24 +172,6 @@
                 </div>
 
                 <div class="col-12 col-sm-6">
-                  <label for="perfil-telefone" class="form-label">Celular <span class="text-danger">*</span></label>
-                  <input
-                    id="perfil-telefone"
-                    v-model="form.telefone"
-                    class="form-control"
-                    :class="{ 'is-invalid': erros.telefone }"
-                    inputmode="numeric"
-                    maxlength="15"
-                    placeholder="(00) 00000-0000"
-                    autocomplete="tel-national"
-                    required
-                    aria-describedby="erro-perfil-telefone"
-                    @input="form.telefone = mascaraTelefone(form.telefone)"
-                  >
-                  <div id="erro-perfil-telefone" class="invalid-feedback">{{ erros.telefone }}</div>
-                </div>
-
-                <div class="col-12 col-sm-6">
                   <label for="perfil-nascimento" class="form-label">Data de nascimento <span class="text-danger">*</span></label>
                   <input
                     id="perfil-nascimento"
@@ -236,6 +218,141 @@
             </form>
           </div>
         </section>
+
+        <!-- Telefones do usuário (RN-021) -->
+        <section class="card rounded-4" aria-labelledby="titulo-telefones">
+          <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+              <h2 id="titulo-telefones" class="h5 fw-semibold mb-0">Telefones</h2>
+              <button
+                id="perfil-telefone-adicionar"
+                type="button"
+                class="btn btn-outline-primary rounded-pill px-3 d-inline-flex align-items-center gap-2"
+                :disabled="!podeAbrirFormulario"
+                @click="abrirFormularioTelefone('novo', 'perfil-telefone-adicionar')"
+              >
+                <IconeSvg nome="mais" :tamanho="16" /> Adicionar telefone
+              </button>
+            </div>
+            <p class="small text-body-secondary mb-3">O telefone principal é o contato que o produtor vê nos seus pedidos em aberto.</p>
+
+            <div v-if="tiposTelefoneStore.erro" class="alert alert-warning small py-2 d-flex flex-wrap align-items-center gap-2" role="alert">
+              <span>Não foi possível carregar os tipos de telefone.</span>
+              <button type="button" class="btn btn-sm btn-outline-secondary" @click="tiposTelefoneStore.carregar()">Tentar novamente</button>
+            </div>
+
+            <div v-if="carregandoTelefones && !telefones" class="placeholder-glow d-flex flex-column gap-3" role="status">
+              <span class="placeholder col-12 rounded-4 placeholder-telefone" aria-hidden="true"></span>
+              <span class="placeholder col-12 rounded-4 placeholder-telefone" aria-hidden="true"></span>
+              <span class="visually-hidden">Carregando telefones...</span>
+            </div>
+
+            <div v-else-if="erroTelefones" class="alert alert-danger d-flex flex-wrap align-items-center gap-2 mb-0" role="alert">
+              <span>Não foi possível carregar seus telefones.</span>
+              <button type="button" class="btn btn-sm btn-outline-danger" :disabled="carregandoTelefones" @click="recarregarTelefones">Tentar novamente</button>
+            </div>
+
+            <template v-else-if="telefones">
+              <div v-if="!telefones.length" class="alert alert-warning" :class="{ 'mb-0': edicaoTelefone?.id !== 'novo' }" role="status">
+                <p class="fw-semibold mb-1">Você ainda não tem um telefone cadastrado.</p>
+                <p class="small mb-0">
+                  Cadastre um telefone para que o produtor possa entrar em contato sobre a retirada dos seus pedidos.
+                  O primeiro telefone cadastrado será o principal.
+                </p>
+              </div>
+
+              <ul class="list-unstyled d-flex flex-column gap-3 mb-0">
+                <li v-if="edicaoTelefone?.id === 'novo'" class="border rounded-4 p-3">
+                  <FormularioTelefone
+                    :ref="registrarFormularioTelefone"
+                    id-sufixo="novo"
+                    :tipos="tiposTelefoneStore.tipos"
+                    :tipo-padrao="tiposTelefoneStore.idPorDescricao('Celular') ?? ''"
+                    :erros="errosTelefone"
+                    :enviando="enviandoTelefone"
+                    :primeiro="!telefones.length"
+                    @salvar="salvarTelefone"
+                    @cancelar="fecharFormularioTelefone"
+                  />
+                </li>
+
+                <li
+                  v-for="telefone in telefones"
+                  :key="telefone.id"
+                  class="border rounded-4 p-3"
+                  :class="{ 'bg-apoio border-primary': telefone.e_principal }"
+                >
+                  <FormularioTelefone
+                    v-if="edicaoTelefone?.id === telefone.id"
+                    :ref="registrarFormularioTelefone"
+                    :id-sufixo="telefone.id"
+                    :tipos="tiposTelefoneStore.tipos"
+                    :telefone="telefone"
+                    :erros="errosTelefone"
+                    :enviando="enviandoTelefone"
+                    @salvar="salvarTelefone"
+                    @cancelar="fecharFormularioTelefone"
+                  />
+
+                  <template v-else>
+                    <div class="d-flex align-items-start gap-3">
+                      <span class="text-primary mt-1"><IconeSvg nome="telefone" :tamanho="20" /></span>
+                      <div class="flex-grow-1">
+                        <div class="d-flex flex-wrap align-items-center gap-2">
+                          <span class="fw-semibold">{{ formatarTelefone(telefone.numero) }}</span>
+                          <span v-if="telefone.e_principal" class="badge rounded-pill text-bg-primary">Principal</span>
+                        </div>
+                        <p class="small text-body-secondary mb-0">{{ telefone.tipo_descricao }}</p>
+                      </div>
+                    </div>
+
+                    <div class="d-flex flex-wrap gap-2 mt-3">
+                      <button
+                        :id="`perfil-telefone-editar-${telefone.id}`"
+                        type="button"
+                        class="btn btn-sm btn-outline-secondary rounded-pill d-inline-flex align-items-center gap-1"
+                        :disabled="!podeAbrirFormulario"
+                        :aria-label="`Editar telefone ${formatarTelefone(telefone.numero)}`"
+                        @click="abrirFormularioTelefone(telefone.id, `perfil-telefone-editar-${telefone.id}`)"
+                      >
+                        <IconeSvg nome="lapis" :tamanho="14" /> Editar
+                      </button>
+                      <button
+                        v-if="!telefone.e_principal"
+                        type="button"
+                        class="btn btn-sm btn-outline-primary rounded-pill"
+                        :disabled="acoesBloqueadas"
+                        :aria-label="`Definir como principal o telefone ${formatarTelefone(telefone.numero)}`"
+                        @click="definirPrincipal(telefone)"
+                      >
+                        Definir como principal
+                      </button>
+                      <button
+                        type="button"
+                        class="btn btn-sm btn-outline-danger rounded-pill"
+                        :class="{ disabled: !!motivoBloqueioExclusao(telefone) }"
+                        :disabled="acoesBloqueadas"
+                        :aria-disabled="motivoBloqueioExclusao(telefone) ? 'true' : null"
+                        :aria-describedby="motivoBloqueioExclusao(telefone) ? `perfil-telefone-bloqueio-${telefone.id}` : null"
+                        :aria-label="`Excluir telefone ${formatarTelefone(telefone.numero)}`"
+                        @click="solicitarExclusao(telefone)"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                    <p
+                      v-if="motivoBloqueioExclusao(telefone)"
+                      :id="`perfil-telefone-bloqueio-${telefone.id}`"
+                      class="small text-body-secondary mt-2 mb-0"
+                    >
+                      {{ motivoBloqueioExclusao(telefone) }}
+                    </p>
+                  </template>
+                </li>
+              </ul>
+            </template>
+          </div>
+        </section>
       </div>
     </div>
 
@@ -250,20 +367,36 @@
     >
       <p class="mb-0">Sua foto deixa de aparecer no perfil e no menu da conta, e as iniciais do seu nome são exibidas no lugar.</p>
     </ModalConfirmacao>
+
+    <ModalConfirmacao
+      ref="modalExcluirTelefone"
+      titulo="Excluir telefone?"
+      texto-confirmar="Excluir"
+      texto-carregando="Excluindo..."
+      :carregando="enviandoTelefone"
+      @confirmar="excluirTelefone"
+      @fechado="aoFecharModalTelefone"
+    >
+      <p v-if="telefoneParaExcluir" class="mb-0">
+        O telefone {{ formatarTelefone(telefoneParaExcluir.numero) }} ({{ telefoneParaExcluir.tipo_descricao }}) será removido da sua conta.
+      </p>
+    </ModalConfirmacao>
   </section>
 </template>
 
 <script setup>
 import { computed, nextTick, onMounted, ref } from 'vue'
 import { useRoute } from 'vue-router'
+import FormularioTelefone from '@/components/FormularioTelefone.vue'
 import IconeSvg from '@/components/IconeSvg.vue'
 import ModalConfirmacao from '@/components/ModalConfirmacao.vue'
 import SeletorImagemUnica from '@/components/SeletorImagemUnica.vue'
 import { api } from '@/services/api.js'
 import { useAuthStore } from '@/stores/auth.js'
 import { useNotificacoesStore } from '@/stores/notificacoes.js'
+import { useTiposTelefoneStore } from '@/stores/tiposTelefone.js'
 import {
-  calcularIdade, formatarCpf, formatarData, formatarTelefone, mascaraTelefone, somenteDigitos,
+  calcularIdade, formatarCpf, formatarData, formatarTelefone,
 } from '@/utils/formatacao.js'
 import { MENSAGEM_FALHA_REMOCAO_IMAGEM, mensagemErroEnvioImagem } from '@/utils/imagem.js'
 
@@ -292,6 +425,21 @@ const erroFoto = ref('')
 const seletorFoto = ref(null)
 const modalRemoverFoto = ref(null)
 
+// Telefones (RN-021): fluxo próprio; a lista vem do GET /me/ e é recarregada após cada alteração
+const MENSAGEM_FALHA_ACAO_TELEFONE = 'Não foi possível concluir a ação. Tente novamente.'
+const tiposTelefoneStore = useTiposTelefoneStore()
+const telefones = ref(null)
+const carregandoTelefones = ref(false)
+const erroTelefones = ref(false)
+const enviandoTelefone = ref(false)
+// { id: telefoneId | 'novo', origem: id do botão que abriu o formulário }
+const edicaoTelefone = ref(null)
+const errosTelefone = ref({})
+const formularioTelefone = ref(null)
+const telefoneParaExcluir = ref(null)
+const modalExcluirTelefone = ref(null)
+let exclusaoConcluida = false
+
 const camposLeitura = computed(() => {
   const dados = usuario.value
   const idade = calcularIdade(dados.data_nascimento)
@@ -299,7 +447,6 @@ const camposLeitura = computed(() => {
     { rotulo: 'Nome completo', valor: dados.nome },
     { rotulo: 'E-mail', valor: dados.email },
     { rotulo: 'CPF', valor: formatarCpf(dados.cpf) },
-    { rotulo: 'Celular', valor: formatarTelefone(dados.telefone) },
     { rotulo: 'Data de nascimento', valor: formatarData(dados.data_nascimento) },
     { rotulo: 'Idade', valor: idade === null ? 'Não informada' : `${idade} anos` },
     { rotulo: 'Gênero', valor: GENEROS[dados.genero] || 'Não informado' },
@@ -308,8 +455,15 @@ const camposLeitura = computed(() => {
 
 const idadeFormulario = computed(() => calcularIdade(form.value.data_nascimento))
 
+const tiposTelefoneDisponiveis = computed(() => !tiposTelefoneStore.carregando && !tiposTelefoneStore.erro && tiposTelefoneStore.tipos.length > 0)
+const acoesBloqueadas = computed(() => enviandoTelefone.value || carregandoTelefones.value)
+const podeAbrirFormulario = computed(() => !acoesBloqueadas.value && !edicaoTelefone.value && tiposTelefoneDisponiveis.value && !!telefones.value)
+
 onMounted(() => {
-  if (authStore.estaLogado) carregar()
+  if (authStore.estaLogado) {
+    carregar()
+    tiposTelefoneStore.carregar()
+  }
 })
 
 async function carregar() {
@@ -318,6 +472,8 @@ async function carregar() {
   try {
     usuario.value = await api.usuarios.me()
     authStore.atualizarUsuario(usuario.value)
+    if (Array.isArray(usuario.value.telefones)) aplicarTelefones(usuario.value.telefones, false)
+    else recarregarTelefones()
     loja.value = usuario.value.tem_loja ? await carregarLoja() : null
   } catch (falha) {
     console.error(falha)
@@ -342,7 +498,6 @@ async function iniciarEdicao() {
   form.value = {
     nome: dados.nome,
     email: dados.email,
-    telefone: mascaraTelefone(dados.telefone || ''),
     data_nascimento: dados.data_nascimento,
     genero: dados.genero,
   }
@@ -417,7 +572,6 @@ function validar() {
   const novosErros = {}
   if (!form.value.nome) novosErros.nome = 'Informe seu nome completo.'
   if (!/^\S+@\S+\.\S+$/.test(form.value.email || '')) novosErros.email = 'Informe um e-mail válido.'
-  if (somenteDigitos(form.value.telefone).length !== 11) novosErros.telefone = 'Informe um celular com DDD (11 dígitos).'
   if (!form.value.data_nascimento) novosErros.data_nascimento = 'Informe sua data de nascimento.'
   if (!GENEROS[form.value.genero]) novosErros.genero = 'Selecione uma opção.'
   erros.value = novosErros
@@ -430,8 +584,7 @@ async function salvar() {
 
   salvando.value = true
   try {
-    usuario.value = await api.usuarios.atualizar({ ...form.value, telefone: somenteDigitos(form.value.telefone) })
-    authStore.atualizarUsuario(usuario.value)
+    aplicarUsuario(await api.usuarios.atualizar({ ...form.value }))
     editando.value = false
     notificacoes.notificar({ tipo: 'success', mensagem: 'Dados atualizados com sucesso.', tempo: 4 })
   } catch (falha) {
@@ -445,6 +598,146 @@ async function salvar() {
   } finally {
     salvando.value = false
   }
+}
+
+// ----- Telefones (RN-021) -----
+
+function primeiraMensagem(valor) {
+  if (Array.isArray(valor)) return valor.length ? String(valor[0]) : ''
+  return valor ? String(valor) : ''
+}
+
+// Mensagem de regra do backend ({ detail } ou { e_principal }), usada nas notificações de erro
+function mensagemErroTelefone(falha, fallback = MENSAGEM_FALHA_ACAO_TELEFONE) {
+  const dados = falha?.data || {}
+  return primeiraMensagem(dados.detail) || primeiraMensagem(dados.e_principal)
+    || primeiraMensagem(dados.numero) || primeiraMensagem(dados.tipo) || fallback
+}
+
+// Principal primeiro; a store da sessão acompanha a lista para não guardar o formato antigo (usuario.telefone)
+function aplicarTelefones(lista, sincronizarSessao = true) {
+  telefones.value = [...lista].sort((a, b) => Number(b.e_principal) - Number(a.e_principal))
+  erroTelefones.value = false
+  if (sincronizarSessao && usuario.value) aplicarUsuario({ ...usuario.value, telefones: telefones.value })
+}
+
+async function recarregarTelefones() {
+  carregandoTelefones.value = true
+  try {
+    aplicarTelefones(await api.telefones.listar())
+    return true
+  } catch (falha) {
+    console.error(falha)
+    erroTelefones.value = true
+    return false
+  } finally {
+    carregandoTelefones.value = false
+  }
+}
+
+function registrarFormularioTelefone(componente) {
+  if (componente) formularioTelefone.value = componente
+}
+
+async function abrirFormularioTelefone(id, origem) {
+  if (!podeAbrirFormulario.value) return
+  errosTelefone.value = {}
+  edicaoTelefone.value = { id, origem }
+  await nextTick()
+  formularioTelefone.value?.focar()
+}
+
+async function fecharFormularioTelefone(destinoFoco) {
+  const origem = destinoFoco || edicaoTelefone.value?.origem
+  edicaoTelefone.value = null
+  errosTelefone.value = {}
+  formularioTelefone.value = null
+  await nextTick()
+  document.getElementById(origem)?.focus()
+}
+
+async function salvarTelefone(dados) {
+  const edicao = edicaoTelefone.value
+  if (!edicao) return
+  const novo = edicao.id === 'novo'
+  errosTelefone.value = {}
+  enviandoTelefone.value = true
+  try {
+    if (novo) await api.telefones.criar(dados)
+    else await api.telefones.atualizar(edicao.id, dados)
+  } catch (falha) {
+    const resposta = falha?.data || {}
+    const errosCampos = {}
+    if (resposta.numero) errosCampos.numero = primeiraMensagem(resposta.numero)
+    if (resposta.tipo) errosCampos.tipo = primeiraMensagem(resposta.tipo)
+    if (!Object.keys(errosCampos).length) errosCampos.geral = mensagemErroTelefone(falha)
+    errosTelefone.value = errosCampos
+    enviandoTelefone.value = false
+    return
+  }
+  enviandoTelefone.value = false
+  notificacoes.notificar({ tipo: 'success', mensagem: novo ? 'Telefone adicionado.' : 'Telefone atualizado.', tempo: 4 })
+  await recarregarTelefones()
+  // Depois de recarregar, o botão de origem (ou "Adicionar telefone") volta a existir e recebe o foco
+  await fecharFormularioTelefone(novo ? 'perfil-telefone-adicionar' : `perfil-telefone-editar-${edicao.id}`)
+}
+
+async function definirPrincipal(telefone) {
+  if (acoesBloqueadas.value) return
+  enviandoTelefone.value = true
+  try {
+    await api.telefones.atualizar(telefone.id, { e_principal: true })
+  } catch (falha) {
+    notificacoes.notificar({ tipo: 'danger', mensagem: mensagemErroTelefone(falha) })
+    enviandoTelefone.value = false
+    return
+  }
+  enviandoTelefone.value = false
+  notificacoes.notificar({ tipo: 'success', mensagem: 'Telefone principal alterado.', tempo: 4 })
+  // O backend desmarca o principal anterior: a lista é recarregada para refletir o banco
+  await recarregarTelefones()
+  await nextTick()
+  document.getElementById(`perfil-telefone-editar-${telefone.id}`)?.focus()
+}
+
+// Espelho de exibição da regra: o backend continua recusando a exclusão indevida
+function motivoBloqueioExclusao(telefone) {
+  if (!telefones.value || telefones.value.length <= 1) return 'Mantenha ao menos um telefone cadastrado.'
+  if (telefone.e_principal) return 'Para excluir o principal, defina outro telefone como principal antes.'
+  return ''
+}
+
+function solicitarExclusao(telefone) {
+  if (acoesBloqueadas.value || motivoBloqueioExclusao(telefone)) return
+  telefoneParaExcluir.value = telefone
+  exclusaoConcluida = false
+  modalExcluirTelefone.value?.abrir()
+}
+
+async function excluirTelefone() {
+  const telefone = telefoneParaExcluir.value
+  if (!telefone) return
+  enviandoTelefone.value = true
+  try {
+    await api.telefones.excluir(telefone.id)
+  } catch (falha) {
+    notificacoes.notificar({ tipo: 'danger', mensagem: mensagemErroTelefone(falha, 'Não foi possível excluir o telefone. Tente novamente.') })
+    enviandoTelefone.value = false
+    modalExcluirTelefone.value?.fechar()
+    return
+  }
+  enviandoTelefone.value = false
+  exclusaoConcluida = true
+  modalExcluirTelefone.value?.fechar()
+  notificacoes.notificar({ tipo: 'success', mensagem: 'Telefone excluído.', tempo: 4 })
+  await recarregarTelefones()
+}
+
+// O botão "Excluir" do telefone removido some: o foco vai para "Adicionar telefone"
+function aoFecharModalTelefone() {
+  if (exclusaoConcluida) document.getElementById('perfil-telefone-adicionar')?.focus()
+  exclusaoConcluida = false
+  telefoneParaExcluir.value = null
 }
 </script>
 
@@ -464,6 +757,9 @@ async function salvar() {
   background-color: var(--cor-fundo);
   border: 1px solid var(--cor-borda);
   overflow-wrap: anywhere;
+}
+.placeholder-telefone {
+  min-height: 4.5rem;
 }
 .descricao-loja {
   display: -webkit-box;

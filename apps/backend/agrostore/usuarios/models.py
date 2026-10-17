@@ -45,7 +45,6 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     data_nascimento = models.DateField()
     genero = models.ForeignKey(Genero, on_delete=models.RESTRICT)
-    telefone = models.CharField(max_length=11, null=True, blank=True)
     foto_perfil = models.FileField(
         upload_to=caminho_foto_usuario,
         max_length=255,
@@ -70,6 +69,47 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
         return hoje.year - self.data_nascimento.year - (
             (hoje.month, hoje.day) < (self.data_nascimento.month, self.data_nascimento.day)
         )
+
+
+class TipoTelefone(models.Model):
+    # Tipos fixos (RN-021), carregados pela migration 0007; não são cadastrados pelo usuário.
+    CELULAR = 'Celular'
+    FIXO = 'Fixo'
+    COMERCIAL = 'Comercial'
+    DIGITOS_POR_TIPO = {CELULAR: (11,), FIXO: (10,), COMERCIAL: (10, 11)}
+
+    descricao = models.CharField(max_length=30, unique=True)
+
+    class Meta:
+        ordering = ['id']
+        verbose_name = 'tipo de telefone'
+        verbose_name_plural = 'tipos de telefone'
+
+    def __str__(self):
+        return self.descricao
+
+
+class Telefone(BaseModel):
+    # RN-021: o mínimo de 1 telefone e os dígitos por tipo são validados na API e no admin; o banco garante 1 principal no máximo.
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='telefones')
+    tipo = models.ForeignKey(TipoTelefone, on_delete=models.PROTECT, related_name='telefones')
+    numero = models.CharField(max_length=11)
+    e_principal = models.BooleanField(default=False)
+
+    class Meta:
+        ordering = ['-e_principal', 'id']
+        verbose_name = 'telefone'
+        verbose_name_plural = 'telefones'
+        constraints = [
+            models.UniqueConstraint(
+                fields=['usuario'],
+                condition=models.Q(e_principal=True),
+                name='telefone_principal_unico_por_usuario',
+            ),
+        ]
+
+    def __str__(self):
+        return f'{self.tipo} {self.numero}'
 
 
 class RedefinicaoSenha(models.Model):

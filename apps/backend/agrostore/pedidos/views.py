@@ -2,6 +2,7 @@ from collections import defaultdict
 from decimal import Decimal
 
 from django.db import transaction
+from django.db.models import Prefetch
 from django.shortcuts import get_object_or_404
 from rest_framework import permissions, status, viewsets
 from rest_framework.exceptions import MethodNotAllowed, PermissionDenied
@@ -11,6 +12,7 @@ from rest_framework.response import Response
 from agrostore.carrinhos.models import CarrinhoProduto
 from agrostore.carrinhos.services import ajustar_carrinhos_ao_estoque
 from agrostore.produtos.models import Produto
+from agrostore.usuarios.models import Telefone
 from .models import Pedido, PedidoCliente, PedidoProduto, StatusPedido
 from .serializers import CriarPedidoSerializer, PedidoProdutorSerializer, PedidoSerializer, StatusPedidoSerializer
 
@@ -38,6 +40,15 @@ class PedidoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = Pedido.objects.select_related('loja', 'status', 'cliente').prefetch_related('itens__avaliacao')
+        if self.action == 'minha_loja':
+            # Telefone principal atual do cliente (RN-021), carregado de uma vez para a lista toda.
+            queryset = queryset.select_related('cliente__usuario').prefetch_related(
+                Prefetch(
+                    'cliente__usuario__telefones',
+                    queryset=Telefone.objects.filter(e_principal=True),
+                    to_attr='telefone_principal_lista',
+                )
+            )
         if self.action in ['minha_loja', 'atualizar_status']:
             if self.request.user.is_staff:
                 return queryset
@@ -96,7 +107,6 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 nome=usuario.nome,
                 cpf=usuario.cpf,
                 email=usuario.email,
-                telefone=usuario.telefone,
                 data_nascimento=usuario.data_nascimento,
                 genero=str(usuario.genero),
             )

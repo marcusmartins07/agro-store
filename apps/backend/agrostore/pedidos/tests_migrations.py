@@ -4,7 +4,7 @@ from django.test import TransactionTestCase
 
 ANTES = [('pedidos', '0002_pedidocliente_telefone')]
 ETAPA_SCHEMA = [('pedidos', '0003_pedidocliente_usuario')]
-ATUAL = [('pedidos', '0005_remover_pedido_usuario')]
+ATUAL = [('pedidos', '0006_remove_pedidocliente_telefone')]
 
 
 class MigracaoVinculoClienteTests(TransactionTestCase):

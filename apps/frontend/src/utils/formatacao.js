@@ -19,11 +19,56 @@ export function mascaraCpf(valor) {
     .slice(0, 14)
 }
 
+// Máscara pela quantidade de dígitos (máx. 11): até 10 vira (XX) XXXX-XXXX e 11 vira (XX) XXXXX-XXXX, sem hífen solto
 export function mascaraTelefone(valor) {
-  return somenteDigitos(valor)
-    .replace(/^(\d{2})(\d)/, '($1) $2')
-    .replace(/(\d{5})(\d)/, '$1-$2')
-    .slice(0, 15)
+  const digitos = somenteDigitos(valor).slice(0, 11)
+  if (digitos.length <= 2) return digitos
+  const ddd = `(${digitos.slice(0, 2)}) `
+  const numero = digitos.slice(2)
+  const tamanhoPrefixo = digitos.length === 11 ? 5 : 4
+  if (numero.length <= tamanhoPrefixo) return ddd + numero
+  return `${ddd}${numero.slice(0, tamanhoPrefixo)}-${numero.slice(tamanhoPrefixo)}`
+}
+
+// Espelho de exibição da RN-021 (o backend continua validando): dígitos aceitos por tipo, com DDD
+const FORMATOS_TELEFONE = {
+  Celular: {
+    digitos: [11],
+    placeholder: '(00) 00000-0000',
+    ajuda: 'Celular com DDD (11 dígitos).',
+    erro: 'Informe um celular com DDD (11 dígitos).',
+  },
+  Fixo: {
+    digitos: [10],
+    placeholder: '(00) 0000-0000',
+    ajuda: 'Telefone fixo com DDD (10 dígitos).',
+    erro: 'Informe um telefone fixo com DDD (10 dígitos).',
+  },
+  Comercial: {
+    digitos: [10, 11],
+    placeholder: '(00) 00000-0000',
+    ajuda: 'Telefone comercial com DDD (10 ou 11 dígitos).',
+    erro: 'Informe um telefone comercial com DDD (10 ou 11 dígitos).',
+  },
+}
+
+export function placeholderTelefone(tipoDescricao) {
+  return FORMATOS_TELEFONE[tipoDescricao]?.placeholder || '(00) 00000-0000'
+}
+
+export function ajudaTelefone(tipoDescricao) {
+  if (!tipoDescricao) return 'Escolha o tipo para ver o formato.'
+  return FORMATOS_TELEFONE[tipoDescricao]?.ajuda || 'Telefone com DDD.'
+}
+
+// Retorna a mensagem de erro ou '' quando o número é aceito para o tipo
+export function validarTelefonePorTipo(numero, tipoDescricao) {
+  if (!tipoDescricao) return 'Selecione o tipo de telefone.'
+  const digitos = somenteDigitos(numero)
+  if (!digitos) return 'Informe o telefone.'
+  const formato = FORMATOS_TELEFONE[tipoDescricao]
+  if (formato && !formato.digitos.includes(digitos.length)) return formato.erro
+  return ''
 }
 
 export function mascaraCnpj(valor) {

@@ -12,7 +12,12 @@ from agrostore.carrinhos.models import Carrinho, CarrinhoProduto
 from agrostore.lojas.models import Loja
 from agrostore.pedidos.models import Pedido, PedidoCliente, PedidoProduto, StatusPedido
 from agrostore.produtos.models import Categoria, PrecoProduto, Produto
-from agrostore.usuarios.models import Genero, Usuario
+from agrostore.usuarios.models import Genero, Telefone, TipoTelefone, Usuario
+
+
+def criar_telefone(usuario, numero='51999990000', tipo='Celular', e_principal=True):
+    tipo_telefone, _ = TipoTelefone.objects.get_or_create(descricao=tipo)
+    return Telefone.objects.create(usuario=usuario, tipo=tipo_telefone, numero=numero, e_principal=e_principal)
 
 
 class PedidoCheckoutTests(APITestCase):
@@ -188,6 +193,7 @@ class PedidoCheckoutTests(APITestCase):
 
     def test_produtor_visualiza_apenas_pedidos_da_propria_loja_com_contato_minimo(self):
         pedido = self._criar_pedido()
+        criar_telefone(self.cliente, '51999990000')
         PedidoProduto.objects.create(
             pedido=pedido,
             produto=self.produto_a,
@@ -201,7 +207,7 @@ class PedidoCheckoutTests(APITestCase):
         response = self.client.get('/api/v1/pedidos/minha-loja/')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(response.data[0]['cliente'], {'nome': self.cliente.nome, 'telefone': self.cliente.telefone})
+        self.assertEqual(response.data[0]['cliente'], {'nome': self.cliente.nome, 'telefone': '51999990000'})
         self.assertIsNotNone(response.data[0]['data_criacao'])
 
     def test_cliente_lista_pedidos_com_data_de_criacao(self):
@@ -458,7 +464,6 @@ class PedidoCheckoutTests(APITestCase):
             nome=usuario.nome,
             cpf=usuario.cpf,
             email=usuario.email,
-            telefone=usuario.telefone,
             data_nascimento=usuario.data_nascimento,
             genero=str(usuario.genero),
         )
@@ -746,3 +751,168 @@ class PedidoCheckoutTests(APITestCase):
             data_nascimento='1985-01-01',
             genero=self.genero,
         )
+
+
+class PedidoTelefoneClienteTests(APITestCase):
+    """RN-021: o telefone não é snapshot do pedido; o produtor vê o principal atual só nos pedidos em aberto."""
+
+    ABERTOS = ['Pendente', 'Em preparo', 'Pronto para retirada']
+    ENCERRADOS = ['Entregue', 'Cancelado']
+
+    def setUp(self):
+        self.genero, _ = Genero.objects.get_or_create(id_genero='F', defaults={'genero': 'Feminino'})
+        self.cliente = self._criar_usuario('32345678901', 'cliente-tel@example.com', 'Cliente Tel')
+        self.produtor = self._criar_usuario('32345678902', 'produtor-tel@example.com', 'Produtor Tel', is_produtor=True)
+        self.loja = Loja.objects.create(proprietario=self.produtor, nome='Loja Tel', cnpj='32345678000199')
+        self.produto = Produto.objects.create(
+            loja=self.loja, nome='Alface', estoque=50, sku='ALF-TEL', categoria=Categoria.objects.create(nome='Verduras'),
+        )
+        PrecoProduto.objects.create(produto=self.produto, preco_venda=Decimal('5.00'), preco_desconto=Decimal('0.00'))
+        self.status = {nome: StatusPedido.objects.get_or_create(status=nome)[0] for nome in self.ABERTOS + self.ENCERRADOS}
+
+    def _criar_usuario(self, cpf, email, nome, **campos):
+        return Usuario.objects.create_user(
+            cpf=cpf, email=email, password='senha123', nome=nome, data_nascimento='1990-01-01', genero=self.genero, **campos,
+        )
+
+    def _criar_pedido(self, status_nome='Pendente', usuario=None):
+        usuario = usuario or self.cliente
+        pedido = Pedido.objects.create(loja=self.loja, status=self.status[status_nome])
+        PedidoCliente.objects.create(
+            pedido=pedido, usuario=usuario, nome=usuario.nome, cpf=usuario.cpf, email=usuario.email,
+            data_nascimento=usuario.data_nascimento, genero=str(usuario.genero),
+        )
+        PedidoProduto.objects.create(
+            pedido=pedido, produto=self.produto, nome_produto=self.produto.nome, quantidade=1,
+            valor_unitario=Decimal('5.00'), subtotal=Decimal('5.00'),
+        )
+        return pedido
+
+    def _cliente_do_pedido_na_loja(self, pedido):
+        self.client.force_authenticate(self.produtor)
+        resposta = self.client.get('/api/v1/pedidos/minha-loja/')
+        self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+        return next(item['cliente'] for item in resposta.data if item['pedido_id'] == pedido.pedido_id)
+
+    def _finalizar_compra(self, quantidade=1):
+        carrinho = Carrinho.objects.create(usuario=self.cliente, loja=self.loja)
+        item = CarrinhoProduto.objects.create(carrinho=carrinho, produto=self.produto, quantidade=quantidade)
+        carrinho.recalcular_totais()
+        self.client.force_authenticate(self.cliente)
+        return self.client.post('/api/v1/pedidos/', {'carrinho_produto_ids': [item.carrinho_produto_id]}, format='json')
+
+    def test_produtor_ve_telefone_principal_nos_pedidos_em_aberto(self):
+        criar_telefone(self.cliente, '51999990000')
+        for nome in self.ABERTOS:
+            pedido = self._criar_pedido(nome)
+            self.assertEqual(self._cliente_do_pedido_na_loja(pedido), {'nome': 'Cliente Tel', 'telefone': '51999990000'}, nome)
+
+    def test_produtor_nao_ve_telefone_nos_pedidos_entregue_e_cancelado(self):
+        criar_telefone(self.cliente, '51999990000')
+        for nome in self.ENCERRADOS:
+            pedido = self._criar_pedido(nome)
+            self.assertEqual(self._cliente_do_pedido_na_loja(pedido), {'nome': 'Cliente Tel', 'telefone': None}, nome)
+
+    def test_trocar_principal_no_perfil_muda_o_contato_do_pedido_aberto_antigo(self):
+        antigo = criar_telefone(self.cliente, '51999990000')
+        novo = criar_telefone(self.cliente, '5133334444', 'Fixo', e_principal=False)
+        pedido = self._criar_pedido('Pendente')
+        self.assertEqual(self._cliente_do_pedido_na_loja(pedido)['telefone'], '51999990000')
+
+        self.client.force_authenticate(self.cliente)
+        resposta = self.client.patch(f'/api/v1/usuarios/me/telefones/{novo.pk}/', {'e_principal': True}, format='json')
+        self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(self._cliente_do_pedido_na_loja(pedido)['telefone'], '5133334444')
+        antigo.refresh_from_db()
+        self.assertFalse(antigo.e_principal)
+
+    def test_cliente_sem_telefone_aparece_com_telefone_null(self):
+        pedido = self._criar_pedido('Pendente')
+        self.assertEqual(self._cliente_do_pedido_na_loja(pedido), {'nome': 'Cliente Tel', 'telefone': None})
+
+    def test_cliente_desativado_mantem_telefone_em_pedido_aberto(self):
+        criar_telefone(self.cliente, '51999990000')
+        pedido = self._criar_pedido('Em preparo')
+        Usuario.objects.filter(pk=self.cliente.pk).update(is_active=False)
+        self.assertEqual(self._cliente_do_pedido_na_loja(pedido)['telefone'], '51999990000')
+
+    def test_nome_continua_do_snapshot_e_telefone_e_o_atual(self):
+        criar_telefone(self.cliente, '51999990000')
+        pedido = self._criar_pedido('Pendente')
+        Usuario.objects.filter(pk=self.cliente.pk).update(nome='Nome Alterado')
+        self.assertEqual(self._cliente_do_pedido_na_loja(pedido), {'nome': 'Cliente Tel', 'telefone': '51999990000'})
+
+    def test_resposta_da_troca_de_status_traz_o_telefone_conforme_o_novo_status(self):
+        criar_telefone(self.cliente, '51999990000')
+        pedido = self._criar_pedido('Pendente')
+        self.client.force_authenticate(self.produtor)
+        url = f'/api/v1/pedidos/{pedido.pedido_id}/status/'
+
+        em_preparo = self.client.patch(url, {'status': self.status['Em preparo'].status_pedido_id}, format='json')
+        cancelado = self.client.patch(url, {'status': self.status['Cancelado'].status_pedido_id}, format='json')
+
+        self.assertEqual(em_preparo.status_code, status.HTTP_200_OK)
+        self.assertEqual(em_preparo.data['cliente']['telefone'], '51999990000')
+        self.assertEqual(cancelado.status_code, status.HTTP_200_OK)
+        self.assertIsNone(cancelado.data['cliente']['telefone'])
+
+    def test_cliente_nao_recebe_telefone_no_proprio_pedido(self):
+        criar_telefone(self.cliente, '51999990000')
+        pedido = self._criar_pedido('Pendente')
+        self.client.force_authenticate(self.cliente)
+
+        lista = self.client.get('/api/v1/pedidos/')
+        detalhe = self.client.get(f'/api/v1/pedidos/{pedido.pedido_id}/')
+
+        for resposta in (lista, detalhe):
+            self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+            self.assertNotIn('51999990000', str(resposta.content))
+        self.assertNotIn('telefone', lista.data[0]['cliente'])
+        self.assertNotIn('telefone', detalhe.data['cliente'])
+
+    def test_cliente_sem_telefone_consulta_o_proprio_pedido(self):
+        pedido = self._criar_pedido('Pendente')
+        self.client.force_authenticate(self.cliente)
+
+        resposta = self.client.get(f'/api/v1/pedidos/{pedido.pedido_id}/')
+
+        self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+        self.assertNotIn('telefone', resposta.data['cliente'])
+
+    def test_conta_sem_telefone_compra_e_checkout_nao_grava_telefone(self):
+        self.assertFalse(self.cliente.telefones.exists())
+
+        resposta = self._finalizar_compra(quantidade=2)
+
+        self.assertEqual(resposta.status_code, status.HTTP_201_CREATED)
+        self.assertNotIn('telefone', resposta.data[0]['cliente'])
+        self.assertNotIn('telefone', [campo.name for campo in PedidoCliente._meta.get_fields()])
+        self.assertFalse(Telefone.objects.exists())
+
+    def test_checkout_de_cliente_com_telefone_nao_copia_o_numero_para_o_pedido(self):
+        criar_telefone(self.cliente, '51999990000')
+
+        resposta = self._finalizar_compra()
+
+        self.assertEqual(resposta.status_code, status.HTTP_201_CREATED)
+        self.assertNotIn('51999990000', str(vars(PedidoCliente.objects.get()).values()))
+        self.assertNotIn('51999990000', str(resposta.content))
+
+    def test_minha_loja_nao_tem_n_mais_um_ao_aumentar_os_pedidos(self):
+        outros = [self._criar_usuario(f'3234567891{i}', f'outro{i}@example.com', f'Outro {i}') for i in range(3)]
+        criar_telefone(self.cliente, '51999990000')
+        self._criar_pedido('Pendente')
+        self.client.force_authenticate(self.produtor)
+        with CaptureQueriesContext(connection) as consultas_um_pedido:
+            self.client.get('/api/v1/pedidos/minha-loja/')
+
+        for usuario in outros:
+            criar_telefone(usuario, '51988887777')
+            self._criar_pedido('Em preparo', usuario)
+            self._criar_pedido('Entregue', usuario)
+        self._criar_pedido('Pronto para retirada', self._criar_usuario('32345678920', 'semtel@example.com', 'Sem Tel'))
+
+        with self.assertNumQueries(len(consultas_um_pedido)):
+            resposta = self.client.get('/api/v1/pedidos/minha-loja/')
+        self.assertEqual(len(resposta.data), 8)

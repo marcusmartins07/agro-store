@@ -111,6 +111,16 @@ export const api = {
     atualizarFoto: (arquivo) => request('/usuarios/me/', { method: 'PATCH', body: comArquivo('foto_perfil', arquivo) }),
     removerFoto: () => request('/usuarios/me/foto/', { method: 'DELETE' }),
   },
+  // Pública (RN-021): usada no cadastro, feito sem login
+  tiposTelefone: {
+    listar: () => request('/tipos-telefone/', {}, false, { autenticar: false }),
+  },
+  telefones: {
+    listar: () => request('/usuarios/me/telefones/'),
+    criar: (body) => request('/usuarios/me/telefones/', { method: 'POST', body: jsonBody(body) }),
+    atualizar: (telefoneId, body) => request(`/usuarios/me/telefones/${telefoneId}/`, { method: 'PATCH', body: jsonBody(body) }),
+    excluir: (telefoneId) => request(`/usuarios/me/telefones/${telefoneId}/`, { method: 'DELETE' }),
+  },
   lojas: {
     // Com imagem, a criação vai em multipart (o navegador define o Content-Type); sem imagem, continua em JSON
     criar: (body, imagem = null) => request('/lojas/lojas/', {
