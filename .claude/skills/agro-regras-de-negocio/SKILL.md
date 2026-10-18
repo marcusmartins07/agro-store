@@ -114,7 +114,14 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
 - Um produtor/agricultor pode cadastrar e administrar seus próprios produtos.
 - Um produtor/agricultor não deve administrar produtos de outro produtor.
 - O produtor/agricultor deve visualizar apenas pedidos relacionados à sua própria loja/produtor.
-- Decisão v1: cada produtor pode possuir somente uma loja.
+- Uma loja por produtor (RN-013): decisão v1: cada produtor pode possuir somente uma loja.
+  A regra é validada na API, que recusa a criação de uma segunda loja com mensagem clara, e também garantida no banco,
+  que impede duas lojas com o mesmo proprietário mesmo em pedidos simultâneos.
+  Múltiplas lojas por produtor ficam para o futuro e dependem de nova decisão.
+- Produtor com loja não pode ser excluído (RN-013): enquanto possuir loja, o produtor não pode ser excluído, tenha ou não pedidos;
+  a exclusão é recusada e a loja e os produtos são preservados. A loja nunca é apagada em cascata junto com o usuário.
+  O encerramento da atividade do produtor é feito pela desativação da loja e, se for o caso, pela inativação do usuário pelo administrador,
+  preservando o histórico.
 - O produtor pode alterar o nome, a descrição e a imagem e desativar sua própria loja. CNPJ e proprietário não são alterados por essa área.
   A desativação preserva o histórico e impede novas compras.
 - Imagem da loja (RN-018): cada loja pode ter uma única imagem, opcional, que pode ser escolhida já na criação da loja ou enviada depois
@@ -239,8 +246,8 @@ Ao finalizar o carrinho, o backend deve:
   Todo pedido fica vinculado ao cliente que o fez e à loja que o recebeu, e esses vínculos impedem a exclusão.
   O bloqueio vale para o cliente com pedidos e para o produtor cuja loja tenha pedidos: ao excluir esse usuário pelo admin do Django,
   a exclusão é recusada e os pedidos que a impedem são exibidos.
-  A loja não tem exclusão própria, nem no admin nem na API; ela só seria excluída junto com o produtor dono, o que fica bloqueado
-  quando a loja tem pedidos. A API também não oferece exclusão de usuário.
+  A loja não tem exclusão própria, nem no admin nem na API, e não é excluída junto com o produtor dono:
+  produtor com loja não pode ser excluído, mesmo sem pedidos (RN-013). A API também não oferece exclusão de usuário.
   Usuário com pedidos nunca é excluído: para encerrar seu acesso, o administrador o desativa e a conta é mantida.
   Pedidos não são excluídos nem editados (snapshot, itens e valores) pela área administrativa, que os mantém apenas para consulta;
   para encerrar um pedido, usa-se o status `Cancelado`.

@@ -1,5 +1,8 @@
 /*
- * Modelo lógico canônico do Agro Store — MODELO-ALVO (PostgreSQL), versão 2.3.
+ * Modelo lógico canônico do Agro Store — MODELO-ALVO (PostgreSQL), versão 2.4.
+ * A versão 2.4 alinha loja.id_proprietario aos models (DB-003/DB-014, RN-013,
+ * migration lojas/0003): uma loja por produtor (uq_loja_proprietario) e
+ * RESTRICT/PROTECT; o DDL de loja não muda.
  * A versão 2.3 torna avaliacao.id_produto opcional com ON DELETE SET NULL
  * (DB-015): excluir o produto preserva a avaliação ligada ao item do pedido.
  * A versão 2.1 acrescenta redefinicao_senha (DB-017, RN-020). A versão 2.2
@@ -19,13 +22,13 @@
  * Divergências conhecidas com os models atuais (alinhamento na DB-009):
  *
  * 1. on_delete: os models usam CASCADE onde este modelo usa RESTRICT em
- *    loja.id_proprietario, produto.id_loja, preco_produto.id_produto e em
- *    duas FKs de avaliacao (id_usuario, id_pedido_produto).
+ *    produto.id_loja, preco_produto.id_produto e em duas FKs de avaliacao
+ *    (id_usuario, id_pedido_produto).
  * 2. Nomes físicos: tabelas e colunas aqui seguem o padrão em português
  *    (id_<entidade>, esta_ativo, senha, valor_venda, imagem.caminho etc.);
  *    os models ainda usam os nomes gerados pelo Django (id, ativo, password,
  *    preco_venda, produtos_imagemproduto.imagem etc.).
- * 3. Restrições que só existem neste modelo: uq_loja_proprietario,
+ * 3. Restrições que só existem neste modelo:
  *    CHECK (estoque >= 0), sku NOT NULL, uq_imagem_produto_ordem
  *    (id_produto, ordem), ck_avaliacao_comentario_tamanho e os demais CHECK
  *    de valores (preço, carrinho, pedido) e de vigência (ck_preco_vigencia);
@@ -50,6 +53,8 @@
  * A restrição de telefone principal único por usuário existe no model
  * (telefone_principal_unico_por_usuario, migration usuarios/0006) e está
  * refletida neste arquivo.
+ * loja.id_proprietario está alinhado desde a migration lojas/0003 (DB-003/DB-014):
+ * o model tem uq_loja_proprietario e PROTECT, equivalente ao RESTRICT daqui.
  */
 
 CREATE TABLE genero (

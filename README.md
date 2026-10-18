@@ -117,6 +117,23 @@ Os endpoints abaixo exigem JWT de um produtor com loja cadastrada. O backend sem
 
 Produtos não são excluídos: para tirá-los do catálogo, o produtor altera `ativo` para `false`, preservando o histórico dos pedidos.
 
+### Criar loja (loja única por produtor, RN-013)
+
+- Método: POST
+- URL: `/api/v1/lojas/lojas/`
+- Autenticação: JWT (produtor)
+
+Payload esperado: `nome`, `descricao` e `cnpj`. O proprietário é sempre o usuário autenticado.
+
+Resposta esperada (`201`): dados da loja, incluindo `loja_id`, `proprietario` e `ativa`.
+
+Possíveis erros:
+- 400 — `{"non_field_errors": ["Cada produtor pode possuir somente uma loja."]}` quando o produtor já possui loja. A regra é validada na API e garantida no banco pela restrição única `uq_loja_proprietario`; em requisições simultâneas, o `IntegrityError` do banco é convertido na mesma resposta `400`.
+- 400 — `{"non_field_errors": ["Usuário precisa ser produtor para criar uma loja."]}` para usuário que não é produtor.
+- 401 — sem autenticação.
+
+A API não tem `DELETE` de loja nem de usuário. Como `Loja.proprietario` usa `PROTECT`, um produtor com loja não pode ser excluído, mesmo sem pedidos (no Admin do Django aparece a tela de objetos protegidos). O encerramento é feito pela desativação da loja (`ativa=false`) e pela inativação do usuário.
+
 ### Imagens do produto
 
 Cada produto pode ter até 5 imagens (JPG, PNG ou WEBP, até 5 MB cada), com exatamente uma principal quando houver imagem. A resposta de produto traz `imagens` (lista `{ id, imagem, ordem, e_principal }` em ordem de exibição) e `imagem`, com a URL da principal ou `null`.
@@ -470,12 +487,19 @@ O dono de um pedido é identificado pelo registro `PedidoCliente` (tabela `pedid
 - Exclusão bloqueada: `PedidoCliente.usuario` e `Pedido.loja` usam `PROTECT`. Não é possível excluir um usuário que tenha pedidos como cliente, nem uma loja que tenha pedidos; o Django lança `ProtectedError` (no Admin, a exclusão é recusada com a lista dos pedidos). Isso preserva o histórico de pedidos. Para retirar o acesso, desative o usuário ou a loja.
 - Item do pedido (DB-015): `PedidoProduto.produto` é opcional e usa `SET_NULL`. Se o produto for excluído, o vínculo do item fica nulo e o snapshot (`nome_produto`, `quantidade`, `valor_unitario`, `valor_desconto`, `subtotal`) é preservado. Por isso, nos itens de `GET /api/v1/pedidos/`, `GET /api/v1/pedidos/minha-loja/` e nas respostas de `PATCH /api/v1/pedidos/{id}/status/` e `PATCH /api/v1/pedidos/{id}/cancelar/`, o campo `produto` pode vir `null`. Novas restrições no banco: `quantidade > 0` e `valor_unitario`, `valor_desconto` e `subtotal >= 0`. A API continua sem exclusão de produto (somente desativação).
 - Avaliação (DB-015): `Avaliacao.produto` também é opcional e usa `SET_NULL`. A avaliação continua ligada ao item do pedido (uma por item) e visível em "Meus pedidos", mas deixa de aparecer na listagem por produto. As chaves `usuario` e `pedido_produto` de `Avaliacao` ainda usam `CASCADE`; avaliações só saem por moderação no Admin.
+- `Loja.proprietario` também usa `PROTECT` e é único (`uq_loja_proprietario`): não é possível excluir um produtor que tenha loja, tenha ela pedidos ou não, e a loja nunca é apagada em cascata com o usuário.
 
 ## Banco de dados e migrations
 
 O banco é definido por `DATABASE_URL`. Com a variável vazia, o backend usa SQLite local; com `postgresql://...`, usa PostgreSQL (Supabase em produção). O modelo lógico está em `docs/modelo-logico.sql`.
 
 > **Alerta:** o `.env` da raiz pode conter um `DATABASE_URL` apontando para o Supabase. Rodar `migrate` com essa variável preenchida aplica as migrations **em produção**. No desenvolvimento, execute os comandos com `DATABASE_URL=` vazio (use o `.env.example` como base; ele traz a variável vazia).
+
+### Migration de loja única por produtor (lojas 0003)
+
+`lojas/0003_loja_proprietario_unico_protect` altera `Loja.proprietario` para `on_delete=PROTECT` e cria a restrição única `uq_loja_proprietario`. Ela tem uma guarda que **interrompe** a migration se algum produtor tiver mais de uma loja. Já está aplicada no Supabase.
+
+No SQLite local de desenvolvimento, se o `migrate` parar nessa guarda, o banco tem produtores com duas ou mais lojas. Sane o banco deixando uma loja por produtor (por exemplo, pelo Admin ou `manage.py shell`, preservando a loja que tem pedidos) ou recrie o `db.sqlite3` (apague o arquivo e rode `migrate`), e então rode `migrate` novamente.
 
 ### Migrations do vínculo do cliente (pedidos 0003 a 0005)
 
@@ -500,7 +524,14 @@ Criam `tipo_telefone` e `telefone`, copiam o antigo `Usuario.telefone` e removem
 
 ### Procedimento para aplicar no Supabase
 
-Estado: **aplicado em 2026-10-16**. Conferido com `node scripts/backend.mjs showmigrations`: não há migration pendente no Supabase (inclui `usuarios` 0005). O procedimento abaixo fica como referência histórica; aplique migrations futuras somente com autorização.
+Estado: **aplicado no Supabase até `lojas` 0003 e `usuarios` 0005**. Conferências com `showmigrations`:
+
+- 15/10/2026: todas as migrations existentes na época aplicadas, incluindo `pedidos` 0001 a 0005 (os 7 registros de `pedidos_pedidocliente` com `usuario_id` preenchido) e `lojas` 0003.
+- 16/10/2026: conferido com `node scripts/backend.mjs showmigrations`; sem migration pendente na época (inclui `usuarios` 0005).
+
+**Pendentes de aplicação** na branch integrada (exigem autorização e backup): `usuarios` 0006 a 0008 (telefones), `pedidos` 0006 (irreversível, remove o telefone do snapshot) e `pedidos` 0007 (item do pedido com produto opcional e `SET_NULL`, DB-015), e `avaliacoes` 0002 (avaliação com produto opcional e `SET_NULL`, DB-015).
+
+O procedimento abaixo vale como referência para essas aplicações e para as futuras.
 
 1. Faça backup (`pg_dump` ou painel do Supabase).
 2. Rode as consultas somente leitura:
@@ -806,6 +837,7 @@ Cada item de pedido traz o campo somente leitura `avaliacao`, que vale `null` (i
 - Pedidos (e seus itens, cliente e status) ficam somente para consulta: sem incluir, editar ou excluir, inclusive o status. A troca de status é feita pela API (RN-019).
 - Avaliações são moderadas apenas por exclusão (não há inclusão nem edição). Após a exclusão, o item de pedido pode ser avaliado de novo.
 - Usuário ou loja com pedidos não podem ser excluídos; usa-se a desativação.
+- Produtor com loja não pode ser excluído, mesmo sem pedidos (RN-013); o Admin exibe os objetos protegidos. Encerre pela desativação da loja e pela inativação do usuário.
 
 ## Idioma e notificações
 

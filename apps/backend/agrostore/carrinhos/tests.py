@@ -263,7 +263,16 @@ class CarrinhoAPITests(APITestCase):
         self.assertFalse(item['disponivel'])
 
     def _criar_outra_loja(self):
-        return Loja.objects.create(proprietario=self.produtor, nome='Loja Azul', cnpj='12345678000188')
+        outro_produtor = Usuario.objects.create_user(
+            cpf='12345678904',
+            email='outro-produtor-carrinho@example.com',
+            password='senha123',
+            nome='Outro Produtor Teste',
+            data_nascimento='1981-01-01',
+            genero=self.genero,
+            is_produtor=True,
+        )
+        return Loja.objects.create(proprietario=outro_produtor, nome='Loja Azul', cnpj='12345678000188')
 
     def test_rejeita_patch_da_loja_do_carrinho(self):
         item = self._adicionar_item_com_quantidade(2)

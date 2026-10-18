@@ -40,9 +40,18 @@ class PedidoCheckoutTests(APITestCase):
             genero=self.genero,
             is_produtor=True,
         )
+        self.outro_produtor = Usuario.objects.create_user(
+            cpf='22345678990',
+            email='outro-produtor-pedido@example.com',
+            password='senha123',
+            nome='Outro Produtor Pedido',
+            data_nascimento='1982-01-01',
+            genero=self.genero,
+            is_produtor=True,
+        )
         self.categoria = Categoria.objects.create(nome='Verduras')
         self.loja_a = Loja.objects.create(proprietario=self.produtor, nome='Loja A', cnpj='22345678000199')
-        self.loja_b = Loja.objects.create(proprietario=self.produtor, nome='Loja B', cnpj='22345678000198')
+        self.loja_b = Loja.objects.create(proprietario=self.outro_produtor, nome='Loja B', cnpj='22345678000198')
         self.produto_a = self._criar_produto(self.loja_a, 'Alface', 'ALF-001', 10, Decimal('5.00'), Decimal('1.00'))
         self.produto_b = self._criar_produto(self.loja_b, 'Cenoura', 'CEN-001', 8, Decimal('7.00'), Decimal('0.00'))
         self.produto_nao_selecionado = self._criar_produto(self.loja_a, 'Rúcula', 'RUC-001', 6, Decimal('4.00'), Decimal('0.00'))

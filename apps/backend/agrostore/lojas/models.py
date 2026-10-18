@@ -11,7 +11,8 @@ def caminho_imagem_loja(loja, nome_arquivo):
 
 class Loja(BaseModel):
     loja_id = models.AutoField(primary_key=True)
-    proprietario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='lojas', limit_choices_to={'is_produtor': True})
+    # PROTECT: produtor com loja não pode ser excluído; o encerramento é feito pela desativação (RN-019).
+    proprietario = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='lojas', limit_choices_to={'is_produtor': True})
     nome = models.CharField(max_length=150)
     descricao = models.TextField(blank=True)
     cnpj = models.CharField(max_length=14, unique=True)
@@ -23,6 +24,12 @@ class Loja(BaseModel):
         validators=[FileExtensionValidator(EXTENSOES_IMAGEM)],
     )
     ativa = models.BooleanField(default=True)
+
+    class Meta:
+        constraints = [
+            # Decisão v1: cada produtor pode possuir somente uma loja.
+            models.UniqueConstraint(fields=['proprietario'], name='uq_loja_proprietario'),
+        ]
 
     def __str__(self):
         return self.nome
