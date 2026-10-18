@@ -17,7 +17,7 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
         queryset=PedidoProduto.objects.all(),
         error_messages={'does_not_exist': 'Este item não pertence ao seu pedido.'},
     )
-    produto_nome = serializers.StringRelatedField(source='produto', read_only=True)
+    produto_nome = serializers.SerializerMethodField()
     usuario_nome = serializers.SerializerMethodField()
     comentario = serializers.CharField(
         max_length=500,
@@ -39,6 +39,11 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ['usuario', 'produto']
 
+    def get_produto_nome(self, avaliacao):
+        if avaliacao.produto_id:
+            return avaliacao.produto.nome
+        return avaliacao.pedido_produto.nome_produto
+
     def get_usuario_nome(self, avaliacao):
         return abreviar_nome(avaliacao.usuario.nome)
 
@@ -51,6 +56,9 @@ class AvaliacaoSerializer(serializers.ModelSerializer):
 
         if pedido.status.status != 'Entregue':
             raise serializers.ValidationError("Só é possível avaliar pedidos entregues.")
+
+        if value.produto_id is None:
+            raise serializers.ValidationError("Este produto não está mais disponível para avaliação.")
 
         if Avaliacao.objects.filter(pedido_produto=value).exists():
             raise serializers.ValidationError("Este item já foi avaliado.")

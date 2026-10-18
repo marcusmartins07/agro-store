@@ -110,8 +110,8 @@ Os endpoints abaixo exigem JWT de um produtor com loja cadastrada. O backend sem
 
 - `GET /api/v1/produtos/meus/`: lista todos os produtos da loja, inclusive inativos.
 - `POST /api/v1/produtos/` e `PATCH /api/v1/produtos/{id}/`: cadastra ou altera produtos da própria loja. Estoque negativo retorna `400` (ver [Disponibilidade por estoque](#disponibilidade-por-estoque-rn-017)).
-- `POST /api/v1/produtos/precos/`: registra um novo preço vigente, encerrando automaticamente o preço anterior. Recebe `produto`, `preco_venda` e, opcionalmente, `porcentagem_desconto` entre 0 e 100.
-- `GET /api/v1/pedidos/minha-loja/`: lista pedidos da loja com itens, valores, data de criação (`data_criacao`) e somente nome/telefone do cliente (`cliente: {nome, telefone}`). O `telefone` é o telefone principal atual do cliente e só vem nos pedidos `Pendente`, `Em preparo` e `Pronto para retirada`; em pedidos `Entregue` e `Cancelado`, ou se o cliente não tem telefone, vem `null` (ver [Telefones do usuário](#telefones-do-usuário-rn-021)). O mesmo vale para a resposta de `PATCH /api/v1/pedidos/{id}/status/`.
+- `POST /api/v1/produtos/precos/`: registra um novo preço vigente, encerrando automaticamente o preço anterior. Recebe `produto`, `preco_venda` e, opcionalmente, `porcentagem_desconto` entre 0 e 100. Valor zero é aceito. `preco_venda` negativo retorna `400` com `{"preco_venda": ["O preço de venda não pode ser negativo."]}`; `preco_custo` negativo retorna `400` com `{"preco_custo": ["O preço de custo não pode ser negativo."]}` (`preco_custo` nulo ou ausente é aceito).
+- `GET /api/v1/pedidos/minha-loja/`: lista pedidos da loja com itens, valores, data de criação (`data_criacao`) e somente nome/telefone do cliente (`cliente: {nome, telefone}`). O `telefone` é o telefone principal atual do cliente e só vem nos pedidos `Pendente`, `Em preparo` e `Pronto para retirada`; em pedidos `Entregue` e `Cancelado`, ou se o cliente não tem telefone, vem `null` (ver [Telefones do usuário](#telefones-do-usuário-rn-021)). O mesmo vale para a resposta de `PATCH /api/v1/pedidos/{id}/status/`. Nos itens, `produto` pode vir `null` quando o produto foi excluído (ver [Vínculo do pedido com o cliente](#vínculo-do-pedido-com-o-cliente)); o snapshot do item (`nome_produto`, `quantidade`, `valor_unitario`, `valor_desconto`, `subtotal`) permanece.
 - `GET /api/v1/pedidos/status-disponiveis/` e `PATCH /api/v1/pedidos/{id}/status/`: consulta e atualiza o status pelo fluxo `Pendente → Em preparo → Pronto para retirada → Entregue`, com cancelamento permitido antes da retirada.
 - `PATCH /api/v1/lojas/me/`: altera apenas `nome`, `descricao`, `ativa` e `imagem_perfil`; outros campos (como `cnpj`) retornam `400`. Uma loja inativa preserva o histórico e não aceita novas compras. Detalhes da imagem em [Imagem da loja e foto de perfil](#imagem-da-loja-e-foto-de-perfil-rn-018).
 
@@ -375,6 +375,8 @@ Campos novos do item (somente leitura): `estoque` (inteiro, estoque atual do pro
 Possíveis erros:
 - 401 — sem autenticação.
 
+O campo `loja` do carrinho é somente leitura. A rota `/api/v1/carrinhos/{id}/` aceita apenas `GET` (detalhe, somente do dono do carrinho); `PUT`, `PATCH` e `DELETE` nela respondem `405`. A alteração de quantidade e a remoção de itens são feitas pelas rotas `/api/v1/carrinhos/itens/{id}/`.
+
 ### Adicionar produto ao carrinho
 
 - Método: POST
@@ -431,6 +433,7 @@ Resposta esperada (`201`): lista de pedidos criados, um por loja. Os produtos s�
 Possíveis erros (nenhum pedido é criado em caso de erro):
 - 400 — item com quantidade 0: `{"detail": "O produto <nome> está sem estoque. Remova-o da seleção para finalizar."}`
 - 400 — `{"detail": "O produto <nome> não possui estoque suficiente."}`
+- 400 — `{"detail": "O produto <nome> não pertence à loja do carrinho."}` (a finalização inteira é recusada, sem criar pedidos nem baixar estoque).
 - 400 — produto inativo, loja inativa, produto sem preço vigente ou item inválido (`"Um ou mais itens do carrinho são inválidos."`).
 - 401 — sem autenticação.
 
@@ -465,7 +468,8 @@ O dono de um pedido é identificado pelo registro `PedidoCliente` (tabela `pedid
 - "Meus pedidos", detalhe e cancelamento filtram por `cliente__usuario`; a avaliação de produto confere a titularidade do pedido pelo mesmo caminho. O produtor continua filtrado por `loja__proprietario`.
 - O contrato JSON da API não mudou: nenhum payload expõe `usuario`.
 - Exclusão bloqueada: `PedidoCliente.usuario` e `Pedido.loja` usam `PROTECT`. Não é possível excluir um usuário que tenha pedidos como cliente, nem uma loja que tenha pedidos; o Django lança `ProtectedError` (no Admin, a exclusão é recusada com a lista dos pedidos). Isso preserva o histórico de pedidos. Para retirar o acesso, desative o usuário ou a loja.
-- As demais chaves estrangeiras não protegem: `PedidoProduto.produto` e as chaves de `Avaliacao` (`usuario`, `produto` e `pedido_produto`) usam `CASCADE`. Por isso produtos não são excluídos (são desativados) e avaliações só saem por moderação no Admin.
+- Item do pedido (DB-015): `PedidoProduto.produto` é opcional e usa `SET_NULL`. Se o produto for excluído, o vínculo do item fica nulo e o snapshot (`nome_produto`, `quantidade`, `valor_unitario`, `valor_desconto`, `subtotal`) é preservado. Por isso, nos itens de `GET /api/v1/pedidos/`, `GET /api/v1/pedidos/minha-loja/` e nas respostas de `PATCH /api/v1/pedidos/{id}/status/` e `PATCH /api/v1/pedidos/{id}/cancelar/`, o campo `produto` pode vir `null`. Novas restrições no banco: `quantidade > 0` e `valor_unitario`, `valor_desconto` e `subtotal >= 0`. A API continua sem exclusão de produto (somente desativação).
+- Avaliação (DB-015): `Avaliacao.produto` também é opcional e usa `SET_NULL`. A avaliação continua ligada ao item do pedido (uma por item) e visível em "Meus pedidos", mas deixa de aparecer na listagem por produto. As chaves `usuario` e `pedido_produto` de `Avaliacao` ainda usam `CASCADE`; avaliações só saem por moderação no Admin.
 
 ## Banco de dados e migrations
 
@@ -779,6 +783,7 @@ Resposta esperada (`201`): produto e usuário são vinculados pelo backend.
 Possíveis erros (`400`, na ordem das validações do `pedido_produto`):
 - "Este item não pertence ao seu pedido." (também quando o id não existe)
 - "Só é possível avaliar pedidos entregues."
+- "Este produto não está mais disponível para avaliação." (o produto do item foi excluído; formato `{"pedido_produto": ["Este produto não está mais disponível para avaliação."]}`)
 - "Este item já foi avaliado."
 - "O comentário deve ter no máximo 500 caracteres."
 - 400 — nota fora de 1 a 5 ou ausente (mensagens padrão do DRF).
@@ -790,7 +795,7 @@ Possíveis erros (`400`, na ordem das validações do `pedido_produto`):
 - URL: `/api/v1/avaliacoes/?produto=<id>`
 - Autenticação: pública
 
-Resposta esperada (`200`): lista no mesmo formato acima. `usuario_nome` é abreviado (primeiro nome e inicial do último sobrenome, como "Maria S."); o nome completo não é exposto. Avaliações de produto ou loja inativos continuam listadas. Sem `produto`, retorna todas as avaliações.
+Resposta esperada (`200`): lista no mesmo formato acima. `usuario_nome` é abreviado (primeiro nome e inicial do último sobrenome, como "Maria S."); o nome completo não é exposto. Avaliações de produto ou loja inativos continuam listadas. Sem `produto`, retorna todas as avaliações. Se o produto foi excluído, `produto` vem `null` e `produto_nome` vem do nome guardado no item do pedido; essas avaliações não aparecem em `?produto=<id>`, mas seguem visíveis em "Meus pedidos".
 
 ### Campo `avaliacao` nos itens de pedido
 

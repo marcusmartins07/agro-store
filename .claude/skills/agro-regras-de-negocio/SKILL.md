@@ -153,7 +153,9 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
 - Produtor pode sugerir uma categoria, que deve nascer inativa e ficar visível publicamente.
 - Somente administrador pode criar categoria já ativa, renomear, ativar ou inativar categorias.
 - Produto inativo não deve aparecer como disponível para compra.
-- Produtos não são excluídos: o produtor os desativa (e pode reativá-los). A exclusão apagaria itens de pedidos já realizados.
+- Produtos não são excluídos: o produtor os desativa (e pode reativá-los). A API não oferece exclusão de produto.
+  Se um produto for excluído, os itens de pedidos já realizados são preservados com o snapshot (RN-019).
+  As avaliações desse produto também são preservadas, vinculadas ao item do pedido (RN-010).
 - Produto sem estoque suficiente não deve ser comprado.
 - Estoque zerado no catálogo (RN-017): produto com estoque 0 não aparece na listagem nem na busca do catálogo público.
   O detalhe pelo link direto continua acessível, com "Sem estoque" e a compra bloqueada. O campo `ativo` não é alterado.
@@ -225,6 +227,9 @@ Ao finalizar o carrinho, o backend deve:
 
 - Ao finalizar o carrinho, o sistema deve separar os itens por produtor/loja.
 - Deve ser criado um pedido separado para cada produtor/loja.
+- Pedidos por loja (RN-011): decisão v1: a compra não agrupa pedidos; cada finalização gera um pedido por loja/produtor,
+  e o cliente acompanha seus pedidos separadamente, loja por loja. Esse comportamento basta para o MVP.
+  O agrupamento dos pedidos de uma mesma finalização em uma compra fica para o futuro.
 - O pedido deve preservar snapshot dos dados do cliente, exceto o telefone (RN-021), que é consultado no cadastro atual do cliente.
 - O pedido deve preservar snapshot dos dados do produto.
 - O cliente deve visualizar apenas seus próprios pedidos.
@@ -240,6 +245,9 @@ Ao finalizar o carrinho, o backend deve:
   Pedidos não são excluídos nem editados (snapshot, itens e valores) pela área administrativa, que os mantém apenas para consulta;
   para encerrar um pedido, usa-se o status `Cancelado`.
   Para encerrar a atividade de uma loja, o caminho é a desativação, que preserva o histórico e impede novas compras.
+  O item do pedido é preservado mesmo que o produto seja excluído: o vínculo do item com o produto fica nulo
+  e o snapshot do produto (nome, valores e quantidade) permanece no pedido.
+  A exclusão de produto continua não sendo oferecida pela API; o produtor somente desativa o produto.
 
 ## Exemplo de split de pedidos
 
@@ -322,6 +330,11 @@ Para organizar a retirada, o produtor pode consultar somente o nome do cliente r
 - As avaliações são públicas: qualquer visitante vê, no detalhe do produto, a lista de avaliações e a média das notas.
   A API já retorna o nome do avaliador abreviado (primeiro nome e inicial do sobrenome); o nome completo não é exposto.
   As avaliações continuam visíveis mesmo que o produto ou a loja sejam desativados.
+- Produto excluído (RN-010): item de pedido cujo produto foi excluído e que ainda não foi avaliado não pode mais ser avaliado.
+  Mensagem de recusa: "Este produto não está mais disponível para avaliação.".
+  A exclusão de produto com avaliação é permitida. As avaliações já feitas são preservadas: continuam vinculadas ao item do pedido
+  e visíveis para o cliente em "Meus pedidos", mas perdem o vínculo com o produto e deixam de aparecer na página do produto,
+  que não existe mais.
 - Decisão v1: a média é calculada apenas para exibição, no detalhe do produto; não há média armazenada nem exibida no catálogo.
 - Decisão v1: depois de enviada, a avaliação não pode ser editada nem removida pelo autor; não existe edição de avaliação.
   Somente o administrador pode remover uma avaliação, como moderação, pela área administrativa.

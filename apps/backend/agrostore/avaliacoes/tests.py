@@ -292,6 +292,61 @@ class AvaliacaoPedidoTests(APITestCase):
             self.assertEqual(response.data['pedido_produto'], ['Este item não pertence ao seu pedido.'])
         self.assertEqual(Avaliacao.objects.count(), 1)
 
+    def test_item_entregue_sem_produto_nao_pode_ser_avaliado(self):
+        self.produto.delete()
+        self.client.force_authenticate(self.cliente)
+
+        response = self.client.post('/api/v1/avaliacoes/', {'pedido_produto': self.item.pedido_produto_id, 'nota': 5}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['pedido_produto'], ['Este produto não está mais disponível para avaliação.'])
+        self.assertFalse(Avaliacao.objects.exists())
+
+    def test_excluir_produto_avaliado_preserva_avaliacao_ligada_ao_item(self):
+        avaliacao = self._avaliar()
+        produto_id = self.produto.produto_id
+
+        self.produto.delete()
+
+        avaliacao.refresh_from_db()
+        self.assertIsNone(avaliacao.produto_id)
+        self.assertEqual(avaliacao.pedido_produto, self.item)
+        self.assertEqual((avaliacao.nota, avaliacao.comentario), (5, 'Muito bom'))
+        self.assertIn('Maçã', str(avaliacao))
+        self.assertTrue(PedidoProduto.objects.filter(pk=self.item.pk, produto__isnull=True).exists())
+        self.assertEqual(Avaliacao.objects.filter(produto_id=produto_id).count(), 0)
+
+    def test_avaliacao_de_produto_excluido_aparece_no_pedido_e_na_listagem_sem_filtro_de_produto(self):
+        avaliacao = self._avaliar()
+        produto_id = self.produto.produto_id
+        self.produto.delete()
+        self.client.force_authenticate(self.cliente)
+
+        pedidos = self.client.get('/api/v1/pedidos/')
+        listagem = self.client.get('/api/v1/avaliacoes/')
+        filtrada = self.client.get(f'/api/v1/avaliacoes/?produto={produto_id}')
+
+        self.assertEqual(pedidos.status_code, status.HTTP_200_OK)
+        item = pedidos.data[0]['itens'][0]
+        self.assertIsNone(item['produto'])
+        self.assertEqual(item['avaliacao']['avaliacao_id'], avaliacao.avaliacao_id)
+        self.assertEqual(listagem.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(listagem.data), 1)
+        self.assertIsNone(listagem.data[0]['produto'])
+        self.assertEqual(listagem.data[0]['produto_nome'], 'Maçã')
+        self.assertEqual(filtrada.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(filtrada.data), 0)
+
+    def test_admin_lista_avaliacao_de_produto_excluido(self):
+        avaliacao = self._avaliar()
+        self.produto.delete()
+        self.client.force_login(self._criar_administrador())
+
+        listagem = self.client.get(reverse('admin:avaliacoes_avaliacao_changelist'))
+        detalhe = self.client.get(reverse('admin:avaliacoes_avaliacao_change', args=[avaliacao.pk]))
+
+        self.assertEqual((listagem.status_code, detalhe.status_code), (status.HTTP_200_OK, status.HTTP_200_OK))
+
     def _postar(self, item, nota):
         return self.client.post('/api/v1/avaliacoes/', {'pedido_produto': item.pedido_produto_id, 'nota': nota}, format='json')
 

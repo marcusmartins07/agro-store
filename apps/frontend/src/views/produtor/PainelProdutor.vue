@@ -37,13 +37,16 @@
             <ol v-if="produtorStore.produtosMaisVendidos.length" class="list-unstyled mb-0">
               <li
                 v-for="(produto, indice) in produtorStore.produtosMaisVendidos"
-                :key="produto.produto"
+                :key="produto.chave"
                 class="item-ranking d-flex align-items-center gap-3 py-2"
               >
                 <span class="posicao rounded-circle d-inline-flex align-items-center justify-content-center small fw-semibold flex-shrink-0">
                   {{ indice + 1 }}
                 </span>
-                <span class="flex-grow-1 text-truncate">{{ produto.nome }}</span>
+                <span class="flex-grow-1 text-truncate">
+                  {{ produto.nome }}
+                  <span v-if="!produto.produto" class="text-body-secondary small">(produto removido)</span>
+                </span>
                 <span class="small text-body-secondary text-nowrap">{{ produto.quantidade }} un.</span>
                 <span class="small fw-semibold text-nowrap valor">{{ formatarPreco(produto.total) }}</span>
               </li>

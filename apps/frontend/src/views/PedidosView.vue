@@ -110,9 +110,12 @@
                   <tr v-for="item in pedido.itens" :key="item.pedido_produto_id">
                     <td>
                       <span class="d-block text-break">{{ item.nome_produto }}</span>
+                      <span v-if="!item.produto && pedido.status_nome !== STATUS_ENTREGUE" class="small text-body-secondary">
+                        Produto não está mais disponível
+                      </span>
                       <template v-if="pedido.status_nome === STATUS_ENTREGUE">
                         <button
-                          v-if="item.avaliacao === null"
+                          v-if="podeAvaliar(item)"
                           type="button"
                           class="btn btn-sm btn-outline-primary rounded-pill px-3 mt-1"
                           :aria-label="`Avaliar ${item.nome_produto}`"
@@ -128,10 +131,11 @@
                         >
                           <AvaliacaoEstrelas :nota="Number(item.avaliacao.nota)" :tamanho="14" />
                           <span class="text-body-secondary">Avaliado</span>
-                          <RouterLink :to="{ name: 'produto', params: { id: item.produto }, hash: '#avaliacoes' }">
+                          <RouterLink v-if="item.produto" :to="{ name: 'produto', params: { id: item.produto }, hash: '#avaliacoes' }">
                             Ver no produto<span class="visually-hidden">: {{ item.nome_produto }}</span>
                           </RouterLink>
                         </div>
+                        <span v-else-if="!item.produto" class="small text-body-secondary">Produto não está mais disponível</span>
                       </template>
                     </td>
                     <td class="text-center">{{ item.quantidade }}</td>
@@ -285,7 +289,11 @@ async function carregar() {
 
 // O campo avaliacao vem da API (BE-019): null = item ainda não avaliado
 function temAvaliacaoPendente(pedido) {
-  return pedido.status_nome === STATUS_ENTREGUE && pedido.itens.some(item => item.avaliacao === null)
+  return pedido.status_nome === STATUS_ENTREGUE && pedido.itens.some(podeAvaliar)
+}
+
+function podeAvaliar(item) {
+  return item.avaliacao === null && Boolean(item.produto)
 }
 
 function abrirAvaliacao(pedido, item) {

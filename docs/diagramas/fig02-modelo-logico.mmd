@@ -23,11 +23,11 @@ erDiagram
     PEDIDO ||--|| PEDIDO_CLIENTE : "preserva o cliente em"
     USUARIO ||--o{ PEDIDO_CLIENTE : realiza
     PEDIDO ||--|{ PEDIDO_PRODUTO : contem
-    PRODUTO ||--o{ PEDIDO_PRODUTO : "vendido em"
+    PRODUTO |o--o{ PEDIDO_PRODUTO : "vendido em"
     USUARIO ||--o{ FAVORITO : marca
     PRODUTO ||--o{ FAVORITO : "favoritado em"
     USUARIO ||--o{ AVALIACAO : escreve
-    PRODUTO ||--o{ AVALIACAO : recebe
+    PRODUTO |o--o{ AVALIACAO : recebe
     PEDIDO_PRODUTO ||--o| AVALIACAO : "avaliado por"
 
     %% USUARIO ||--o{ LOJA: o model não tem UNIQUE em proprietario; a regra de uma loja por produtor (RN-013)
@@ -195,7 +195,8 @@ erDiagram
         decimal valor_desconto
         decimal subtotal
     }
-    %% PEDIDO_PRODUTO: o model usa CASCADE e produto obrigatório; o modelo-alvo usa produto nulo com ON DELETE SET NULL.
+    %% PEDIDO_PRODUTO (DB-015): produto_id é opcional com ON DELETE SET NULL, no model e no modelo-alvo; o snapshot do item permanece.
+    %% CHECK quantidade > 0 e valor_unitario, valor_desconto e subtotal >= 0. A relação com pedido é CASCADE.
 
     FAVORITO {
         int favorito_id PK
@@ -212,4 +213,5 @@ erDiagram
         int nota "1 a 5"
         text comentario "até 500, validado na API"
     }
-    %% AVALIACAO: o model usa CASCADE nas três FKs; o modelo-alvo usa ON DELETE RESTRICT.
+    %% AVALIACAO (DB-015): produto_id é opcional com ON DELETE SET NULL, no model e no modelo-alvo; a avaliação continua ligada ao item do pedido.
+    %% Só usuario e pedido_produto seguem com CASCADE no model e ON DELETE RESTRICT no modelo-alvo.
