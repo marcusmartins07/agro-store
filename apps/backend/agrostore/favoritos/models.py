@@ -5,11 +5,12 @@ from agrostore.produtos.models import Produto
 
 
 class Favorito(BaseModel):
-    favorito_id = models.AutoField(primary_key=True)
-    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='favoritos')
-    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='favoritos')
+    favorito_id = models.BigAutoField(primary_key=True, db_column='id_favorito')
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='favoritos', db_column='id_usuario')
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='favoritos', db_column='id_produto')
 
     class Meta:
+        db_table = 'favorito'
         unique_together = ('usuario', 'produto')  # mesmo produto não duplica
 
     def __str__(self):

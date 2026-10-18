@@ -9,14 +9,15 @@ from agrostore.usuarios.models import Usuario
 
 
 class Carrinho(BaseModel):
-    carrinho_id = models.AutoField(primary_key=True)
-    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='carrinhos')
-    loja = models.ForeignKey(Loja, on_delete=models.CASCADE)
+    carrinho_id = models.BigAutoField(primary_key=True, db_column='id_carrinho')
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='carrinhos', db_column='id_usuario')
+    loja = models.ForeignKey(Loja, on_delete=models.CASCADE, db_column='id_loja')
     valor_bruto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     valor_desconto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     valor_liquido = models.DecimalField(max_digits=10, decimal_places=2, default=0)
 
     class Meta:
+        db_table = 'carrinho'
         unique_together = ('usuario', 'loja')
 
     def __str__(self):
@@ -42,12 +43,13 @@ class Carrinho(BaseModel):
 
 
 class CarrinhoProduto(BaseModel):
-    carrinho_produto_id = models.AutoField(primary_key=True)
-    carrinho = models.ForeignKey(Carrinho, on_delete=models.CASCADE, related_name='itens')
-    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='itens_carrinho')
+    carrinho_produto_id = models.BigAutoField(primary_key=True, db_column='id_carrinho_produto')
+    carrinho = models.ForeignKey(Carrinho, on_delete=models.CASCADE, related_name='itens', db_column='id_carrinho')
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='itens_carrinho', db_column='id_produto')
     quantidade = models.PositiveIntegerField(default=1)
 
     class Meta:
+        db_table = 'carrinho_produto'
         unique_together = ('carrinho', 'produto')
 
     def __str__(self):

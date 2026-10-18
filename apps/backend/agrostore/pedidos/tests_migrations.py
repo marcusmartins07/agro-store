@@ -17,7 +17,7 @@ class MigracaoVinculoClienteTests(TransactionTestCase):
         # Remove os dados históricos e volta ao estado final para não afetar os demais testes.
         self._migrar(ETAPA_SCHEMA)
         self._apagar_dados()
-        self._migrar(ATUAL)
+        self._migrar_para_folhas()
 
     def test_migration_preserva_o_cliente_dos_pedidos_existentes(self):
         dados = self._criar_pedidos_historicos(com_snapshot=True)
@@ -102,6 +102,10 @@ class MigracaoVinculoClienteTests(TransactionTestCase):
 
     def _estado(self, alvo):
         return MigrationExecutor(connection).loader.project_state(self._com_demais_apps_atualizados(alvo)).apps
+
+    def _migrar_para_folhas(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
 
     def _migrar(self, alvo):
         MigrationExecutor(connection).migrate(self._com_demais_apps_atualizados(alvo))
