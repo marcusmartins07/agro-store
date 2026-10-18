@@ -232,7 +232,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
     def _atualizar_status_pedido(self, pedido, status_cancelado):
         if status_cancelado.status == 'Cancelado':
             for item in pedido.itens.all():
-                produto = Produto.objects.select_for_update().get(produto_id=item.produto_id)
+                if item.produto_id is None:
+                    continue
+                produto = Produto.objects.select_for_update().filter(produto_id=item.produto_id).first()
+                if produto is None:
+                    continue
                 produto.estoque += item.quantidade
                 produto.save(update_fields=['estoque', 'data_atualizacao'])
 

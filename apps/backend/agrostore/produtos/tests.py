@@ -279,6 +279,38 @@ class ProdutoCategoriaAPITests(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(PrecoProduto.objects.filter(produto=self.produto, vigencia_fim__isnull=True).count(), 1)
 
+    def _postar_preco(self, **campos):
+        self.client.force_authenticate(self.produtor)
+        return self.client.post('/api/v1/produtos/precos/', {'produto': self.produto.produto_id, **campos}, format='json')
+
+    def test_preco_de_venda_negativo_e_recusado_com_mensagem(self):
+        response = self._postar_preco(preco_venda='-0.01')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['preco_venda'], ['O preço de venda não pode ser negativo.'])
+        self.assertFalse(PrecoProduto.objects.exists())
+
+    def test_preco_de_custo_negativo_e_recusado_com_mensagem(self):
+        response = self._postar_preco(preco_venda='10.00', preco_custo='-1.00')
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(response.data['preco_custo'], ['O preço de custo não pode ser negativo.'])
+        self.assertFalse(PrecoProduto.objects.exists())
+
+    def test_precos_zerados_sao_aceitos(self):
+        response = self._postar_preco(preco_venda='0.00', preco_custo='0.00')
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        preco = PrecoProduto.objects.get()
+        self.assertEqual((preco.preco_venda, preco.preco_custo), (Decimal('0.00'), Decimal('0.00')))
+
+    def test_preco_de_custo_nulo_ou_ausente_e_aceito(self):
+        nulo = self._postar_preco(preco_venda='10.00', preco_custo=None)
+        ausente = self._postar_preco(preco_venda='11.00')
+
+        self.assertEqual((nulo.status_code, ausente.status_code), (status.HTTP_201_CREATED, status.HTTP_201_CREATED))
+        self.assertIsNone(PrecoProduto.objects.get(preco_venda=Decimal('11.00')).preco_custo)
+
 
 class ProdutoEstoqueAPITests(APITestCase):
     def setUp(self):

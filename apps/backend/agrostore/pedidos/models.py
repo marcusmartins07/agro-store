@@ -33,12 +33,20 @@ class Pedido(BaseModel):
 class PedidoProduto(BaseModel):
     pedido_produto_id = models.AutoField(primary_key=True)
     pedido = models.ForeignKey(Pedido, on_delete=models.CASCADE, related_name='itens')
-    produto = models.ForeignKey(Produto, on_delete=models.CASCADE)
+    produto = models.ForeignKey(Produto, on_delete=models.SET_NULL, null=True, blank=True)
     nome_produto = models.CharField(max_length=155)
     quantidade = models.PositiveIntegerField()
     valor_unitario = models.DecimalField(max_digits=10, decimal_places=2)
     valor_desconto = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     subtotal = models.DecimalField(max_digits=10, decimal_places=2)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=models.Q(quantidade__gt=0), name='pedido_produto_quantidade_positiva'),
+            models.CheckConstraint(condition=models.Q(valor_unitario__gte=0), name='pedido_produto_valor_unitario_nao_negativo'),
+            models.CheckConstraint(condition=models.Q(valor_desconto__gte=0), name='pedido_produto_valor_desconto_nao_negativo'),
+            models.CheckConstraint(condition=models.Q(subtotal__gte=0), name='pedido_produto_subtotal_nao_negativo'),
+        ]
 
     def __str__(self):
         return f"{self.quantidade}x {self.nome_produto}"

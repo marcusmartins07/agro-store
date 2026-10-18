@@ -758,15 +758,128 @@ class PedidoCheckoutTests(APITestCase):
         self.assertEqual(pedido.valor_liquido, Decimal('0.00'))
         self.assertEqual(pedido.itens.count(), 1)
 
-    def _criar_item_pedido(self, pedido, produto):
-        return PedidoProduto.objects.create(
-            pedido=pedido,
-            produto=produto,
-            nome_produto=produto.nome,
-            quantidade=1,
-            valor_unitario=Decimal('5.00'),
-            subtotal=Decimal('5.00'),
+    def test_excluir_produto_preserva_item_snapshot_pedido_e_cliente(self):
+        pedido = self._criar_pedido()
+        item = self._criar_item_pedido(pedido, self.produto_a)
+
+        self.produto_a.delete()
+
+        item.refresh_from_db()
+        self.assertIsNone(item.produto_id)
+        self.assertEqual(item.nome_produto, 'Alface')
+        self.assertEqual((item.quantidade, item.valor_unitario, item.subtotal), (1, Decimal('5.00'), Decimal('5.00')))
+        self.assertTrue(Pedido.objects.filter(pk=pedido.pk).exists())
+        self.assertTrue(PedidoCliente.objects.filter(pedido=pedido).exists())
+
+    def test_listagens_de_pedidos_aceitam_item_sem_produto_mantendo_snapshot_e_totais(self):
+        pedido = self._criar_pedido()
+        pedido.valor_bruto = pedido.valor_liquido = Decimal('5.00')
+        pedido.save()
+        item = self._criar_item_pedido(pedido, self.produto_a)
+        self.produto_a.delete()
+
+        meus = self.client.get('/api/v1/pedidos/')
+        self.client.force_authenticate(self.produtor)
+        minha_loja = self.client.get('/api/v1/pedidos/minha-loja/')
+
+        for response in (meus, minha_loja):
+            self.assertEqual(response.status_code, status.HTTP_200_OK)
+            dados = response.data[0]
+            self.assertEqual((dados['valor_bruto'], dados['valor_liquido']), ('5.00', '5.00'))
+            item_dados = dados['itens'][0]
+            self.assertEqual(item_dados['pedido_produto_id'], item.pedido_produto_id)
+            self.assertIsNone(item_dados['produto'])
+            self.assertEqual(item_dados['nome_produto'], 'Alface')
+            self.assertEqual((item_dados['quantidade'], item_dados['subtotal']), (1, '5.00'))
+
+    def test_cliente_cancela_pedido_pendente_com_item_sem_produto_e_restaura_estoque_dos_demais_uma_vez(self):
+        item_a = self._adicionar_item(self.produto_a, 2)
+        item_nao_selecionado = self._adicionar_item(self.produto_nao_selecionado, 3)
+        checkout = self._checkout(item_a, item_nao_selecionado)
+        pedido_id = checkout.data[0]['pedido_id']
+        self.produto_a.delete()
+        self.produto_nao_selecionado.refresh_from_db()
+        self.assertEqual(self.produto_nao_selecionado.estoque, 3)
+
+        response = self.client.patch(f'/api/v1/pedidos/{pedido_id}/cancelar/')
+        repetido = self.client.patch(f'/api/v1/pedidos/{pedido_id}/cancelar/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['status_nome'], 'Cancelado')
+        self.assertEqual(repetido.status_code, status.HTTP_400_BAD_REQUEST)
+        self.produto_nao_selecionado.refresh_from_db()
+        self.assertEqual(self.produto_nao_selecionado.estoque, 6)
+        self.assertEqual(PedidoProduto.objects.filter(pedido_id=pedido_id, produto__isnull=True).count(), 1)
+
+    def test_produtor_cancela_pedido_com_item_sem_produto_e_restaura_estoque_dos_demais(self):
+        item_a = self._adicionar_item(self.produto_a, 2)
+        item_nao_selecionado = self._adicionar_item(self.produto_nao_selecionado, 3)
+        pedido_id = self._checkout(item_a, item_nao_selecionado).data[0]['pedido_id']
+        self.produto_a.delete()
+        cancelado, _ = StatusPedido.objects.get_or_create(status='Cancelado')
+        self.client.force_authenticate(self.produtor)
+
+        response = self.client.patch(f'/api/v1/pedidos/{pedido_id}/status/', {'status': cancelado.status_pedido_id}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Pedido.objects.get(pedido_id=pedido_id).status.status, 'Cancelado')
+        self.produto_nao_selecionado.refresh_from_db()
+        self.assertEqual(self.produto_nao_selecionado.estoque, 6)
+
+    def test_admin_consulta_pedido_com_item_sem_produto(self):
+        pedido = self._criar_pedido()
+        self._criar_item_pedido(pedido, self.produto_a)
+        self.produto_a.delete()
+        self.client.force_login(self._criar_administrador())
+
+        listagem = self.client.get(reverse('admin:pedidos_pedido_changelist'))
+        detalhe = self.client.get(reverse('admin:pedidos_pedido_change', args=[pedido.pk]))
+
+        self.assertEqual((listagem.status_code, detalhe.status_code), (status.HTTP_200_OK, status.HTTP_200_OK))
+
+    def test_banco_recusa_item_com_quantidade_zero(self):
+        pedido = self._criar_pedido()
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                self._criar_item_pedido(pedido, self.produto_a, quantidade=0)
+
+        self.assertFalse(PedidoProduto.objects.exists())
+
+    def test_banco_recusa_valores_negativos_no_item_ao_criar_e_ao_atualizar(self):
+        pedido = self._criar_pedido()
+        item = self._criar_item_pedido(pedido, self.produto_a)
+
+        for campo in ('valor_unitario', 'valor_desconto', 'subtotal'):
+            with self.subTest(campo=campo, operacao='criar'):
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        self._criar_item_pedido(pedido, self.produto_a, **{campo: Decimal('-0.01')})
+            with self.subTest(campo=campo, operacao='atualizar'):
+                with self.assertRaises(IntegrityError):
+                    with transaction.atomic():
+                        PedidoProduto.objects.filter(pk=item.pk).update(**{campo: Decimal('-0.01')})
+
+        self.assertEqual(PedidoProduto.objects.count(), 1)
+
+    def test_banco_recusa_atualizar_quantidade_do_item_para_zero(self):
+        item = self._criar_item_pedido(self._criar_pedido(), self.produto_a)
+
+        with self.assertRaises(IntegrityError):
+            with transaction.atomic():
+                PedidoProduto.objects.filter(pk=item.pk).update(quantidade=0)
+
+    def test_banco_aceita_item_com_valores_zerados_e_quantidade_positiva(self):
+        item = self._criar_item_pedido(
+            self._criar_pedido(), self.produto_a, valor_unitario=Decimal('0.00'), valor_desconto=Decimal('0.00'), subtotal=Decimal('0.00')
         )
+
+        self.assertTrue(PedidoProduto.objects.filter(pk=item.pk).exists())
+
+    def _criar_item_pedido(self, pedido, produto, **campos):
+        dados = {'quantidade': 1, 'valor_unitario': Decimal('5.00'), 'subtotal': Decimal('5.00')}
+        dados.update(campos)
+        return PedidoProduto.objects.create(pedido=pedido, produto=produto, nome_produto=produto.nome, **dados)
 
     def _avaliar_item(self, item):
         return Avaliacao.objects.create(

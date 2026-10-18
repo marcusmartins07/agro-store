@@ -33,6 +33,15 @@ class PrecoProdutoSerializer(serializers.ModelSerializer):
             'vigencia_fim',
         ]
 
+    def validate_preco_venda(self, valor):
+        if valor < 0:
+            raise serializers.ValidationError('O preço de venda não pode ser negativo.')
+        return valor
+
+    def validate_preco_custo(self, valor):
+        if valor is not None and valor < 0:
+            raise serializers.ValidationError('O preço de custo não pode ser negativo.')
+        return valor
 
     def validate_porcentagem_desconto(self, valor):
         if valor is not None and not 0 <= valor <= 100:
