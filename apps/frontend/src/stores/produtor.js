@@ -75,10 +75,11 @@ export const useProdutorStore = defineStore('produtor', () => {
     const porProduto = {}
     for (const pedido of pedidosValidos.value) {
       for (const item of pedido.itens) {
-        const atual = porProduto[item.produto] || { produto: item.produto, nome: item.nome_produto, quantidade: 0, total: 0 }
+        const chave = item.produto ?? `removido:${item.nome_produto}`
+        const atual = porProduto[chave] || { chave, produto: item.produto, nome: item.nome_produto, quantidade: 0, total: 0 }
         atual.quantidade += Number(item.quantidade || 0)
         atual.total += Number(item.subtotal || 0)
-        porProduto[item.produto] = atual
+        porProduto[chave] = atual
       }
     }
     return Object.values(porProduto)

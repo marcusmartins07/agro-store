@@ -196,6 +196,8 @@ class PedidoViewSet(viewsets.ModelViewSet):
         raise MethodNotAllowed('PATCH', detail='Use o endpoint de status para atualizar pedidos.')
 
     def _validar_item_checkout(self, item):
+        if item.produto.loja_id != item.carrinho.loja_id:
+            return f"O produto {item.produto.nome} não pertence à loja do carrinho."
         if not item.produto.ativo:
             return f"O produto {item.produto.nome} está inativo."
         if not item.carrinho.loja.ativa:
@@ -230,7 +232,11 @@ class PedidoViewSet(viewsets.ModelViewSet):
     def _atualizar_status_pedido(self, pedido, status_cancelado):
         if status_cancelado.status == 'Cancelado':
             for item in pedido.itens.all():
-                produto = Produto.objects.select_for_update().get(produto_id=item.produto_id)
+                if item.produto_id is None:
+                    continue
+                produto = Produto.objects.select_for_update().filter(produto_id=item.produto_id).first()
+                if produto is None:
+                    continue
                 produto.estoque += item.quantidade
                 produto.save(update_fields=['estoque', 'data_atualizacao'])
 

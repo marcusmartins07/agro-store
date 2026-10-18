@@ -48,7 +48,7 @@ class CarrinhoSerializer(serializers.ModelSerializer):
             'valor_liquido',
             'itens',
         ]
-        read_only_fields = ['valor_bruto', 'valor_desconto', 'valor_liquido']
+        read_only_fields = ['loja', 'valor_bruto', 'valor_desconto', 'valor_liquido']
 
 
 class AdicionarCarrinhoProdutoSerializer(serializers.Serializer):

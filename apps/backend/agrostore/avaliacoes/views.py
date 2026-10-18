@@ -14,7 +14,7 @@ class AvaliacaoViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         produto_id = self.request.query_params.get('produto')
-        queryset = Avaliacao.objects.select_related('usuario', 'produto')
+        queryset = Avaliacao.objects.select_related('usuario', 'produto', 'pedido_produto')
         if produto_id:
             queryset = queryset.filter(produto_id=produto_id)
         return queryset

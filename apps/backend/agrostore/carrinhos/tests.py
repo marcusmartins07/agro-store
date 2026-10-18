@@ -261,3 +261,61 @@ class CarrinhoAPITests(APITestCase):
 
         self.assertEqual(item['estoque'], 10)
         self.assertFalse(item['disponivel'])
+
+    def _criar_outra_loja(self):
+        outro_produtor = Usuario.objects.create_user(
+            cpf='12345678904',
+            email='outro-produtor-carrinho@example.com',
+            password='senha123',
+            nome='Outro Produtor Teste',
+            data_nascimento='1981-01-01',
+            genero=self.genero,
+            is_produtor=True,
+        )
+        return Loja.objects.create(proprietario=outro_produtor, nome='Loja Azul', cnpj='12345678000188')
+
+    def test_rejeita_patch_da_loja_do_carrinho(self):
+        item = self._adicionar_item_com_quantidade(2)
+        outra_loja = self._criar_outra_loja()
+
+        response = self.client.patch(f'/api/v1/carrinhos/{item.carrinho_id}/', {'loja': outra_loja.loja_id}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(Carrinho.objects.get(pk=item.carrinho_id).loja_id, self.loja.loja_id)
+
+    def test_rejeita_patch_para_loja_onde_cliente_ja_tem_carrinho(self):
+        item = self._adicionar_item_com_quantidade(2)
+        outra_loja = self._criar_outra_loja()
+        carrinho_destino = Carrinho.objects.create(usuario=self.cliente, loja=outra_loja)
+
+        response = self.client.patch(f'/api/v1/carrinhos/{item.carrinho_id}/', {'loja': outra_loja.loja_id}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(Carrinho.objects.get(pk=item.carrinho_id).loja_id, self.loja.loja_id)
+        self.assertEqual(Carrinho.objects.get(pk=carrinho_destino.pk).loja_id, outra_loja.loja_id)
+        self.assertEqual(Carrinho.objects.filter(usuario=self.cliente).count(), 2)
+
+    def test_rejeita_put_no_carrinho(self):
+        item = self._adicionar_item_com_quantidade(2)
+
+        response = self.client.put(f'/api/v1/carrinhos/{item.carrinho_id}/', {'loja': self.loja.loja_id}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertEqual(CarrinhoProduto.objects.get(pk=item.pk).quantidade, 2)
+
+    def test_rejeita_delete_do_carrinho(self):
+        item = self._adicionar_item_com_quantidade(2)
+
+        response = self.client.delete(f'/api/v1/carrinhos/{item.carrinho_id}/')
+
+        self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertTrue(Carrinho.objects.filter(pk=item.carrinho_id).exists())
+        self.assertTrue(CarrinhoProduto.objects.filter(pk=item.pk).exists())
+
+    def test_detalhe_do_carrinho_continua_acessivel_por_get(self):
+        item = self._adicionar_item_com_quantidade(2)
+
+        response = self.client.get(f'/api/v1/carrinhos/{item.carrinho_id}/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['loja'], self.loja.loja_id)

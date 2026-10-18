@@ -1,15 +1,15 @@
 %% Figura 2 - Modelo Lógico do Banco de Dados (Agro Store)
-%% Fonte da verdade: models do Django em apps/backend/agrostore/*/models.py (estado implementado, após a DB-018, versão 2.2: tipo_telefone e telefone; telefone removido de usuario e pedido_cliente).
+%% Fonte da verdade: models do Django em apps/backend/agrostore/*/models.py (estado implementado, após a DB-018, a DB-015 e a DB-003/DB-014, versão 2.4: tipo_telefone e telefone; telefone removido de usuario e pedido_cliente; SET NULL em pedido_produto e avaliacao; loja única por produtor).
 %% Nomes de colunas seguem os models. docs/modelo-logico.sql é o modelo-alvo (PostgreSQL) e usa nomes em português
 %% (id_usuario, e_produtor, esta_ativa...). As divergências de on_delete e de restrições estão anotadas em cada tabela.
 %% Todas as tabelas, exceto USUARIO, GENERO, STATUS_PEDIDO, TIPO_TELEFONE e REDEFINICAO_SENHA, herdam data_criacao e data_atualizacao (BaseModel).
-%% REDEFINICAO_SENHA tem somente data_criacao. Versão 2.2 do modelo (DB-018: telefones do usuário, RN-021).
+%% REDEFINICAO_SENHA tem somente data_criacao. Versão 2.4 do modelo (DB-018: telefones do usuário, RN-021; DB-015: SET NULL em item e avaliação; DB-003/DB-014: loja única por produtor, RN-013).
 erDiagram
     GENERO ||--o{ USUARIO : classifica
     USUARIO ||--o{ REDEFINICAO_SENHA : solicita
     USUARIO ||--o{ TELEFONE : possui
     TIPO_TELEFONE ||--o{ TELEFONE : classifica
-    USUARIO ||--o{ LOJA : "é proprietário de"
+    USUARIO ||--o| LOJA : "é proprietário de"
     LOJA ||--o{ PRODUTO : oferece
     CATEGORIA ||--o{ PRODUTO : classifica
     PRODUTO ||--o{ PRECO_PRODUTO : "tem histórico de"
@@ -23,15 +23,15 @@ erDiagram
     PEDIDO ||--|| PEDIDO_CLIENTE : "preserva o cliente em"
     USUARIO ||--o{ PEDIDO_CLIENTE : realiza
     PEDIDO ||--|{ PEDIDO_PRODUTO : contem
-    PRODUTO ||--o{ PEDIDO_PRODUTO : "vendido em"
+    PRODUTO |o--o{ PEDIDO_PRODUTO : "vendido em"
     USUARIO ||--o{ FAVORITO : marca
     PRODUTO ||--o{ FAVORITO : "favoritado em"
     USUARIO ||--o{ AVALIACAO : escreve
-    PRODUTO ||--o{ AVALIACAO : recebe
+    PRODUTO |o--o{ AVALIACAO : recebe
     PEDIDO_PRODUTO ||--o| AVALIACAO : "avaliado por"
 
-    %% USUARIO ||--o{ LOJA: o model não tem UNIQUE em proprietario; a regra de uma loja por produtor (RN-013)
-    %% é validada na API. O modelo-alvo tem uq_loja_proprietario e ON DELETE RESTRICT (o model usa CASCADE).
+    %% USUARIO ||--o| LOJA: uma loja por produtor (RN-013) garantida no banco por uq_loja_proprietario e validada na API.
+    %% proprietario com PROTECT, igual ao RESTRICT do modelo-alvo (DB-003/DB-014, migration lojas/0003).
     %% PEDIDO ||--|| PEDIDO_CLIENTE: o OneToOne garante no máximo um snapshot por pedido; a API cria o pedido
     %% e o snapshot na mesma transação. PEDIDO ||--|{ PEDIDO_PRODUTO: a API só cria pedido com ao menos um item.
 
@@ -86,7 +86,7 @@ erDiagram
 
     LOJA {
         int loja_id PK
-        int proprietario_id FK
+        int proprietario_id FK, UK
         varchar(150) nome
         text descricao
         varchar(14) cnpj UK
@@ -195,7 +195,8 @@ erDiagram
         decimal valor_desconto
         decimal subtotal
     }
-    %% PEDIDO_PRODUTO: o model usa CASCADE e produto obrigatório; o modelo-alvo usa produto nulo com ON DELETE SET NULL.
+    %% PEDIDO_PRODUTO (DB-015): produto_id é opcional com ON DELETE SET NULL, no model e no modelo-alvo; o snapshot do item permanece.
+    %% CHECK quantidade > 0 e valor_unitario, valor_desconto e subtotal >= 0. A relação com pedido é CASCADE.
 
     FAVORITO {
         int favorito_id PK
@@ -212,4 +213,5 @@ erDiagram
         int nota "1 a 5"
         text comentario "até 500, validado na API"
     }
-    %% AVALIACAO: o model usa CASCADE nas três FKs; o modelo-alvo usa ON DELETE RESTRICT.
+    %% AVALIACAO (DB-015): produto_id é opcional com ON DELETE SET NULL, no model e no modelo-alvo; a avaliação continua ligada ao item do pedido.
+    %% Só usuario e pedido_produto seguem com CASCADE no model e ON DELETE RESTRICT no modelo-alvo.
