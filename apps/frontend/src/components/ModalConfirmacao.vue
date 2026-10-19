@@ -13,7 +13,7 @@
 
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary rounded-pill px-4" :disabled="carregando" data-bs-dismiss="modal">
-            Cancelar
+            {{ textoFechar }}
           </button>
           <button type="button" class="btn rounded-pill px-4" :class="`btn-${variante}`" :disabled="carregando" @click="emit('confirmar')">
             <span v-if="carregando" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
@@ -34,6 +34,7 @@ const props = defineProps({
   titulo: { type: String, required: true },
   textoConfirmar: { type: String, default: 'Confirmar' },
   textoCarregando: { type: String, default: 'Processando...' },
+  textoFechar: { type: String, default: 'Cancelar' },
   variante: { type: String, default: 'danger' },
   carregando: { type: Boolean, default: false },
   // Corpo com rolagem própria, mantendo cabeçalho e botões visíveis em telas baixas

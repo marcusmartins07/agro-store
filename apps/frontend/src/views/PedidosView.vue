@@ -75,7 +75,7 @@
           <div class="card-body p-3 p-md-4">
             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-3">
               <div>
-                <h2 :id="`titulo-pedido-${pedido.pedido_id}`" class="h5 fw-semibold mb-1">Pedido #{{ pedido.pedido_id }}</h2>
+                <h2 :id="`titulo-pedido-${pedido.pedido_id}`" class="h5 fw-semibold mb-1" tabindex="-1">Pedido #{{ pedido.pedido_id }}</h2>
                 <p class="small text-body-secondary d-flex flex-wrap align-items-center column-gap-3 row-gap-1 mb-0">
                   <span v-if="pedido.data_criacao" class="d-inline-flex align-items-center gap-1">
                     <IconeSvg nome="calendario" :tamanho="14" />
@@ -152,7 +152,7 @@
                   type="button"
                   class="btn btn-sm btn-outline-danger rounded-pill px-3"
                   :disabled="cancelando === pedido.pedido_id"
-                  @click="cancelarPedido(pedido)"
+                  @click="pedirCancelamento(pedido)"
                 >
                   <span v-if="cancelando === pedido.pedido_id" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
                   {{ cancelando === pedido.pedido_id ? 'Cancelando...' : 'Cancelar pedido' }}
@@ -204,6 +204,24 @@
         @enviar="enviarAvaliacao"
       />
     </ModalConfirmacao>
+
+    <ModalConfirmacao
+      ref="modalCancelamento"
+      titulo="Cancelar pedido"
+      texto-confirmar="Cancelar pedido"
+      texto-carregando="Cancelando..."
+      texto-fechar="Manter pedido"
+      :carregando="cancelando !== null"
+      @confirmar="confirmarCancelamento"
+      @fechado="aoFecharCancelamento"
+    >
+      <p class="mb-2 text-break">
+        O pedido <strong>#{{ pedidoParaCancelar?.pedido_id }}</strong> da loja <strong>{{ pedidoParaCancelar?.loja_nome }}</strong> será cancelado.
+      </p>
+      <p class="small text-body-secondary mb-0">
+        Os produtos voltam ao estoque da loja e o pedido fica no seu histórico como Cancelado. Esta ação não pode ser desfeita.
+      </p>
+    </ModalConfirmacao>
   </section>
 </template>
 
@@ -246,6 +264,9 @@ const comentarioAvaliacao = ref('')
 const erroAvaliacao = ref('')
 const erroNota = ref('')
 const enviandoAvaliacao = ref(false)
+const modalCancelamento = ref(null)
+const pedidoParaCancelar = ref(null)
+let focoCancelamento = null
 // Para onde levar o foco quando o modal terminar de fechar: id do bloco "Avaliado" ou o título da página
 let focoAposFechar = null
 
@@ -362,19 +383,38 @@ async function aoFecharAvaliacao() {
   elemento?.focus()
 }
 
-async function cancelarPedido(pedido) {
-  if (!window.confirm(`Cancelar o pedido #${pedido.pedido_id}? Os produtos voltam ao estoque da loja.`)) return
+function pedirCancelamento(pedido) {
+  pedidoParaCancelar.value = pedido
+  focoCancelamento = null
+  modalCancelamento.value.abrir()
+}
+
+async function confirmarCancelamento() {
+  const pedido = pedidoParaCancelar.value
+  if (cancelando.value !== null || !pedido) return
 
   cancelando.value = pedido.pedido_id
   try {
     const atualizado = await api.pedidos.cancelar(pedido.pedido_id)
     pedidos.value = pedidos.value.map(item => item.pedido_id === atualizado.pedido_id ? atualizado : item)
+    focoCancelamento = `titulo-pedido-${pedido.pedido_id}`
     notificacoes.notificar({ tipo: 'success', mensagem: `Pedido #${pedido.pedido_id} cancelado.`, tempo: 4 })
   } catch (falha) {
     notificacoes.notificar({ tipo: 'danger', mensagem: extrairMensagemErro(falha) })
   } finally {
     cancelando.value = null
   }
+  modalCancelamento.value?.fechar()
+}
+
+async function aoFecharCancelamento() {
+  const destino = focoCancelamento
+  focoCancelamento = null
+  pedidoParaCancelar.value = null
+  if (!destino) return
+  await nextTick()
+  const elemento = document.getElementById(destino) || titulo.value
+  elemento?.focus()
 }
 </script>
 

@@ -256,7 +256,9 @@ replicar o hexadecimal em views ou componentes.
 - `ModalConfirmacao.vue`: modal Bootstrap para confirmar ações (ex.: desativar produto), no lugar de
   `window.confirm`. Recebe `titulo`, `textoConfirmar`, `textoCarregando`, `variante` (padrão `danger`) e
   `carregando` e `rolavel` (padrão `false`; aplica `modal-dialog-scrollable` para o corpo rolar com cabeçalho e
-  botões visíveis); a mensagem vai no slot; emite `confirmar` e `fechado` (em `hidden.bs.modal`, depois de devolver o
+  botões visíveis) e `textoFechar` (padrão "Cancelar"; texto do botão de fechar do rodapé, usar quando o texto de
+  confirmar começar com "Cancelar" ou gerar ambiguidade, ex.: `texto-fechar="Manter pedido"` no cancelamento de
+  pedido em `PedidosView`); a mensagem vai no slot; emite `confirmar` e `fechado` (em `hidden.bs.modal`, depois de devolver o
   foco ao gatilho) e expõe `abrir()`/`fechar()`. Segue o mesmo padrão do
   offcanvas (classe `Modal` do bundle, foco devolvido ao gatilho, fechamento antes de `dispose()`) e não fecha
   por Esc ou clique fora enquanto `carregando`.
