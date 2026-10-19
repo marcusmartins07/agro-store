@@ -20,9 +20,12 @@ def caminho_imagem_produto(produto, nome_arquivo):
 
 
 class Categoria(BaseModel):
-    categoria_id = models.AutoField(primary_key=True)
+    categoria_id = models.BigAutoField(primary_key=True, db_column='id_categoria')
     nome = models.CharField(max_length=100, unique=True)
-    ativo = models.BooleanField(default=True)
+    ativo = models.BooleanField(default=True, db_column='esta_ativa')
+
+    class Meta:
+        db_table = 'categoria'
 
     def __str__(self):
         return self.nome
@@ -31,21 +34,18 @@ class Categoria(BaseModel):
 class Produto(BaseModel):
     LIMITE_ESTOQUE_BAIXO = 5
 
-    produto_id = models.AutoField(primary_key=True, default=None)
-    loja = models.ForeignKey(Loja, on_delete=models.CASCADE, related_name='produtos')
+    produto_id = models.BigAutoField(primary_key=True, default=None, db_column='id_produto')
+    loja = models.ForeignKey(Loja, on_delete=models.CASCADE, related_name='produtos', db_column='id_loja')
     nome = models.CharField(max_length=155)
     descricao = models.TextField(blank=True)
     codigo_barras = models.CharField(max_length=13, blank=True)
     estoque = models.IntegerField(default=0)
     sku = models.CharField(max_length=50, unique=True, blank=True, null=True)
-    ativo = models.BooleanField(default=True)
-    categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT)
-    # Legado: substituído por ImagemProduto e não usado pela API. A remoção do campo depende de autorização.
-    imagem = models.FileField(
-        upload_to=caminho_imagem_produto,
-        blank=True,
-        validators=[FileExtensionValidator(EXTENSOES_IMAGEM_PRODUTO)],
-    )
+    ativo = models.BooleanField(default=True, db_column='esta_ativo')
+    categoria = models.ForeignKey(Categoria, on_delete=models.PROTECT, db_column='id_categoria')
+
+    class Meta:
+        db_table = 'produto'
 
     def __str__(self):
         return self.nome
@@ -85,15 +85,19 @@ class Produto(BaseModel):
 class ImagemProduto(BaseModel):
     LIMITE_POR_PRODUTO = 5
 
-    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='imagens')
+    id = models.BigAutoField(primary_key=True, db_column='id_imagem')
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='imagens', db_column='id_produto')
     imagem = models.FileField(
         upload_to=caminho_imagem_produto,
+        max_length=255,
         validators=[FileExtensionValidator(EXTENSOES_IMAGEM_PRODUTO)],
+        db_column='caminho',
     )
-    ordem = models.PositiveSmallIntegerField(default=0)
+    ordem = models.PositiveIntegerField(default=0)
     e_principal = models.BooleanField(default=False)
 
     class Meta:
+        db_table = 'imagem'
         ordering = ['ordem', 'id']
         constraints = [
             models.UniqueConstraint(
@@ -127,13 +131,17 @@ class ImagemProduto(BaseModel):
 
 
 class PrecoProduto(BaseModel):
-    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='precos')
-    preco_venda = models.DecimalField(max_digits=10, decimal_places=2)
-    preco_custo = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
-    preco_desconto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True)
+    id = models.BigAutoField(primary_key=True, db_column='id_preco_produto')
+    produto = models.ForeignKey(Produto, on_delete=models.CASCADE, related_name='precos', db_column='id_produto')
+    preco_venda = models.DecimalField(max_digits=10, decimal_places=2, db_column='valor_venda')
+    preco_custo = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, db_column='valor_custo')
+    preco_desconto = models.DecimalField(max_digits=10, decimal_places=2, null=True, blank=True, db_column='valor_desconto')
     porcentagem_desconto = models.IntegerField(null=True, blank=True)
     vigencia_inicio = models.DateTimeField(default=timezone.now)
     vigencia_fim = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        db_table = 'preco_produto'
 
     def save(self, *args, **kwargs):
         if not self.pk:
