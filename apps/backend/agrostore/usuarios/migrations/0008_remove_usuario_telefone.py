@@ -1,6 +1,3 @@
-# DB-018 (SCRUM-133), etapa 3 de 3: remove o telefone único do usuário, já copiado para Telefone na 0007.
-# A reversão recria a coluna vazia; a reversão da 0007 devolve o telefone principal.
-
 from django.db import migrations
 
 

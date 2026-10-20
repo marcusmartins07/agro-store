@@ -63,7 +63,6 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import AvatarImagem from '@/components/AvatarImagem.vue'
 
-// Conferência local só para orientar o usuário; o backend valida extensão, conteúdo e tamanho (RN-018)
 const TIPOS_ACEITOS = ['image/jpeg', 'image/png', 'image/webp']
 const EXTENSOES_ACEITAS = ['jpg', 'jpeg', 'png', 'webp']
 const TAMANHO_MAXIMO = 5 * 1024 * 1024
@@ -121,7 +120,6 @@ function liberarPrevia() {
 
 function validar(arquivo) {
   const extensao = arquivo.name.split('.').pop()?.toLowerCase()
-  // Alguns sistemas não informam o tipo (comum com .webp): nesse caso vale só a extensão
   const tipoValido = !arquivo.type || TIPOS_ACEITOS.includes(arquivo.type)
   if (!tipoValido || !EXTENSOES_ACEITAS.includes(extensao)) return MENSAGEM_TIPO
   if (arquivo.size > TAMANHO_MAXIMO) return MENSAGEM_TAMANHO
@@ -130,7 +128,6 @@ function validar(arquivo) {
 
 function aoEscolherArquivo(evento) {
   const arquivo = evento.target.files?.[0]
-  // Permite escolher o mesmo arquivo de novo depois de cancelar
   evento.target.value = ''
   if (!arquivo) return
 

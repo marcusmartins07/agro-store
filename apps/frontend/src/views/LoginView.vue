@@ -161,7 +161,6 @@ const cadastro = reactive({
   nome: '', cpf: '', tipo_telefone: '', telefone: '', email: '', data_nascimento: '', genero: '', password: '', password_confirmacao: '',
 })
 
-// Telefone do cadastro (RN-021): tipos vindos da API, sem ids fixos no código
 const tiposDisponiveis = computed(() => !tiposTelefoneStore.carregando && !tiposTelefoneStore.erro && tiposTelefoneStore.tipos.length > 0)
 const descricaoTipoCadastro = computed(() => tiposTelefoneStore.descricaoDoTipo(cadastro.tipo_telefone))
 
@@ -170,7 +169,6 @@ async function carregarTiposTelefone() {
   if (!cadastro.tipo_telefone) cadastro.tipo_telefone = tiposTelefoneStore.idPorDescricao('Celular') ?? ''
 }
 
-// A aba "Entrar" não depende dos tipos: só carrega ao abrir "Criar conta"
 watch(aba, (abaAtual) => {
   if (abaAtual === 'cadastrar') carregarTiposTelefone()
 })

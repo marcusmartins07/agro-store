@@ -309,6 +309,8 @@ Pendente -> Cancelado
 Em preparo -> Cancelado
 ```
 
+A transição `Pronto para retirada -> Entregue` pode ser feita pelo produtor ou pelo próprio cliente (RN-022).
+
 Decisão v1: o produtor deve respeitar estritamente esse fluxo ao atualizar pedidos da sua própria loja.
 Na área do produtor, o quadro de pedidos só permite avançar para o próximo status ou cancelar quando o fluxo permite; não há retorno de status.
 Para organizar a retirada, o produtor pode consultar somente o nome do cliente registrado no pedido e, nos pedidos `Pendente`,
@@ -317,6 +319,18 @@ Para organizar a retirada, o produtor pode consultar somente o nome do cliente r
 - O cliente pode cancelar somente pedidos próprios com status `Pendente`.
 - O cancelamento é imediato, preserva o pedido no histórico como `Cancelado` e não exige motivo no MVP.
 - Todo cancelamento autorizado, feito pelo cliente ou produtor, restaura uma única vez o estoque de cada item do pedido.
+- Confirmação de recebimento pelo cliente (RN-022): o cliente pode confirmar o recebimento somente de pedidos próprios
+  com status `Pronto para retirada`; a confirmação muda o pedido para `Entregue`.
+  Vale para qualquer usuário que compre, incluindo o produtor em pedidos feitos em outra loja.
+  O produtor (ou o administrador) continua podendo marcar o pedido como `Entregue` pelo quadro de pedidos.
+  A confirmação é imediata, não altera o estoque (a baixa já ocorreu na finalização) e não pode ser desfeita:
+  `Entregue` é um status final, sem retorno, para o cliente e para o produtor.
+  Pedido em qualquer outro status é recusado com a mensagem "Somente pedidos prontos para retirada podem ter o recebimento confirmado.".
+  O cliente não pode confirmar pedido de outro cliente; a API recusa a operação sem revelar o pedido.
+  Depois da confirmação, valem as regras de pedidos `Entregue`: os itens podem ser avaliados (RN-010)
+  e o produtor deixa de ver o telefone do cliente (RN-021).
+  Decisão v1: o sistema não registra quem confirmou a entrega (cliente ou produtor) nem a data da retirada em campo próprio;
+  o histórico de mudanças de status fica para o futuro.
 
 ## Favoritos
 
@@ -401,6 +415,10 @@ Adicionar novas regras abaixo conforme o projeto evoluir.
 ### Telefones do usuário (fora da RN-021)
 
 - Validação de DDD e do nono dígito do celular (RN-021).
+
+### Pedidos (fora da RN-022)
+
+- Histórico de mudanças de status do pedido, com quem alterou e quando (RN-022).
 
 ### Regras pendentes de definição
 - Se o produtor poderá recusar pedido.

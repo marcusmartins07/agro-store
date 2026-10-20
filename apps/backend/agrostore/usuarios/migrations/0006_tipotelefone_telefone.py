@@ -1,5 +1,3 @@
-# DB-018 (SCRUM-133), etapa 1 de 3: somente schema (RN-021).
-
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models

@@ -219,7 +219,7 @@
           </div>
         </section>
 
-        <!-- Telefones do usuário (RN-021) -->
+        <!-- Telefones do usuário -->
         <section class="card rounded-4" aria-labelledby="titulo-telefones">
           <div class="card-body p-4">
             <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
@@ -417,7 +417,6 @@ const erroGeral = ref('')
 // Data local no formato aaaa-mm-dd (limite do campo de nascimento)
 const hoje = new Date().toLocaleDateString('sv-SE')
 
-// Foto de perfil (RN-018): fluxo próprio, independente da edição das informações pessoais
 const arquivoFoto = ref(null)
 const enviandoFoto = ref(false)
 const removendoFoto = ref(false)
@@ -425,7 +424,6 @@ const erroFoto = ref('')
 const seletorFoto = ref(null)
 const modalRemoverFoto = ref(null)
 
-// Telefones (RN-021): fluxo próprio; a lista vem do GET /me/ e é recarregada após cada alteração
 const MENSAGEM_FALHA_ACAO_TELEFONE = 'Não foi possível concluir a ação. Tente novamente.'
 const tiposTelefoneStore = useTiposTelefoneStore()
 const telefones = ref(null)
@@ -549,7 +547,6 @@ async function removerFoto() {
   try {
     await api.usuarios.removerFoto()
   } catch (falha) {
-    // 404: não havia foto válida para remover; o estado final é o mesmo
     if (falha?.status !== 404) {
       notificacoes.notificar({ tipo: 'danger', mensagem: MENSAGEM_FALHA_REMOCAO_IMAGEM })
       removendoFoto.value = false
@@ -600,7 +597,7 @@ async function salvar() {
   }
 }
 
-// ----- Telefones (RN-021) -----
+// ----- Telefones -----
 
 function primeiraMensagem(valor) {
   if (Array.isArray(valor)) return valor.length ? String(valor[0]) : ''
@@ -614,7 +611,6 @@ function mensagemErroTelefone(falha, fallback = MENSAGEM_FALHA_ACAO_TELEFONE) {
     || primeiraMensagem(dados.numero) || primeiraMensagem(dados.tipo) || fallback
 }
 
-// Principal primeiro; a store da sessão acompanha a lista para não guardar o formato antigo (usuario.telefone)
 function aplicarTelefones(lista, sincronizarSessao = true) {
   telefones.value = [...lista].sort((a, b) => Number(b.e_principal) - Number(a.e_principal))
   erroTelefones.value = false
@@ -694,13 +690,11 @@ async function definirPrincipal(telefone) {
   }
   enviandoTelefone.value = false
   notificacoes.notificar({ tipo: 'success', mensagem: 'Telefone principal alterado.', tempo: 4 })
-  // O backend desmarca o principal anterior: a lista é recarregada para refletir o banco
   await recarregarTelefones()
   await nextTick()
   document.getElementById(`perfil-telefone-editar-${telefone.id}`)?.focus()
 }
 
-// Espelho de exibição da regra: o backend continua recusando a exclusão indevida
 function motivoBloqueioExclusao(telefone) {
   if (!telefones.value || telefones.value.length <= 1) return 'Mantenha ao menos um telefone cadastrado.'
   if (telefone.e_principal) return 'Para excluir o principal, defina outro telefone como principal antes.'

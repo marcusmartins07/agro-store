@@ -1,7 +1,3 @@
-# DB-010 (SCRUM-29), etapa 2 de 3: somente dados.
-# Fica separada das alterações de schema porque, no PostgreSQL, atualizar uma FK (constraint DEFERRABLE) e
-# alterar a mesma tabela na mesma transação gera "cannot ALTER TABLE ... because it has pending trigger events".
-
 from django.db import migrations
 
 LIMITE_IDS_NA_MENSAGEM = 20
@@ -22,7 +18,6 @@ def copiar_usuario_para_snapshot(apps, schema_editor):
             'crie o pedido_cliente desses pedidos e rode o migrate novamente.'
         )
 
-    # update() não aciona auto_now: a data_atualizacao do snapshot é preservada.
     for pedido_id, usuario_id in Pedido.objects.values_list('pedido_id', 'usuario_id'):
         PedidoCliente.objects.filter(pedido_id=pedido_id).update(usuario_id=usuario_id)
 

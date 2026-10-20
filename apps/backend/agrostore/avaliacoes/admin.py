@@ -5,7 +5,6 @@ from .models import Avaliacao
 
 @admin.register(Avaliacao)
 class AvaliacaoAdmin(admin.ModelAdmin):
-    # Moderação (RN-010): o administrador apenas consulta e exclui avaliações.
     list_display = ['avaliacao_id', 'produto', 'usuario', 'nota', 'data_criacao']
     list_filter = ['nota']
     search_fields = ['produto__nome', 'usuario__nome', 'comentario']

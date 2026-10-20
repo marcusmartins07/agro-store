@@ -59,7 +59,7 @@ def validar_email_unico(valor, usuario_atual=None):
 
 
 def validar_nova_senha(senha, confirmacao, usuario):
-    """Validações de senha do cadastro, reaproveitadas na redefinição de senha (RN-020)."""
+    """Validações de senha do cadastro, reaproveitadas na redefinição de senha."""
     if senha != confirmacao:
         raise serializers.ValidationError({'password_confirmacao': 'As senhas não coincidem.'})
     try:
@@ -75,9 +75,8 @@ class TipoTelefoneSerializer(serializers.ModelSerializer):
 
 
 class TelefoneSerializer(serializers.ModelSerializer):
-    """Telefone do próprio usuário (RN-021). O dono vem sempre do usuário autenticado, nunca do corpo da requisição."""
+    """Telefone do próprio usuário. O dono vem sempre do usuário autenticado, nunca do corpo da requisição."""
 
-    # Aceita o número formatado; o valor salvo tem somente dígitos.
     numero = serializers.CharField(max_length=20)
     tipo = serializers.PrimaryKeyRelatedField(
         queryset=TipoTelefone.objects.all(),
@@ -94,7 +93,6 @@ class TelefoneSerializer(serializers.ModelSerializer):
         fields = ['id', 'numero', 'tipo', 'tipo_descricao', 'e_principal']
 
     def validate(self, attrs):
-        # Na edição parcial, junta o que veio com o que já está salvo para revalidar o número ao trocar o tipo.
         if 'numero' in attrs or 'tipo' in attrs:
             numero = attrs.get('numero', getattr(self.instance, 'numero', ''))
             tipo = attrs.get('tipo', getattr(self.instance, 'tipo', None))
@@ -111,9 +109,7 @@ class UsuarioPerfilSerializer(serializers.ModelSerializer):
     idade = serializers.ReadOnlyField()
     tem_loja = serializers.SerializerMethodField()
     genero = serializers.SerializerMethodField()
-    # RN-018: a foto é exibida só ao próprio usuário; este serializer fica restrito ao perfil e à autenticação.
     foto_perfil = CampoImagemUnica(pasta=PASTA_FOTO_USUARIO, read_only=True)
-    # RN-021: lista com o principal primeiro (ordenação do model); vazia nas contas da exceção legada.
     telefones = TelefoneSerializer(many=True, read_only=True)
 
     class Meta:
@@ -143,7 +139,6 @@ class UsuarioPerfilSerializer(serializers.ModelSerializer):
 
 class CadastroClienteSerializer(serializers.ModelSerializer):
     cpf = serializers.CharField(max_length=14)
-    # RN-021: o telefone informado no cadastro, com o seu tipo, vira o principal.
     telefone = serializers.CharField(max_length=20, write_only=True)
     tipo_telefone = serializers.PrimaryKeyRelatedField(
         queryset=TipoTelefone.objects.all(),
@@ -181,7 +176,6 @@ class CadastroClienteSerializer(serializers.ModelSerializer):
         return validar_data_nascimento(valor)
 
     def validate(self, attrs):
-        # Telefone e senha são validados juntos para devolver os dois erros na mesma resposta.
         erros = {}
         try:
             attrs['telefone'] = servico_telefones.validar_numero_por_tipo(attrs['telefone'], attrs['tipo_telefone'])
@@ -214,14 +208,12 @@ class CadastroClienteSerializer(serializers.ModelSerializer):
 class UsuarioAtualizacaoSerializer(serializers.ModelSerializer):
     """Dados pessoais editáveis no perfil. CPF e papéis do usuário não são alterados por aqui."""
 
-    # Declarado sem o UniqueValidator automático para usar a mensagem de validar_email_unico
     email = serializers.EmailField(max_length=254)
     genero = serializers.CharField(max_length=2)
     foto_perfil = CampoImagemUnica(pasta=PASTA_FOTO_USUARIO)
 
     class Meta:
         model = Usuario
-        # Telefones são gerenciados em /me/telefones/ (RN-021).
         fields = ['nome', 'email', 'data_nascimento', 'genero', 'foto_perfil']
 
     def validate_email(self, valor):

@@ -911,7 +911,7 @@ class PedidoCheckoutTests(APITestCase):
 
 
 class PedidoTelefoneClienteTests(APITestCase):
-    """RN-021: o telefone não é snapshot do pedido; o produtor vê o principal atual só nos pedidos em aberto."""
+    """O telefone não é snapshot do pedido; o produtor vê o principal atual só nos pedidos em aberto."""
 
     ABERTOS = ['Pendente', 'Em preparo', 'Pronto para retirada']
     ENCERRADOS = ['Entregue', 'Cancelado']
@@ -1073,3 +1073,182 @@ class PedidoTelefoneClienteTests(APITestCase):
         with self.assertNumQueries(len(consultas_um_pedido)):
             resposta = self.client.get('/api/v1/pedidos/minha-loja/')
         self.assertEqual(len(resposta.data), 8)
+
+
+class PedidoConfirmarEntregaTests(APITestCase):
+    STATUS = ['Pendente', 'Em preparo', 'Pronto para retirada', 'Entregue', 'Cancelado']
+    MENSAGEM = 'Somente pedidos prontos para retirada podem ter o recebimento confirmado.'
+
+    def setUp(self):
+        self.genero, _ = Genero.objects.get_or_create(id_genero='F', defaults={'genero': 'Feminino'})
+        self.cliente = self._criar_usuario('42345678901', 'cliente-conf@example.com', 'Cliente Conf')
+        self.outro_cliente = self._criar_usuario('42345678902', 'outro-conf@example.com', 'Outro Conf')
+        self.produtor = self._criar_usuario('42345678903', 'produtor-conf@example.com', 'Produtor Conf', is_produtor=True)
+        self.outro_produtor = self._criar_usuario('42345678904', 'produtor2-conf@example.com', 'Produtor Dois Conf', is_produtor=True)
+        self.staff = self._criar_usuario('42345678905', 'staff-conf@example.com', 'Staff Conf', is_staff=True)
+        categoria = Categoria.objects.create(nome='Verduras')
+        self.loja = Loja.objects.create(proprietario=self.produtor, nome='Loja Conf', cnpj='42345678000199')
+        self.outra_loja = Loja.objects.create(proprietario=self.outro_produtor, nome='Loja Conf Dois', cnpj='42345678000198')
+        self.produto = Produto.objects.create(loja=self.loja, nome='Alface', estoque=7, sku='ALF-CONF', categoria=categoria)
+        PrecoProduto.objects.create(produto=self.produto, preco_venda=Decimal('5.00'), preco_desconto=Decimal('0.00'))
+        self.status = {nome: StatusPedido.objects.get_or_create(status=nome)[0] for nome in self.STATUS}
+
+    def _criar_usuario(self, cpf, email, nome, **campos):
+        return Usuario.objects.create_user(
+            cpf=cpf, email=email, password='senha123', nome=nome, data_nascimento='1990-01-01', genero=self.genero, **campos,
+        )
+
+    def _criar_pedido(self, status_nome='Pronto para retirada', usuario=None, loja=None):
+        usuario = usuario or self.cliente
+        pedido = Pedido.objects.create(loja=loja or self.loja, status=self.status[status_nome])
+        PedidoCliente.objects.create(
+            pedido=pedido, usuario=usuario, nome=usuario.nome, cpf=usuario.cpf, email=usuario.email,
+            data_nascimento=usuario.data_nascimento, genero=str(usuario.genero),
+        )
+        self.item = PedidoProduto.objects.create(
+            pedido=pedido, produto=self.produto, nome_produto=self.produto.nome, quantidade=1,
+            valor_unitario=Decimal('5.00'), subtotal=Decimal('5.00'),
+        )
+        return pedido
+
+    def _confirmar(self, pedido_id, usuario=None):
+        self.client.force_authenticate(usuario or self.cliente)
+        return self.client.patch(f'/api/v1/pedidos/{pedido_id}/confirmar-entrega/')
+
+    def _status_no_banco(self, pedido):
+        pedido.refresh_from_db()
+        return pedido.status.status
+
+    def _estoque(self):
+        self.produto.refresh_from_db()
+        return self.produto.estoque
+
+    def _avaliar(self):
+        return self.client.post('/api/v1/avaliacoes/', {'pedido_produto': self.item.pedido_produto_id, 'nota': 5}, format='json')
+
+    def _pedido_na_minha_loja(self, pedido):
+        self.client.force_authenticate(self.produtor)
+        resposta = self.client.get('/api/v1/pedidos/minha-loja/')
+        self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+        return next(item for item in resposta.data if item['pedido_id'] == pedido.pedido_id)
+
+    def _marcar_entregue_como_produtor(self, pedido):
+        self.client.force_authenticate(self.produtor)
+        return self.client.patch(
+            f'/api/v1/pedidos/{pedido.pedido_id}/status/', {'status': self.status['Entregue'].status_pedido_id}, format='json',
+        )
+
+    def test_dono_confirma_pedido_pronto_para_retirada_sem_alterar_estoque(self):
+        pedido = self._criar_pedido()
+
+        resposta = self._confirmar(pedido.pedido_id)
+
+        self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+        self.assertEqual(resposta.data['status_nome'], 'Entregue')
+        self.assertEqual(self._status_no_banco(pedido), 'Entregue')
+        self.assertEqual(self._estoque(), 7)
+
+    def test_produtor_confirma_o_proprio_pedido_feito_em_outra_loja(self):
+        pedido = self._criar_pedido(usuario=self.outro_produtor, loja=self.loja)
+
+        resposta = self._confirmar(pedido.pedido_id, self.outro_produtor)
+
+        self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._status_no_banco(pedido), 'Entregue')
+
+    def test_status_diferente_de_pronto_para_retirada_retorna_400_sem_alterar_status_nem_estoque(self):
+        for nome in ['Pendente', 'Em preparo', 'Entregue', 'Cancelado']:
+            pedido = self._criar_pedido(nome)
+
+            resposta = self._confirmar(pedido.pedido_id)
+
+            self.assertEqual(resposta.status_code, status.HTTP_400_BAD_REQUEST, nome)
+            self.assertEqual(resposta.data, {'detail': self.MENSAGEM}, nome)
+            self.assertEqual(self._status_no_banco(pedido), nome)
+            self.assertEqual(self._estoque(), 7, nome)
+
+    def test_confirmar_duas_vezes_aceita_a_primeira_e_recusa_a_segunda(self):
+        pedido = self._criar_pedido()
+
+        primeira = self._confirmar(pedido.pedido_id)
+        segunda = self._confirmar(pedido.pedido_id)
+
+        self.assertEqual(primeira.status_code, status.HTTP_200_OK)
+        self.assertEqual(segunda.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(segunda.data, {'detail': self.MENSAGEM})
+        self.assertEqual(self._status_no_banco(pedido), 'Entregue')
+
+    def test_cliente_nao_confirma_pedido_de_outro_cliente(self):
+        pedido = self._criar_pedido()
+
+        resposta = self._confirmar(pedido.pedido_id, self.outro_cliente)
+
+        self.assertEqual(resposta.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(self._status_no_banco(pedido), 'Pronto para retirada')
+
+    def test_produtor_da_loja_e_staff_que_nao_sao_o_comprador_recebem_404(self):
+        pedido = self._criar_pedido()
+
+        for usuario in [self.produtor, self.staff]:
+            resposta = self._confirmar(pedido.pedido_id, usuario)
+            self.assertEqual(resposta.status_code, status.HTTP_404_NOT_FOUND, usuario.nome)
+            self.assertEqual(self._status_no_banco(pedido), 'Pronto para retirada')
+
+    def test_confirmar_sem_autenticacao_retorna_401(self):
+        pedido = self._criar_pedido()
+        self.client.force_authenticate(None)
+
+        resposta = self.client.patch(f'/api/v1/pedidos/{pedido.pedido_id}/confirmar-entrega/')
+
+        self.assertEqual(resposta.status_code, status.HTTP_401_UNAUTHORIZED)
+        self.assertEqual(self._status_no_banco(pedido), 'Pronto para retirada')
+
+    def test_confirmar_pedido_inexistente_retorna_404(self):
+        resposta = self._confirmar(999999)
+
+        self.assertEqual(resposta.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_avaliacao_e_recusada_antes_da_confirmacao_e_aceita_depois(self):
+        pedido = self._criar_pedido()
+        self.client.force_authenticate(self.cliente)
+
+        antes = self._avaliar()
+        confirmacao = self._confirmar(pedido.pedido_id)
+        depois = self._avaliar()
+
+        self.assertEqual(antes.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(antes.data['pedido_produto'], ['Só é possível avaliar pedidos entregues.'])
+        self.assertEqual(confirmacao.status_code, status.HTTP_200_OK)
+        self.assertEqual(depois.status_code, status.HTTP_201_CREATED)
+        self.assertTrue(Avaliacao.objects.filter(pedido_produto=self.item).exists())
+
+    def test_minha_loja_deixa_de_mostrar_o_telefone_do_cliente_apos_a_confirmacao(self):
+        criar_telefone(self.cliente, '51999990000')
+        pedido = self._criar_pedido()
+        antes = self._pedido_na_minha_loja(pedido)
+
+        confirmacao = self._confirmar(pedido.pedido_id)
+        depois = self._pedido_na_minha_loja(pedido)
+
+        self.assertEqual(confirmacao.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._status_no_banco(pedido), 'Entregue')
+        self.assertEqual(antes['cliente']['telefone'], '51999990000')
+        self.assertIsNone(depois['cliente']['telefone'])
+
+    def test_produtor_nao_altera_o_status_de_pedido_ja_confirmado_pelo_cliente(self):
+        pedido = self._criar_pedido()
+        self._confirmar(pedido.pedido_id)
+
+        resposta = self._marcar_entregue_como_produtor(pedido)
+
+        self.assertEqual(resposta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self._status_no_banco(pedido), 'Entregue')
+
+    def test_produtor_continua_levando_pronto_para_retirada_a_entregue_pelo_status(self):
+        pedido = self._criar_pedido()
+
+        resposta = self._marcar_entregue_como_produtor(pedido)
+
+        self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+        self.assertEqual(self._status_no_banco(pedido), 'Entregue')
+        self.assertEqual(self._estoque(), 7)

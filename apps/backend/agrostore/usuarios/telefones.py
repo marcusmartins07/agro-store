@@ -1,4 +1,4 @@
-"""Telefones do usuário (RN-021): validação do número por tipo e operações que mantêm um único principal."""
+"""Telefones do usuário: validação do número por tipo e operações que mantêm um único principal."""
 
 from django.db import transaction
 
@@ -17,7 +17,7 @@ MENSAGENS_DIGITOS_POR_TIPO = {
 
 
 class RegraTelefoneViolada(Exception):
-    """Operação recusada pela RN-021; a mensagem pode ser exibida ao usuário."""
+    """Operação de telefone recusada; a mensagem pode ser exibida ao usuário."""
 
 
 def somente_digitos(valor):
@@ -39,7 +39,6 @@ def validar_numero_por_tipo(numero, tipo):
 
 
 def _travar_usuario(usuario_id):
-    # Serializa as operações de telefone do mesmo usuário (contagem, principal) até o fim da transação.
     Usuario.objects.select_for_update().only('pk').get(pk=usuario_id)
 
 
@@ -51,7 +50,7 @@ def _desmarcar_principais(usuario_id, exceto_pk=None):
 
 
 def criar_telefone(usuario, numero, tipo, e_principal=False):
-    """Cria o telefone; o primeiro do usuário vira principal automaticamente (exceção legada)."""
+    """Cria o telefone; o primeiro do usuário vira principal automaticamente."""
     numero_limpo = validar_numero_por_tipo(numero, tipo)
     with transaction.atomic():
         _travar_usuario(usuario.pk)
@@ -63,7 +62,7 @@ def criar_telefone(usuario, numero, tipo, e_principal=False):
 
 
 def definir_principal(telefone):
-    """Desmarca os demais antes de marcar este, para não violar telefone_principal_unico_por_usuario."""
+    """Desmarca os demais antes de marcar este."""
     with transaction.atomic():
         _travar_usuario(telefone.usuario_id)
         _desmarcar_principais(telefone.usuario_id, exceto_pk=telefone.pk)
@@ -80,7 +79,6 @@ def atualizar_telefone(telefone, numero=None, tipo=None, e_principal=None):
         if e_principal is False and telefone.e_principal:
             raise RegraTelefoneViolada(MENSAGEM_DESMARCAR_PRINCIPAL)
 
-        # Só revalida quando número ou tipo são enviados: um legado fora do padrão ainda pode ser definido como principal.
         if numero is not None or tipo is not None:
             novo_tipo = tipo if tipo is not None else telefone.tipo
             novo_numero = numero if numero is not None else telefone.numero

@@ -103,7 +103,7 @@ const arraste = ref(null)
 const pronta = computed(() => !!dimensoes.value)
 const erro = computed(() => props.erroExterno || (erroCarregamento.value ? MENSAGEM_ERRO : '') || erroAplicar.value)
 
-// Posição e tamanho em % do quadro, para acompanhar o tamanho do painel sem medir o DOM
+// Posição e tamanho em % do quadro
 const estiloImagem = computed(() => {
   if (!dimensoes.value) return {}
   const { largura, altura } = dimensoes.value

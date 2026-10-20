@@ -36,7 +36,6 @@ const routes = [
       { path: 'loja',     name: 'dados-loja',        component: DadosLoja,     meta: { loja: true } },
     ],
   },
-  // Endereços antigos continuam funcionando
   { path: '/cliente',       redirect: { name: 'perfil' } },
   { path: '/avaliacoes/:id', redirect: { name: 'pedidos' } },
   { path: '/loja',          redirect: { name: 'minha-loja' } },
@@ -54,7 +53,6 @@ const router = createRouter({
   routes,
   scrollBehavior(to, from, posicaoSalva) {
     if (posicaoSalva) return posicaoSalva
-    // O hash desta rota carrega o token de redefinição, não uma âncora: não pode virar seletor (o vue-router o exibiria em avisos)
     if (to.name === 'redefinir-senha') return { top: 0 }
     if (to.hash) return { el: to.hash, top: 96 }
 
@@ -80,7 +78,6 @@ router.beforeEach(async (to) => {
     authStore.atualizarUsuario(usuario)
     if (!usuario.is_produtor) return { name: 'produtos' }
     if (to.matched.some(route => route.meta.loja) && !usuario.tem_loja) return { name: 'minha-loja' }
-    // Cada produtor possui uma única loja: quem já tem loja vai direto para a área do produtor
     if (to.matched.some(route => route.meta.semLoja) && usuario.tem_loja) return { name: 'minha-loja' }
   } catch {
     return { name: 'login', query: { retorno: to.fullPath } }

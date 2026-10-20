@@ -2,8 +2,6 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { api } from '@/services/api.js'
 
-// Tipos fixos de telefone (RN-021), públicos: carregados uma vez e reaproveitados pelo cadastro e pelo perfil.
-// Os ids vêm sempre da API; não há lista de reserva com ids fixos.
 export const useTiposTelefoneStore = defineStore('tiposTelefone', () => {
   const tipos = ref([])
   const carregando = ref(false)

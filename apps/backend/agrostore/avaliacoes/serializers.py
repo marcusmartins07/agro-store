@@ -12,7 +12,6 @@ def abreviar_nome(nome):
 
 
 class AvaliacaoSerializer(serializers.ModelSerializer):
-    # Declarado sem o UniqueValidator automático do OneToOne para validar a autoria antes da duplicidade.
     pedido_produto = serializers.PrimaryKeyRelatedField(
         queryset=PedidoProduto.objects.all(),
         error_messages={'does_not_exist': 'Este item não pertence ao seu pedido.'},

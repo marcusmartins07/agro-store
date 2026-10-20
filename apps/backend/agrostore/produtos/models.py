@@ -14,7 +14,6 @@ EXTENSOES_IMAGEM_PRODUTO = ['jpg', 'jpeg', 'png', 'webp']
 
 
 def caminho_imagem_produto(produto, nome_arquivo):
-    # Nome aleatório evita colisões e não expõe o nome original do arquivo enviado.
     extensao = Path(nome_arquivo).suffix.lower()
     return f'produtos/{uuid.uuid4().hex}{extensao}'
 
@@ -117,7 +116,6 @@ class ImagemProduto(BaseModel):
             self.save(update_fields=['e_principal', 'data_atualizacao'])
 
     def excluir(self):
-        # A próxima imagem pela ordem assume como principal; o arquivo só sai do storage depois da exclusão no banco.
         nome_arquivo = self.imagem.name
         storage = self.imagem.storage
         with transaction.atomic():

@@ -41,7 +41,6 @@ class PedidoViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Pedido.objects.select_related('loja', 'status', 'cliente').prefetch_related('itens__avaliacao')
         if self.action == 'minha_loja':
-            # Telefone principal atual do cliente (RN-021), carregado de uma vez para a lista toda.
             queryset = queryset.select_related('cliente__usuario').prefetch_related(
                 Prefetch(
                     'cliente__usuario__telefones',
@@ -74,7 +73,6 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Trava os produtos em ordem de pk; validação e baixa de estoque usam a instância travada.
         produtos_travados = {
             produto.pk: produto
             for produto in Produto.objects.select_for_update().filter(pk__in={item.produto_id for item in itens}).order_by('pk')
@@ -177,6 +175,20 @@ class PedidoViewSet(viewsets.ModelViewSet):
             )
 
         self._atualizar_status_pedido(pedido, status_cancelado)
+        return Response(PedidoSerializer(pedido).data)
+
+    @action(detail=True, methods=['patch'], url_path='confirmar-entrega')
+    @transaction.atomic
+    def confirmar_entrega(self, request, pk=None):
+        pedido = self._obter_pedido_para_atualizacao(pk, usuario=request.user)
+
+        if pedido.status.status != 'Pronto para retirada':
+            return Response(
+                {'detail': 'Somente pedidos prontos para retirada podem ter o recebimento confirmado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        self._atualizar_status_pedido(pedido, garantir_status_pedidos()['Entregue'])
         return Response(PedidoSerializer(pedido).data)
 
     @action(detail=False, methods=['get'], url_path='minha-loja')

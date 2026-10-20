@@ -99,8 +99,6 @@ export const useCarrinhoStore = defineStore('carrinho', () => {
     }
   }
 
-  // O estoque pode ter mudado desde o último carregamento (RN-017): recarrega o carrinho para exibir
-  // as quantidades gravadas pelo backend, preservando a mensagem da falha original.
   async function recarregarAposFalha(falha) {
     const mensagem = extrairMensagemErro(falha)
     await carregar().catch(() => {})

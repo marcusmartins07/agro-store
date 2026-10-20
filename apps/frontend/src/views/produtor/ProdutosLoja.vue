@@ -162,7 +162,6 @@ const produtosFiltrados = computed(() => {
   return ordenados
 })
 
-// Aviso resumido (RN-017): conta só produtos ativos; o limite de estoque baixo vem do backend em `estoque_baixo`
 const avisoEstoque = computed(() => {
   const ativos = produtorStore.produtos.filter(produto => produto.ativo)
   const comEstoqueBaixo = ativos.filter(produto => produto.estoque_baixo).length
