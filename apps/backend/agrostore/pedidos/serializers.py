@@ -5,7 +5,6 @@ from agrostore.usuarios.models import Telefone
 from .models import Pedido, PedidoCliente, PedidoProduto, StatusPedido
 
 
-# RN-021: o produtor vê o telefone principal atual do cliente somente nos pedidos em aberto.
 STATUS_COM_TELEFONE = {'Pendente', 'Em preparo', 'Pronto para retirada'}
 
 
@@ -56,7 +55,6 @@ class PedidoClienteSerializer(serializers.ModelSerializer):
 
 
 class PedidoClienteProdutorSerializer(serializers.ModelSerializer):
-    # Não faz parte do snapshot (RN-021): é o telefone principal atual do cliente, ou null.
     telefone = serializers.SerializerMethodField()
 
     class Meta:
@@ -66,7 +64,6 @@ class PedidoClienteProdutorSerializer(serializers.ModelSerializer):
     def get_telefone(self, obj):
         if obj.pedido.status.status not in STATUS_COM_TELEFONE:
             return None
-        # Na listagem da loja, o principal vem pré-carregado (to_attr) para evitar N+1.
         if PedidoCliente.usuario.is_cached(obj) and hasattr(obj.usuario, 'telefone_principal_lista'):
             principais = obj.usuario.telefone_principal_lista
             return principais[0].numero if principais else None

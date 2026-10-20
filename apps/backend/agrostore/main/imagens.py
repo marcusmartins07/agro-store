@@ -21,7 +21,6 @@ MENSAGEM_IMAGEM_GRANDE = 'A imagem deve ter no máximo 5 MB.'
 
 
 def nome_arquivo_aleatorio(pasta, nome_arquivo):
-    # Nome aleatório evita colisões e não expõe o nome original do arquivo enviado.
     extensao = Path(nome_arquivo).suffix.lower()
     return f'{pasta}/{uuid.uuid4().hex}{extensao}'
 
@@ -35,7 +34,7 @@ def arquivo_e_imagem(arquivo):
 
 
 def validar_imagem_enviada(arquivo):
-    """Validações de arquivo da RN-018 (mesmas da RN-016): extensão, tamanho de até 5 MB e conteúdo."""
+    """Validações de arquivo: extensão, tamanho de até 5 MB e conteúdo."""
     extensao = Path(arquivo.name or '').suffix.lower().lstrip('.')
     if extensao not in EXTENSOES_IMAGEM:
         raise ValidationError(MENSAGEM_IMAGEM_INVALIDA)
@@ -62,7 +61,6 @@ def remover_arquivo_apos_commit(storage, nome, pasta, em_uso=None):
         try:
             storage.delete(nome)
         except (OSError, BotoCoreError, ClientError):
-            # Falha no storage não desfaz a troca já gravada; o arquivo fica órfão e o erro é registrado sem dados pessoais.
             logger.warning('Falha ao remover arquivo de imagem substituída do storage (pasta %s).', pasta)
 
     transaction.on_commit(remover)

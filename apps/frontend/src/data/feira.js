@@ -1,5 +1,3 @@
-// Informação fixa da feira (RN-008): configuração única e global da plataforma
-
 export const feira = {
   diaSemana: 'Sábado',
   horarioInicio: '6h',

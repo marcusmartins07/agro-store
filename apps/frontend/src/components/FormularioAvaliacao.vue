@@ -48,7 +48,6 @@
 import { ref, useId } from 'vue'
 import SeletorNota from '@/components/SeletorNota.vue'
 
-// Espelho de exibição do limite da RN-010; o backend valida o comentário
 const LIMITE_COMENTARIO = 500
 
 defineProps({

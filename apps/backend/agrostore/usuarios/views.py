@@ -28,7 +28,6 @@ from .serializers import (
 
 
 def dados_perfil(usuario, request):
-    # Carrega os telefones com o tipo em uma única consulta, evitando uma consulta por telefone em tipo_descricao.
     prefetch_related_objects([usuario], Prefetch('telefones', queryset=Telefone.objects.select_related('tipo')))
     return UsuarioPerfilSerializer(usuario, context={'request': request}).data
 
@@ -85,14 +84,14 @@ class MeView(APIView):
 
 
 class RegraTelefoneRecusada(APIException):
-    """Regra da RN-021 recusada pelo serviço de telefones; responde 400 com detail em texto, como o resto da API."""
+    """Regra recusada pelo serviço de telefones; responde 400 com detail em texto."""
 
     status_code = status.HTTP_400_BAD_REQUEST
     default_code = 'regra_telefone'
 
 
 class TelefoneViewSet(viewsets.ModelViewSet):
-    """Telefones do usuário autenticado (RN-021); telefone de outro usuário responde 404."""
+    """Telefones do usuário autenticado; telefone de outro usuário responde 404."""
 
     serializer_class = TelefoneSerializer
     permission_classes = [IsAuthenticated]
@@ -132,7 +131,7 @@ class TelefoneViewSet(viewsets.ModelViewSet):
 
 
 class TipoTelefoneListView(ListAPIView):
-    """Tipos fixos de telefone (RN-021), públicos porque o cadastro é feito sem login."""
+    """Tipos fixos de telefone."""
 
     authentication_classes = []
     permission_classes = [AllowAny]
@@ -147,7 +146,6 @@ class MinhaFotoView(APIView):
     def delete(self, request):
         usuario = request.user
         nome_anterior = usuario.foto_perfil.name
-        # Valor vazio ou fora do padrão gerado é exibido como sem foto; o dado é preservado.
         if not nome_gerenciado(nome_anterior, PASTA_FOTO_USUARIO):
             return Response({"detail": "Você não possui foto de perfil."}, status=status.HTTP_404_NOT_FOUND)
 
@@ -159,7 +157,7 @@ class MinhaFotoView(APIView):
 
 
 class RedefinicaoSenhaBaseView(APIView):
-    """Endpoints públicos da RN-020: sem autenticação JWT, para o limite contar sempre por IP."""
+    """Endpoints públicos da redefinição de senha, sem autenticação JWT."""
 
     authentication_classes = []
     permission_classes = [AllowAny]

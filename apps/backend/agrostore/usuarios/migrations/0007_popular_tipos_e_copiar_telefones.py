@@ -1,8 +1,3 @@
-# DB-018 (SCRUM-133), etapa 2 de 3: somente dados (RN-021).
-# Copia SOMENTE Usuario.telefone para Telefone, como principal. O telefone do snapshot do pedido não é aproveitado.
-# Números fora do padrão entram como Celular; a listagem para correção é feita pelo comando telefones_fora_do_padrao
-# (somente leitura). Esta migration não imprime ids nem números, apenas uma contagem.
-
 import sys
 
 from django.db import migrations
@@ -28,7 +23,6 @@ def copiar_telefone_do_usuario(apps, schema_editor):
     usuarios = Usuario.objects.exclude(telefone__isnull=True).exclude(telefone='').only('pk', 'telefone')
     for usuario in usuarios.iterator():
         numero = ''.join(caractere for caractere in usuario.telefone if caractere.isdigit())
-        # Valor sem nenhum dígito não gera telefone (exceção legada aprovada: usuário pode ficar com 0 telefones).
         if not numero or Telefone.objects.filter(usuario_id=usuario.pk).exists():
             continue
         if len(numero) == 10:
@@ -47,7 +41,6 @@ def copiar_telefone_do_usuario(apps, schema_editor):
 
 
 def devolver_telefone_principal(apps, schema_editor):
-    # Reversão com perda: só o telefone principal volta para Usuario.telefone; os demais são descartados.
     Usuario = apps.get_model('usuarios', 'Usuario')
     Telefone = apps.get_model('usuarios', 'Telefone')
 
@@ -63,7 +56,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # A tabela de tipos é apagada pela reversão da 0006; não há o que desfazer aqui.
         migrations.RunPython(criar_tipos_telefone, migrations.RunPython.noop),
         migrations.RunPython(copiar_telefone_do_usuario, devolver_telefone_principal),
     ]

@@ -436,7 +436,6 @@ class ProdutoEstoqueAPITests(APITestCase):
         self.assertEqual(item.quantidade, 8)
 
     def test_edicao_sem_estoque_preserva_baixa_feita_depois_da_leitura_do_produto(self):
-        # Simula um checkout que baixa o estoque entre a leitura do produto pela view e o save da edição.
         produto_lido_pela_view = Produto.objects.get(pk=self.produto.pk)
         Produto.objects.filter(pk=self.produto.pk).update(estoque=3)
         serializer = ProdutoSerializer(produto_lido_pela_view, data={'nome': 'Maçã gala'}, partial=True)

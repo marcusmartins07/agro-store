@@ -23,7 +23,6 @@ class LojaViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def perform_create(self, serializer):
-        # RN-013: em pedidos simultâneos, a validação do serializer passa nos dois e o banco recusa o segundo.
         try:
             with transaction.atomic():
                 serializer.save(proprietario=self.request.user)
@@ -75,7 +74,6 @@ class MinhaLojaImagemView(APIView):
             return Response({"detail": MENSAGEM_SEM_LOJA}, status=status.HTTP_404_NOT_FOUND)
 
         nome_anterior = loja.imagem_perfil.name
-        # Valor vazio ou fora do padrão gerado é exibido como sem imagem; o dado legado é preservado.
         if not nome_gerenciado(nome_anterior, PASTA_IMAGEM_LOJA):
             return Response({"detail": "A loja não possui imagem."}, status=status.HTTP_404_NOT_FOUND)
 

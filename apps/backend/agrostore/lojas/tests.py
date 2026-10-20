@@ -134,7 +134,7 @@ def criar_produtor(cpf, email, nome='Produtor Imagem'):
 
 
 class LojaEdicaoPorIdBloqueadaTests(APITestCase):
-    """BE-024: a loja só é editada pelo dono em /lojas/me/; a rota por id não aceita PATCH, PUT nem DELETE."""
+    """A loja só é editada pelo dono em /lojas/me/; a rota por id não aceita PATCH, PUT nem DELETE."""
 
     def setUp(self):
         self.dono = criar_produtor('98765432144', 'loja-dono@example.com')
@@ -432,7 +432,7 @@ class LojaCriacaoComImagemAPITests(ImagemLojaTestMixin, APITestCase):
 
 @override_settings(MEDIA_ROOT=MEDIA_ROOT_TESTES_LOJA)
 class LojaImagemQaComplementaresTests(ImagemLojaTestMixin, APITestCase):
-    """QA RN-018: isolamento entre proprietários, loja inativa e ausência da imagem no snapshot do pedido."""
+    """Isolamento entre proprietários, loja inativa e ausência da imagem no snapshot do pedido."""
 
     def setUp(self):
         super().setUp()
@@ -454,7 +454,6 @@ class LojaImagemQaComplementaresTests(ImagemLojaTestMixin, APITestCase):
             delete = self.client.delete(URL_IMAGEM_MINHA_LOJA)
             patch = self.client.patch(URL_MINHA_LOJA, {'imagem_perfil': self.arquivo()}, format='multipart')
 
-        # DELETE nao tem alvo (a loja dele nao tem imagem); PATCH atua so na loja dele.
         self.assertEqual(delete.status_code, status.HTTP_404_NOT_FOUND)
         self.assertEqual(patch.status_code, status.HTTP_200_OK)
         self.loja.refresh_from_db()
@@ -502,7 +501,7 @@ class LojaImagemQaComplementaresTests(ImagemLojaTestMixin, APITestCase):
 
 
 class LojaUnicaPorProdutorTests(APITestCase):
-    """RN-013: uma loja por produtor, garantida na API e no banco; produtor com loja não é excluído."""
+    """Uma loja por produtor, garantida na API e no banco; produtor com loja não é excluído."""
 
     MENSAGEM_LOJA_UNICA = 'Cada produtor pode possuir somente uma loja.'
 

@@ -4,7 +4,6 @@ from .models import Pedido, PedidoCliente, PedidoProduto, StatusPedido
 
 
 class SomenteConsultaMixin:
-    # RN-019: pedidos ficam apenas para consulta; o status muda somente pela API.
     def has_add_permission(self, request, obj=None):
         return False
 

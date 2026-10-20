@@ -11,7 +11,6 @@ def caminho_imagem_loja(loja, nome_arquivo):
 
 class Loja(BaseModel):
     loja_id = models.BigAutoField(primary_key=True, db_column='id_loja')
-    # PROTECT: produtor com loja não pode ser excluído; o encerramento é feito pela desativação (RN-019).
     proprietario = models.ForeignKey(
         Usuario,
         on_delete=models.PROTECT,
@@ -22,7 +21,6 @@ class Loja(BaseModel):
     nome = models.CharField(max_length=150)
     descricao = models.TextField(blank=True)
     cnpj = models.CharField(max_length=14, unique=True)
-    # Valores anteriores (caminhos relativos no storage) foram preservados pela migration 0002.
     imagem_perfil = models.FileField(
         upload_to=caminho_imagem_loja,
         max_length=255,
@@ -34,7 +32,6 @@ class Loja(BaseModel):
     class Meta:
         db_table = 'loja'
         constraints = [
-            # Decisão v1: cada produtor pode possuir somente uma loja.
             models.UniqueConstraint(fields=['proprietario'], name='uq_loja_proprietario'),
         ]
 

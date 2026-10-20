@@ -156,7 +156,6 @@ const erros = ref({})
 const erroGeral = ref('')
 const salvando = ref(false)
 
-// Imagem da loja (RN-018): fluxo próprio, independente do formulário de nome e descrição
 const arquivoImagem = ref(null)
 const enviandoImagem = ref(false)
 const removendoImagem = ref(false)
@@ -170,7 +169,6 @@ const alterado = computed(() =>
   form.value.nome !== (loja.value?.nome || '') || form.value.descricao !== (loja.value?.descricao || '')
 )
 
-// Observa só nome e descrição: salvar ou remover a imagem não pode descartar uma edição em andamento
 watch(() => [loja.value?.nome, loja.value?.descricao], restaurar, { immediate: true })
 
 function restaurar() {

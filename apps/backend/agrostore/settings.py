@@ -90,10 +90,7 @@ def configurar_banco(database_url):
         'PASSWORD': unquote(url.password or ''),
         'HOST': url.hostname,
         'PORT': url.port or 5432,
-        # 0 fecha a conexão ao fim de cada requisição. O runserver cria uma thread por requisição,
-        # então conexões persistentes ficam presas e esgotam o limite do Session pooler do Supabase.
         'CONN_MAX_AGE': int(os.getenv('DATABASE_CONN_MAX_AGE', '0')),
-        # Necessário quando a conexão passa pelo Transaction pooler (porta 6543).
         'DISABLE_SERVER_SIDE_CURSORS': True,
         'OPTIONS': {'sslmode': os.getenv('DATABASE_SSLMODE', 'require')},
     }
@@ -132,7 +129,6 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticated",
     ),
-    # Limites por IP da redefinição de senha (RN-020). O cache padrão (LocMemCache) conta por processo.
     "DEFAULT_THROTTLE_RATES": {
         "redefinicao_senha": "5/hour",
         "redefinicao_senha_confirmacao": "10/hour",
@@ -141,7 +137,6 @@ REST_FRAMEWORK = {
     "NUM_PROXIES": int(os.getenv('DRF_NUM_PROXIES', '0')),
 }
 
-# Redefinição de senha (RN-020): o link do e-mail aponta para o frontend.
 FRONTEND_URL = os.getenv('FRONTEND_URL', 'http://localhost:5173' if DEBUG else '').strip().rstrip('/')
 if not FRONTEND_URL:
     raise ImproperlyConfigured('Defina FRONTEND_URL para gerar os links de redefinição de senha.')
@@ -199,7 +194,6 @@ if SUPABASE_STORAGE_BUCKET:
                 'secret_key': configuracoes_storage['SUPABASE_S3_SECRET_ACCESS_KEY'],
                 'addressing_style': 'path',
                 'file_overwrite': False,
-                # Bucket público: a URL salva aponta para o endpoint público, sem assinatura temporária.
                 'querystring_auth': False,
                 'custom_domain': f'{url_supabase.netloc}/storage/v1/object/public/{SUPABASE_STORAGE_BUCKET}',
             },

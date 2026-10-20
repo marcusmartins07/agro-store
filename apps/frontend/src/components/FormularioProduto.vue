@@ -13,7 +13,6 @@
     </div>
 
     <div class="offcanvas-body">
-      <!-- Editor dentro do próprio painel: um modal por cima desligaria o focus trap do offcanvas no Bootstrap -->
       <EditorEnquadramento
         v-if="ajuste"
         :src="ajuste.src"
@@ -231,7 +230,6 @@
 
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from 'vue'
-// Mesmo módulo importado em main.js: reaproveita a instância do Bootstrap sem duplicar seus eventos
 import bootstrap from 'bootstrap/dist/js/bootstrap.bundle.min.js'
 import EditorEnquadramento from '@/components/EditorEnquadramento.vue'
 import IconeSvg from '@/components/IconeSvg.vue'
@@ -239,7 +237,6 @@ import { useProdutorStore } from '@/stores/produtor.js'
 import { formatarPreco } from '@/utils/formatacao.js'
 import { carregarImagemParaEdicao } from '@/utils/imagem.js'
 
-// Limite exibido no formulário; o backend é quem garante o máximo de imagens por produto
 const LIMITE_IMAGENS = 5
 
 const emit = defineEmits(['salvo'])
@@ -269,7 +266,6 @@ const categoriaInativa = computed(() => {
   return { id: produto.categoria, nome: produto.categoria_nome }
 })
 
-// Prévia visual; o backend calcula e grava o preço com desconto
 const precoFinal = computed(() => {
   const informado = String(form.value.precoVenda ?? '').replace(',', '.').trim()
   const base = informado !== '' ? Number(informado) : Number(produtoEditado.value?.preco_original ?? NaN)
@@ -283,8 +279,6 @@ onMounted(() => {
   painel.value.addEventListener('hidden.bs.offcanvas', aoFechar)
 })
 
-// Ao sair da rota com o painel aberto (ex.: botão voltar), fecha antes de descartar;
-// dispose() sozinho deixaria a rolagem da página bloqueada pelo Bootstrap.
 onBeforeUnmount(() => {
   const elemento = painel.value
   const instancia = offcanvas
@@ -328,7 +322,6 @@ function fechar() {
   if (!salvando.value) offcanvas.hide()
 }
 
-// Aberto por código, o offcanvas não devolve o foco sozinho; volta para o botão que o abriu
 function aoFechar() {
   descartarAjuste()
   liberarPreviews()
@@ -370,7 +363,6 @@ function moverImagem(indice, direcao) {
   imagens.value = lista
 }
 
-// Ao remover a principal, a primeira restante assume, como faz o backend
 function removerImagem(indice) {
   const [removida] = imagens.value.splice(indice, 1)
   if (removida.id) imagensRemovidas.value.push(removida.id)
@@ -392,7 +384,6 @@ async function abrirAjuste(indice) {
     srcBaixada: null,
   }
   await nextTick()
-  // O formulário costuma estar rolado até as imagens; o editor começa do topo do painel
   painel.value.querySelector('.offcanvas-body').scrollTop = 0
   painel.value.querySelector('.editor-enquadramento [tabindex], .editor-enquadramento button')?.focus({ preventScroll: true })
   if (!item.id) return
@@ -407,8 +398,6 @@ async function abrirAjuste(indice) {
   }
 }
 
-// Uma imagem salva não pode ter o arquivo trocado no backend: é substituída por uma nova na mesma posição
-// ao salvar o produto, mantendo a marcação de principal
 function aplicarAjuste({ arquivo, enquadramento }) {
   const indice = imagens.value.findIndex(imagem => imagem.chave === ajuste.value.chave)
   const item = imagens.value[indice]

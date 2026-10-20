@@ -308,7 +308,7 @@ async function carregar() {
   }
 }
 
-// O campo avaliacao vem da API (BE-019): null = item ainda não avaliado
+// O campo avaliacao vem da API: null = item ainda não avaliado
 function temAvaliacaoPendente(pedido) {
   return pedido.status_nome === STATUS_ENTREGUE && pedido.itens.some(podeAvaliar)
 }

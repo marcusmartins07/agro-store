@@ -1,5 +1,3 @@
-# DB-010 (SCRUM-29), etapa 3 de 3: somente schema, estado final.
-
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
@@ -26,7 +24,6 @@ class Migration(migrations.Migration):
             model_name='pedido',
             name='usuario',
         ),
-        # on_delete não gera SQL no Django 6.0; PROTECT impede que excluir a loja apague pedidos em cascata.
         migrations.AlterField(
             model_name='pedido',
             name='loja',

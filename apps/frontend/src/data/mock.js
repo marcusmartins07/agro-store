@@ -1,6 +1,3 @@
-// Mock de produtos para desenvolvimento
-// Substitua futuramente por chamadas à sua API
-
 export const produtos = [
   {
     id: 1,

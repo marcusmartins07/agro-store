@@ -8,13 +8,12 @@ ATUAL = [('pedidos', '0006_remove_pedidocliente_telefone')]
 
 
 class MigracaoVinculoClienteTests(TransactionTestCase):
-    """DB-010: o usuário do pedido passa de Pedido.usuario para PedidoCliente.usuario."""
+    """O usuário do pedido passa de Pedido.usuario para PedidoCliente.usuario."""
 
     def setUp(self):
         self.apps_antes = self._migrar(ANTES)
 
     def tearDown(self):
-        # Remove os dados históricos e volta ao estado final para não afetar os demais testes.
         self._migrar(ETAPA_SCHEMA)
         self._apagar_dados()
         self._migrar_para_folhas()
@@ -93,10 +92,6 @@ class MigracaoVinculoClienteTests(TransactionTestCase):
         apps.get_model('usuarios', 'Genero').objects.all().delete()
 
     def _com_demais_apps_atualizados(self, alvo):
-        # Os demais apps ficam no estado mais recente: o schema real deles (ex.: usuarios.foto_perfil) não é o do estado
-        # histórico que o app pedidos enxerga sozinho.
-        # Atenção: se no futuro algum app passar a depender de pedidos/0003 ou de uma migration posterior, levar os outros apps
-        # às folhas do grafo deixa de funcionar ao voltar pedidos para a 0002 (a migration dependente teria de ser desfeita antes).
         folhas = MigrationExecutor(connection).loader.graph.leaf_nodes()
         return [no for no in folhas if no[0] != 'pedidos'] + alvo
 

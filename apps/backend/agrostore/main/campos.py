@@ -5,7 +5,7 @@ from .imagens import MENSAGEM_IMAGEM_INVALIDA, nome_gerenciado, validar_imagem_e
 
 
 class CampoImagemUnica(serializers.FileField):
-    """Imagem única da loja ou do usuário (RN-018): sai como URL absoluta, ou null sem imagem válida."""
+    """Imagem única da loja ou do usuário: sai como URL absoluta, ou null sem imagem válida."""
 
     def __init__(self, pasta, **kwargs):
         self.pasta = pasta
@@ -18,7 +18,6 @@ class CampoImagemUnica(serializers.FileField):
         super().__init__(**kwargs)
 
     def get_value(self, dictionary):
-        # Em multipart, o DRF ignora "" em campo opcional; aqui ele é recusado, pois a remoção é feita só pelo DELETE.
         if html.is_html_input(dictionary) and dictionary.get(self.field_name) == '':
             return ''
         return super().get_value(dictionary)

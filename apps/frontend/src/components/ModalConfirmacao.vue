@@ -27,7 +27,6 @@
 
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue'
-// Mesmo módulo importado em main.js: reaproveita a instância do Bootstrap sem duplicar seus eventos
 import bootstrap from 'bootstrap/dist/js/bootstrap.bundle.min.js'
 
 const props = defineProps({
@@ -54,8 +53,6 @@ onMounted(() => {
   elemento.value.addEventListener('hidden.bs.modal', aoFechar)
 })
 
-// Ao sair da rota com o modal aberto, fecha antes de descartar;
-// dispose() sozinho deixaria a rolagem da página bloqueada pelo Bootstrap.
 onBeforeUnmount(() => {
   const instancia = modal
   elemento.value.removeEventListener('hide.bs.modal', impedirFechamentoDuranteAcao)
@@ -84,8 +81,6 @@ function impedirFechamentoDuranteAcao(evento) {
   if (props.carregando) evento.preventDefault()
 }
 
-// Aberto por código, o modal não devolve o foco sozinho; volta para o botão que o abriu
-// Emite 'fechado' depois disso: só então o focus trap do Bootstrap está desligado e o pai pode mover o foco
 function aoFechar() {
   if (gatilho?.isConnected) gatilho.focus()
   gatilho = null

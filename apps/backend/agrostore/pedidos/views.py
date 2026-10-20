@@ -41,7 +41,6 @@ class PedidoViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         queryset = Pedido.objects.select_related('loja', 'status', 'cliente').prefetch_related('itens__avaliacao')
         if self.action == 'minha_loja':
-            # Telefone principal atual do cliente (RN-021), carregado de uma vez para a lista toda.
             queryset = queryset.select_related('cliente__usuario').prefetch_related(
                 Prefetch(
                     'cliente__usuario__telefones',
@@ -74,7 +73,6 @@ class PedidoViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # Trava os produtos em ordem de pk; validação e baixa de estoque usam a instância travada.
         produtos_travados = {
             produto.pk: produto
             for produto in Produto.objects.select_for_update().filter(pk__in={item.produto_id for item in itens}).order_by('pk')

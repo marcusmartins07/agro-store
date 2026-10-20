@@ -911,7 +911,7 @@ class PedidoCheckoutTests(APITestCase):
 
 
 class PedidoTelefoneClienteTests(APITestCase):
-    """RN-021: o telefone não é snapshot do pedido; o produtor vê o principal atual só nos pedidos em aberto."""
+    """O telefone não é snapshot do pedido; o produtor vê o principal atual só nos pedidos em aberto."""
 
     ABERTOS = ['Pendente', 'Em preparo', 'Pronto para retirada']
     ENCERRADOS = ['Entregue', 'Cancelado']

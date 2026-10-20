@@ -10,7 +10,6 @@ PASTA_IMAGEM_LOJA = 'lojas'
 
 
 def remover_imagem_loja_apos_commit(loja, nome):
-    # O arquivo só sai do storage se, após o commit, nenhuma outra loja usar o mesmo nome.
     def em_uso():
         return Loja.objects.filter(imagem_perfil=nome).exclude(pk=loja.pk).exists()
 
@@ -20,7 +19,6 @@ def remover_imagem_loja_apos_commit(loja, nome):
 class LojaSerializer(serializers.ModelSerializer):
     proprietario_nome = serializers.StringRelatedField(source='proprietario', read_only=True)
     imagem_perfil = CampoImagemUnica(pasta=PASTA_IMAGEM_LOJA)
-    # Em multipart, o BooleanField ausente vira False; o default mantém a loja ativa na criação.
     ativa = serializers.BooleanField(default=True)
 
     class Meta:
@@ -35,7 +33,6 @@ class LojaSerializer(serializers.ModelSerializer):
             'imagem_perfil',
             'ativa',
         ]
-        # proprietario sempre vem do usuário logado.
         read_only_fields = ['proprietario']
 
     def validate(self, data):

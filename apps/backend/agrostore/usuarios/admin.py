@@ -9,8 +9,6 @@ from .models import Genero, RedefinicaoSenha, Telefone, Usuario
 
 
 class TelefoneAdminForm(forms.ModelForm):
-    # e_principal fica fora de Meta.fields: a troca de principal é feita por definir_principal no save_formset,
-    # evitando que a validação da constraint telefone_principal_unico_por_usuario recuse a troca no formulário.
     principal = forms.BooleanField(label='Principal', required=False)
     numero = forms.CharField(label='Número', max_length=20)
 
@@ -37,7 +35,7 @@ class TelefoneAdminForm(forms.ModelForm):
 
 
 class TelefoneInlineFormSet(BaseInlineFormSet):
-    """RN-021 no admin: ao salvar o usuário, ao menos 1 telefone e exatamente 1 principal."""
+    """Ao salvar o usuário, ao menos 1 telefone e exatamente 1 principal."""
 
     def clean(self):
         super().clean()
@@ -81,7 +79,6 @@ class UsuarioAdmin(admin.ModelAdmin):
             for form_telefone in formset.forms:
                 if form_telefone.cleaned_data.get('principal') and not form_telefone.cleaned_data.get('DELETE'):
                     telefone_principal = form_telefone.instance
-            # Os novos nascem sem principal e os editados mantêm o valor salvo; o principal é aplicado por último.
             formset.save()
             if telefone_principal is not None:
                 servico_telefones.definir_principal(telefone_principal)
@@ -94,8 +91,6 @@ class GeneroAdmin(admin.ModelAdmin):
 
 @admin.register(RedefinicaoSenha)
 class RedefinicaoSenhaAdmin(admin.ModelAdmin):
-    # Somente leitura (RN-020); o token_hash não é exibido. has_delete_permission não é sobrescrito:
-    # com CASCADE, negar a exclusão aqui impediria excluir usuários pelo admin.
     list_display = ['usuario', 'data_criacao', 'data_expiracao', 'data_utilizacao']
     search_fields = ['usuario__nome', 'usuario__email']
     fields = ['usuario', 'data_criacao', 'data_expiracao', 'data_utilizacao']
