@@ -77,7 +77,6 @@ const cartoesDoMes = computed(() => [
   { rotulo: 'Ticket médio', valor: formatarPreco(produtorStore.ticketMedio) },
 ])
 
-// Eixo do gráfico sem centavos para caber nas marcas
 function formatarMoedaCurta(valor) {
   return Number(valor).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: valor % 1 ? 2 : 0 })
 }

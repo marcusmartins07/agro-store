@@ -20,7 +20,7 @@ const props = defineProps({
   nome: { type: String, default: '' },
   tamanho: { type: String, default: 'md', validator: valor => ['sm', 'md', 'lg', 'xl'].includes(valor) },
   forma: { type: String, default: 'circulo', validator: valor => ['circulo', 'arredondado'].includes(valor) },
-  // Uma letra para lojas e duas para pessoas (RN-018)
+  // Uma letra para lojas e duas para pessoas
   quantidadeIniciais: { type: Number, default: 2 },
   // Vazio por padrão: o nome já aparece em texto ao lado do avatar
   alt: { type: String, default: '' },

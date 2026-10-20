@@ -30,7 +30,6 @@ export function mascaraTelefone(valor) {
   return `${ddd}${numero.slice(0, tamanhoPrefixo)}-${numero.slice(tamanhoPrefixo)}`
 }
 
-// Espelho de exibição da RN-021 (o backend continua validando): dígitos aceitos por tipo, com DDD
 const FORMATOS_TELEFONE = {
   Celular: {
     digitos: [11],
@@ -88,7 +87,7 @@ export function formatarTelefone(telefone) {
   return telefone ? mascaraTelefone(telefone) : 'Não informado'
 }
 
-// Aceita data (aaaa-mm-dd) ou data/hora ISO. Datas sem horário não passam por Date para não mudar de dia pelo fuso.
+// Aceita data (aaaa-mm-dd) ou data/hora ISO.
 export function formatarData(valor) {
   if (!valor) return 'Não informada'
   const somenteData = /^\d{4}-\d{2}-\d{2}$/.test(valor)
@@ -104,7 +103,7 @@ export function calcularIdade(dataNascimento) {
   return hoje.getFullYear() - ano - (aniversarioPassou ? 0 : 1)
 }
 
-// Iniciais exibidas quando não há imagem: duas para pessoas, uma para lojas (RN-018)
+// Iniciais exibidas quando não há imagem: duas para pessoas, uma para lojas
 export function iniciaisDoNome(nome, quantidade = 2) {
   const iniciais = String(nome ?? '').trim().split(/\s+/).filter(Boolean)
     .slice(0, quantidade).map(parte => parte[0]).join('').toUpperCase()

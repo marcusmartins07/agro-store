@@ -10,13 +10,12 @@ ATUAL = [('usuarios', '0008_remove_usuario_telefone')]
 
 
 class MigracaoTelefonesTests(TransactionTestCase):
-    """DB-018: Usuario.telefone (0006, schema novo) passa a Telefone na 0007 e o campo antigo sai na 0008 (RN-021)."""
+    """Usuario.telefone (0006, schema novo) passa a Telefone na 0007 e o campo antigo sai na 0008."""
 
     def setUp(self):
         self.apps_antes = self._migrar(ANTES)
 
     def tearDown(self):
-        # Volta ao estado final e remove os dados históricos para não afetar os demais testes.
         apps = self._migrar(ATUAL)
         apps.get_model('usuarios', 'Telefone').objects.all().delete()
         apps.get_model('usuarios', 'Usuario').objects.filter(email__endswith='@migracao.test').delete()

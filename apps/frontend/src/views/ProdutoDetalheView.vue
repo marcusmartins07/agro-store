@@ -180,7 +180,6 @@ const avaliacoes = ref([])
 const carregandoAvaliacoes = ref(true)
 const erroAvaliacoes = ref(false)
 const quantidade = ref(1)
-// Só a imagem da loja é guardada (RN-018); os demais dados da loja não são exibidos aqui
 const imagemLoja = ref(null)
 const adicionando = ref(false)
 
@@ -220,7 +219,6 @@ const favoritoDesabilitado = computed(() =>
 )
 
 // ── Avaliações ───────────────────────────────────────────────────────────────
-// Média calculada só para exibição; as notas vêm do backend
 const mediaAvaliacoes = computed(() => {
   if (avaliacoes.value.length === 0) return 0
   const soma = avaliacoes.value.reduce((total, avaliacao) => total + Number(avaliacao.nota || 0), 0)
@@ -234,7 +232,6 @@ const textoResumoAvaliacoes = computed(() => {
   return `${media} (${total} ${total === 1 ? 'avaliação' : 'avaliações'})`
 })
 
-// O watcher também roda ao sair da tela; só carrega enquanto a rota for a de produto
 watch(produtoId, () => {
   if (route.name === 'produto') carregarPagina()
 }, { immediate: true })
@@ -284,8 +281,6 @@ async function carregarImagemLoja(id, lojaId) {
   }
 }
 
-// A seção de avaliações só existe depois que o produto carrega; o scrollBehavior do router
-// roda antes disso. Mesmo deslocamento do router (cabeçalho fixo).
 async function rolarParaHash() {
   if (route.hash !== '#avaliacoes') return
   await nextTick()

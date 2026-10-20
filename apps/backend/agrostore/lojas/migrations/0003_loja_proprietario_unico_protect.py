@@ -1,7 +1,3 @@
-# DB-003 (SCRUM-22) e DB-014 (SCRUM-118): uma loja por produtor no banco e proprietário protegido.
-# A guarda roda antes do UNIQUE para interromper com mensagem clara quando há produtor com mais de uma loja;
-# nesse caso nada é alterado e o saneamento dos dados deve ser feito antes de rodar o migrate novamente.
-
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models

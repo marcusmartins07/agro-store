@@ -10,6 +10,7 @@ Monorepo com API Django e aplicação web Vue.
 - Carrinho salvo no backend, com ajuste automático da quantidade quando o estoque diminui.
 - Finalização do carrinho com um pedido por loja, baixa de estoque e snapshot de cliente (sem o telefone, ver RN-021) e de produtos.
 - Cancelamento de pedidos pendentes pelo cliente, com restauração do estoque.
+- Confirmação de recebimento pelo cliente (RN-022): em "Meus pedidos", o botão "Confirmar recebimento" muda pedidos `Pronto para retirada` para `Entregue` e libera a avaliação dos itens. Detalhes em [Confirmação de recebimento](#confirmação-de-recebimento-rn-022).
 - Avaliação de produtos comprados: na tela "Meus pedidos" (`/pedidos`), o cliente avalia cada item de pedido entregue (nota de 1 a 5 e comentário opcional). A rota antiga `/avaliacoes/:id` redireciona para `/pedidos`. Detalhes em [Avaliações](#avaliações-rn-010).
 - Favoritos, perfil do usuário e cadastro de clientes.
 - Telefones do usuário: um ou mais por conta, com tipo (Celular, Fixo ou Comercial) e exatamente um principal, gerenciados no perfil. Detalhes em [Telefones do usuário](#telefones-do-usuário-rn-021).
@@ -475,6 +476,31 @@ O cliente autenticado pode cancelar somente seus próprios pedidos com status `P
 - `PATCH /api/v1/pedidos/{id}/cancelar/`: não recebe payload e retorna o pedido atualizado com status `Cancelado`.
 - Retorna `400` se o pedido não estiver pendente e `404` se o pedido não pertencer ao cliente autenticado.
 - O cancelamento preserva o pedido no histórico e restaura o estoque de seus itens. Cancelamentos permitidos pelo produtor também restauram o estoque.
+
+## Confirmação de recebimento (RN-022)
+
+O comprador dono do pedido (qualquer usuário que compre, inclusive um produtor em pedido feito em outra loja) confirma o recebimento somente de pedidos `Pronto para retirada`. O pedido passa para `Entregue`. O produtor (ou o administrador) continua podendo marcar `Entregue` pelo quadro de pedidos (`PATCH /api/v1/pedidos/{id}/status/`).
+
+### Confirmar recebimento do pedido
+
+- Método: PATCH
+- URL: /api/v1/pedidos/{id}/confirmar-entrega/
+- Autenticação: JWT (dono do pedido)
+
+Payload esperado: nenhum (sem corpo).
+
+Resposta esperada (`200`): o pedido atualizado, no mesmo formato de `PATCH /api/v1/pedidos/{id}/cancelar/`, com status `Entregue`.
+
+Possíveis erros:
+- 400 — `{"detail": "Somente pedidos prontos para retirada podem ter o recebimento confirmado."}`, quando o status não é `Pronto para retirada`.
+- 401 — sem autenticação.
+- 404 — pedido inexistente ou de outro usuário.
+
+Comportamento:
+- A confirmação não altera o estoque (a baixa ocorre na finalização) e não pode ser desfeita: `Entregue` é um status final.
+- Depois da confirmação, os itens podem ser avaliados (RN-010) e o produtor deixa de ver o telefone do cliente (RN-021).
+- O sistema não registra quem confirmou a entrega (cliente ou produtor).
+- Frontend: em "Meus pedidos" (`PedidosView.vue`), o botão "Confirmar recebimento" aparece nos pedidos `Pronto para retirada` e abre uma janela de confirmação; depois de confirmar, os botões "Avaliar" ficam disponíveis.
 
 ## Vínculo do pedido com o cliente
 

@@ -1,5 +1,3 @@
-// Espelho de STATUS_TRANSICOES (backend/pedidos/views.py) apenas para exibir selos e botões.
-// A validação de cada mudança de status continua no backend.
 export const STATUS_PEDIDO = {
   Pendente: {
     classe: 'selo-pendente',

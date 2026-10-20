@@ -1,5 +1,3 @@
-# DB-010 (SCRUM-29), etapa 1 de 3: somente schema.
-
 import django.db.models.deletion
 from django.conf import settings
 from django.db import migrations, models
@@ -23,7 +21,6 @@ class Migration(migrations.Migration):
                 to=settings.AUTH_USER_MODEL,
             ),
         ),
-        # Nulo só durante a transição: permite que a reversão da 0005 recrie a coluna em uma tabela com dados.
         migrations.AlterField(
             model_name='pedido',
             name='usuario',

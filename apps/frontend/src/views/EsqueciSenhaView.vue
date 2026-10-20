@@ -59,7 +59,6 @@ import { erroGeralRedefinicao } from '@/utils/redefinicaoSenha.js'
 
 const MENSAGEM_EMAIL_VAZIO = 'Informe o e-mail da sua conta.'
 const MENSAGEM_EMAIL_INVALIDO = 'Informe um e-mail válido, como nome@exemplo.com.'
-// Conferência simples de formato só para orientar o usuário; o backend valida o e-mail
 const FORMATO_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
 const email = ref('')

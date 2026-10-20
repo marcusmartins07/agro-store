@@ -29,7 +29,7 @@ from .models import Genero, RedefinicaoSenha, Telefone, TipoTelefone, Usuario
 
 
 def criar_telefone_teste(usuario, numero='51999990000', tipo='Celular', e_principal=True):
-    """Cria o telefone direto no banco (o seed dos tipos vem da migration 0007)."""
+    """Cria o telefone direto no banco."""
     tipo_telefone, _ = TipoTelefone.objects.get_or_create(descricao=tipo)
     return Telefone.objects.create(usuario=usuario, tipo=tipo_telefone, numero=numero, e_principal=e_principal)
 
@@ -432,7 +432,7 @@ class FotoPerfilAPITests(APITestCase):
 
 
 class FotoPerfilNaoExpostaATerceirosTests(APITestCase):
-    """RN-018: a foto do usuário é exibida só ao próprio usuário."""
+    """A foto do usuário é exibida só ao próprio usuário."""
 
     def setUp(self):
         genero, _ = Genero.objects.get_or_create(id_genero='M', defaults={'genero': 'Masculino'})
@@ -521,7 +521,6 @@ class RedefinicaoSenhaBaseTests(APITestCase):
         return token
 
     def expirar(self, token):
-        """Cria-se o registro válido e depois ele é vencido por update, sem violar o CHECK do banco."""
         agora = timezone.now()
         RedefinicaoSenha.objects.filter(token_hash=redefinicao_senha.calcular_hash(token)).update(
             data_criacao=agora - timedelta(minutes=40), data_expiracao=agora - timedelta(minutes=10),
@@ -788,7 +787,7 @@ class LimiteRedefinicaoSenhaTests(RedefinicaoSenhaBaseTests):
 
 
 class QaRedefinicaoSenhaComplementaresTests(RedefinicaoSenhaBaseTests):
-    """Casos de QA (SCRUM-125/SCRUM-124): segredos, isolamento de endpoints e integridade do modelo."""
+    """Casos de QA: segredos, isolamento de endpoints e integridade do modelo."""
 
     def test_resposta_da_solicitacao_e_do_log_nao_trazem_o_token(self):
         with self.assertLogs('agrostore', level='DEBUG') as logs:

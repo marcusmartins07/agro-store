@@ -1,5 +1,5 @@
 %% Figura 10 - Diagrama de Estados do Pedido
-%% Conferido em: pedidos/views.py (STATUS_TRANSICOES, atualizar_status, cancelar, _atualizar_status_pedido).
+%% Conferido em: pedidos/views.py (STATUS_TRANSICOES, atualizar_status, cancelar, confirmar_entrega, _atualizar_status_pedido).
 %% RN-004 (cliente), RN-005 (produtor), RN-006 (transições) e RN-007 (devolução do estoque).
 stateDiagram-v2
     state "Pendente" as Pendente
@@ -11,7 +11,7 @@ stateDiagram-v2
     [*] --> Pendente : checkout gera um pedido por loja
     Pendente --> EmPreparo : produtor
     EmPreparo --> Pronto : produtor
-    Pronto --> Entregue : produtor, na retirada
+    Pronto --> Entregue : produtor ou cliente, na retirada (RN-022)
     Pendente --> Cancelado : cliente ou produtor
     EmPreparo --> Cancelado : produtor
     Entregue --> [*]

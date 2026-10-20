@@ -1,15 +1,12 @@
 // Recorte quadrado das imagens do produto, feito no navegador antes do envio.
 // O enquadramento fica em pixels naturais da imagem: (cx, cy) é o centro do recorte e zoom >= 1,
-// em que zoom 1 é o maior quadrado que cabe na imagem. Formato e tamanho continuam validados pelo backend.
+// em que zoom 1 é o maior quadrado que cabe na imagem.
 
 export const ZOOM_MINIMO = 1
 export const ZOOM_MAXIMO = 3
-// Lado máximo da imagem gerada: suficiente para o detalhe do produto e bem abaixo do limite de 5 MB
 const LADO_MAXIMO_SAIDA = 1200
 const QUALIDADE_SAIDA = 0.9
 
-// Imagens já salvas vêm de outro domínio (mídia do Django ou Supabase Storage). Baixá-las como blob evita que o
-// canvas fique bloqueado por CORS ou reaproveite do cache uma resposta da miniatura sem cabeçalho CORS.
 // Retorna sempre uma URL blob: que deve ser liberada com URL.revokeObjectURL por quem chamou.
 export async function carregarImagemParaEdicao(src) {
   try {
@@ -56,7 +53,6 @@ export async function recortarQuadrado(elementoImagem, enquadramento, nomeOrigin
 
   desenhar()
   let blob = await gerarBlob(canvas, 'image/webp')
-  // Navegadores sem codificador WEBP devolvem PNG; nesse caso usa JPEG com fundo branco no lugar da transparência
   if (blob?.type !== 'image/webp') {
     contexto.fillStyle = 'white'
     contexto.fillRect(0, 0, ladoSaida, ladoSaida)
@@ -77,7 +73,7 @@ function gerarBlob(canvas, tipo) {
 export const MENSAGEM_FALHA_ENVIO_IMAGEM = 'Não foi possível enviar a imagem. Tente novamente.'
 export const MENSAGEM_FALHA_REMOCAO_IMAGEM = 'Não foi possível remover a imagem. Tente novamente.'
 
-// Mensagem de recusa do envio de uma imagem única (foto de perfil ou imagem da loja, RN-018).
+// Mensagem de recusa do envio de uma imagem única (foto de perfil ou imagem da loja).
 // Aceita o erro do service ({ status, data }) ou o da store (Error com status e campos).
 export function mensagemErroEnvioImagem(falha, campo) {
   // 413: o servidor recusou o corpo da requisição antes de validar o campo

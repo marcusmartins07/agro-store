@@ -23,7 +23,6 @@
       </div>
     </div>
 
-    <!-- Itens com quantidade 0 (RN-017) continuam no carrinho: o vazio depende dos itens, não das unidades -->
     <div v-else-if="carrinhoStore.itens.length === 0" class="card rounded-4 text-center py-5">
       <div class="card-body">
         <span class="icone-estado mb-3"><IconeSvg nome="cesta" :tamanho="32" /></span>
@@ -63,7 +62,6 @@
                   Incluir {{ item.produto_nome }} na finalização
                 </label>
 
-                <!-- MOCK: o item do carrinho não traz a imagem do produto; exibe um espaço neutro no lugar da foto -->
                 <span class="miniatura imagem-placeholder rounded-3 flex-shrink-0" aria-hidden="true">
                   <IconeSvg nome="imagem" :tamanho="22" />
                 </span>
@@ -155,7 +153,6 @@
             <span>{{ textoRetirada() }}</span>
           </p>
 
-          <!-- A recusa da finalização fica junto do botão para continuar visível no celular -->
           <div v-if="erroFinalizacao" class="alert alert-danger small mb-3" role="alert">{{ erroFinalizacao }}</div>
 
           <button
@@ -203,7 +200,6 @@ const lojasDoCarrinho = computed(() =>
   }))
 )
 
-// Totais calculados só para exibição; o backend valida os valores ao finalizar
 const itensSelecionados = computed(() =>
   carrinhoStore.itens.filter(item => selecionados.value.has(item.carrinho_produto_id) && podeFinalizar(item))
 )
@@ -256,8 +252,6 @@ function limiteEstoque(item) {
   return item.estoque === null || item.estoque === undefined ? Infinity : Number(item.estoque)
 }
 
-// Situação de exibição do item (RN-017) a partir de `disponivel`, `estoque` e `quantidade` da API.
-// `disponivel` não considera a quantidade: um item com 0 pode estar disponível de novo após a reposição.
 function descreverSituacao(item) {
   const estoque = limiteEstoque(item)
 
@@ -379,7 +373,6 @@ async function finalizarPedido() {
     selecionados.value = new Set()
     router.push({ name: 'pedidos' })
   } catch (e) {
-    // O store já recarregou o carrinho; a mensagem da API fica junto do botão
     erroFinalizacao.value = carrinhoStore.erro
   } finally {
     finalizando.value = false

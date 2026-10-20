@@ -88,7 +88,6 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
 
 
 class TipoTelefone(models.Model):
-    # Tipos fixos (RN-021), carregados pela migration 0007; não são cadastrados pelo usuário.
     CELULAR = 'Celular'
     FIXO = 'Fixo'
     COMERCIAL = 'Comercial'
@@ -108,7 +107,6 @@ class TipoTelefone(models.Model):
 
 
 class Telefone(BaseModel):
-    # RN-021: o mínimo de 1 telefone e os dígitos por tipo são validados na API e no admin; o banco garante 1 principal no máximo.
     id = models.BigAutoField(primary_key=True, db_column='id_telefone')
     usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='telefones', db_column='id_usuario')
     tipo = models.ForeignKey(TipoTelefone, on_delete=models.PROTECT, related_name='telefones', db_column='id_tipo_telefone')

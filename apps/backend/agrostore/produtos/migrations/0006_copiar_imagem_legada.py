@@ -4,7 +4,6 @@ from django.db import migrations
 
 
 def copiar_imagem_legada(apps, schema_editor):
-    # A imagem atual de cada produto vira a principal, reaproveitando o mesmo arquivo do storage.
     Produto = apps.get_model('produtos', 'Produto')
     ImagemProduto = apps.get_model('produtos', 'ImagemProduto')
 
@@ -20,6 +19,5 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        # A reversão não precisa copiar nada de volta: Produto.imagem nunca é alterado por esta migration.
         migrations.RunPython(copiar_imagem_legada, migrations.RunPython.noop),
     ]

@@ -34,6 +34,7 @@ flowchart LR
         UC20(["Solicitar habilitação e criação de loja"]):::foraMVP
         UC21(["Aprovar produtor e loja"]):::foraMVP
         UC22(["Redefinir senha"])
+        UC23(["Confirmar recebimento"])
     end
 
     VI --- UC01
@@ -50,6 +51,7 @@ flowchart LR
     CL --- UC09
     CL --- UC10
     CL --- UC11
+    CL --- UC23
     CL -.- UC20
 
     PR --- UC12

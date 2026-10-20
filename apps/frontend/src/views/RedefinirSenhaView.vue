@@ -109,8 +109,6 @@ const authStore = useAuthStore()
 const notificacoesStore = useNotificacoesStore()
 const produtorStore = useProdutorStore()
 
-// O token chega no fragmento (#token=...), que não é enviado ao servidor nem em Referer.
-// Fica só neste componente: não vai para store, localStorage, tela ou console.
 const token = new URLSearchParams(window.location.hash.slice(1)).get('token') || ''
 
 const senha = ref('')
@@ -127,8 +125,6 @@ const campoConfirmacao = ref(null)
 const alertaLinkInvalido = ref(null)
 
 onMounted(() => {
-  // Tira o token da URL, do history.state (current/back) e da rota atual. É a mesma rota, então o componente
-  // é reaproveitado sem remontar e mantém o token já lido; o scrollBehavior ignora o hash desta rota.
   if (window.location.hash) router.replace({ name: 'redefinir-senha' })
 })
 
@@ -162,7 +158,6 @@ async function mostrarLinkInvalido() {
 }
 
 function concluir(mensagem) {
-  // A troca não autentica: encerra a sessão local (sem chamar a API) e o usuário entra com a nova senha
   authStore.logout()
   produtorStore.limpar()
   notificacoesStore.notificar({ tipo: 'success', mensagem: mensagem || MENSAGEM_SUCESSO, tempo: 10 })

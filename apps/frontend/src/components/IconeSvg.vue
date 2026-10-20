@@ -20,7 +20,7 @@
 <script setup>
 import { computed } from 'vue'
 
-// Traçados baseados nos ícones Lucide (licença ISC), mantidos inline para não instalar pacote de ícones.
+// Traçados baseados nos ícones Lucide (licença ISC).
 // O ícone é decorativo: quem o usa deve fornecer o texto acessível (rótulo visível, visually-hidden ou aria-label).
 const ICONES = {
   busca: ['M3 11a8 8 0 1 0 16 0a8 8 0 1 0-16 0', 'm21 21-4.3-4.3'],

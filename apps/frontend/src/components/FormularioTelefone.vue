@@ -59,7 +59,6 @@ import {
   ajudaTelefone, mascaraTelefone, placeholderTelefone, somenteDigitos, validarTelefonePorTipo,
 } from '@/utils/formatacao.js'
 
-// Formulário de apresentação de um telefone (RN-021): não chama a API; quem o usa coordena o envio
 const props = defineProps({
   // Sufixo dos ids dos campos: id do telefone ou "novo"
   idSufixo: { type: [String, Number], required: true },
@@ -99,7 +98,6 @@ function focarPrimeiroInvalido() {
   else if (erroNumero.value) campoNumero.value?.focus()
 }
 
-// Espelho de exibição; a validação final é do backend
 function enviar() {
   const mensagem = validarTelefonePorTipo(numero.value, descricaoTipo.value)
   errosLocais.value = {}

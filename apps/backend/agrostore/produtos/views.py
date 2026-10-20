@@ -90,7 +90,6 @@ class ProdutoViewSet(viewsets.ModelViewSet):
 
         queryset = queryset.filter(ativo=True, loja__ativa=True)
         if self.action == 'list':
-            # RN-017: produto sem estoque sai da listagem do catálogo, mas o detalhe continua acessível.
             queryset = queryset.filter(estoque__gt=0)
         return self._filtrar_categoria(queryset)
 
@@ -123,7 +122,6 @@ class ProdutoViewSet(viewsets.ModelViewSet):
             Produto.objects.select_for_update().get(pk=serializer.instance.pk)
             estoque_alterado = 'estoque' in serializer.validated_data
             if not estoque_alterado:
-                # Recarrega o estoque travado para não desfazer a baixa de um checkout concorrente.
                 serializer.instance.refresh_from_db(fields=['estoque'])
             produto = serializer.save()
             if estoque_alterado:
@@ -147,7 +145,6 @@ class ImagemProdutoViewSet(viewsets.ModelViewSet):
         return [permissions.IsAuthenticated()]
 
     def get_produto(self):
-        # Leitura segue a visibilidade do catálogo; escrita fica restrita ao dono da loja (ou administrador).
         if not hasattr(self, '_produto'):
             produtos = Produto.objects.select_related('loja')
             usuario = self.request.user
@@ -172,7 +169,6 @@ class ImagemProdutoViewSet(viewsets.ModelViewSet):
         tornar_principal = serializer.validated_data.pop('e_principal', False)
 
         with transaction.atomic():
-            # Trava o produto para que envios simultâneos não ultrapassem o limite de imagens.
             Produto.objects.select_for_update().get(pk=produto.pk)
             imagens = ImagemProduto.objects.filter(produto=produto)
             if imagens.count() >= ImagemProduto.LIMITE_POR_PRODUTO:

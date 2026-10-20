@@ -13,7 +13,7 @@
 
         <div class="modal-footer">
           <button type="button" class="btn btn-outline-secondary rounded-pill px-4" :disabled="carregando" data-bs-dismiss="modal">
-            Cancelar
+            {{ textoFechar }}
           </button>
           <button type="button" class="btn rounded-pill px-4" :class="`btn-${variante}`" :disabled="carregando" @click="emit('confirmar')">
             <span v-if="carregando" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
@@ -27,13 +27,13 @@
 
 <script setup>
 import { nextTick, onBeforeUnmount, onMounted, ref, useId } from 'vue'
-// Mesmo módulo importado em main.js: reaproveita a instância do Bootstrap sem duplicar seus eventos
 import bootstrap from 'bootstrap/dist/js/bootstrap.bundle.min.js'
 
 const props = defineProps({
   titulo: { type: String, required: true },
   textoConfirmar: { type: String, default: 'Confirmar' },
   textoCarregando: { type: String, default: 'Processando...' },
+  textoFechar: { type: String, default: 'Cancelar' },
   variante: { type: String, default: 'danger' },
   carregando: { type: Boolean, default: false },
   // Corpo com rolagem própria, mantendo cabeçalho e botões visíveis em telas baixas
@@ -53,8 +53,6 @@ onMounted(() => {
   elemento.value.addEventListener('hidden.bs.modal', aoFechar)
 })
 
-// Ao sair da rota com o modal aberto, fecha antes de descartar;
-// dispose() sozinho deixaria a rolagem da página bloqueada pelo Bootstrap.
 onBeforeUnmount(() => {
   const instancia = modal
   elemento.value.removeEventListener('hide.bs.modal', impedirFechamentoDuranteAcao)
@@ -83,8 +81,6 @@ function impedirFechamentoDuranteAcao(evento) {
   if (props.carregando) evento.preventDefault()
 }
 
-// Aberto por código, o modal não devolve o foco sozinho; volta para o botão que o abriu
-// Emite 'fechado' depois disso: só então o focus trap do Bootstrap está desligado e o pai pode mover o foco
 function aoFechar() {
   if (gatilho?.isConnected) gatilho.focus()
   gatilho = null

@@ -72,7 +72,7 @@ class ImagemProdutoSerializer(serializers.ModelSerializer):
 
 class ProdutoSerializer(serializers.ModelSerializer):
     categoria_nome = serializers.StringRelatedField(source='categoria', read_only=True)
-    loja_nome = serializers.StringRelatedField(source='loja', read_only=True)  # ← novo
+    loja_nome = serializers.StringRelatedField(source='loja', read_only=True)
     preco = serializers.SerializerMethodField()
     preco_original = serializers.SerializerMethodField()
     desconto = serializers.SerializerMethodField()

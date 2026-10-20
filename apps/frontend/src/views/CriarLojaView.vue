@@ -113,7 +113,6 @@ const notificacoes = useNotificacoesStore()
 const form = ref({ nome: '', descricao: '', cnpj: '' })
 const salvando = ref(false)
 const erro = ref('')
-// Imagem opcional (RN-018), enviada junto com a criação; se for recusada, a loja não é criada
 const arquivoImagem = ref(null)
 const erroImagem = ref('')
 const seletorImagem = ref(null)

@@ -1,4 +1,4 @@
-"""Fluxo de redefinição de senha (RN-020): solicitação do link e confirmação da nova senha."""
+"""Fluxo de redefinição de senha: solicitação do link e confirmação da nova senha."""
 
 import hashlib
 import logging
@@ -69,7 +69,6 @@ def solicitar_redefinicao(email):
     token = gerar_token()
     with transaction.atomic():
         invalidar_links_pendentes(usuario, timezone.now())
-        # Calculada logo antes do create: data_criacao (auto_now_add) precisa ficar antes da expiração (CHECK do banco).
         data_expiracao = timezone.now() + timedelta(minutes=settings.REDEFINICAO_SENHA_VALIDADE_MINUTOS)
         RedefinicaoSenha.objects.create(usuario=usuario, token_hash=calcular_hash(token), data_expiracao=data_expiracao)
         transaction.on_commit(lambda: enviar_email_redefinicao(usuario, token))

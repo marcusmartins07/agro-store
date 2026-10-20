@@ -60,7 +60,6 @@ class PedidoProduto(BaseModel):
 class PedidoCliente(BaseModel):
     pedido_cliente_id = models.BigAutoField(primary_key=True, db_column='id_pedido_cliente')
     pedido = models.OneToOneField(Pedido, on_delete=models.CASCADE, related_name='cliente', db_column='id_pedido')
-    # O vínculo com o cliente fica no snapshot (DB-010); PROTECT impede apagar o histórico ao excluir o usuário.
     usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name='pedidos_cliente', db_column='id_usuario')
     nome = models.CharField(max_length=150)
     cpf = models.CharField(max_length=11)

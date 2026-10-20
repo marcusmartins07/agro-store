@@ -307,7 +307,6 @@ class TelefoneApiTests(BaseTelefoneTests):
         self.assertEqual(resposta.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_get_me_nao_tem_n_mais_um_ao_aumentar_os_telefones(self):
-        # Usuário recarregado a cada requisição: o prefetch feito na primeira não pode ficar em cache na instância.
         self.client.force_authenticate(Usuario.objects.get(pk=self.usuario.pk))
         with CaptureQueriesContext(connection) as com_um_telefone:
             self.client.get(URL_ME)
@@ -403,7 +402,7 @@ class TelefoneApiTests(BaseTelefoneTests):
 
 
 class ContaLegadaSemTelefoneTests(BaseTelefoneTests):
-    """Exceção legada da RN-021: conta com 0 telefones continua funcionando."""
+    """Exceção legada: conta com 0 telefones continua funcionando."""
 
     def test_login_funciona_sem_telefone(self):
         resposta = self.client.post('/api/v1/usuarios/login/', {'cpf': '52998224725', 'password': self.senha}, format='json')

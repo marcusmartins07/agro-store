@@ -77,7 +77,6 @@
           </div>
         </div>
 
-        <!-- O RouterLink ignora a query ao marcar o link ativo; por isso aria-current é sempre definido aqui -->
         <nav v-if="totalPaginas > 1" class="mt-5" aria-label="Páginas do catálogo">
           <ul class="pagination justify-content-center flex-wrap gap-2 mb-0 paginacao">
             <li class="page-item" :class="{ disabled: paginaAtual === 1 }">
@@ -147,7 +146,6 @@ const carregando = ref(true)
 const erro       = ref(false)
 
 // Busca, filtros e página ficam na URL (/?q=&categoria=&ordem=&pagina=)
-// para que o catálogo volte igual depois de abrir o detalhe de um produto
 const busca = computed(() => textoDaConsulta(route.query.q).trim())
 const categoriaAtiva = computed(() => textoDaConsulta(route.query.categoria) || CATEGORIA_TODAS)
 const ordem = computed(() => {

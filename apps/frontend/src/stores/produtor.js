@@ -7,8 +7,6 @@ import { STATUS_EM_ANDAMENTO, ordenarPorMaisRecente } from '@/utils/statusPedido
 const DIAS_GRAFICO = 7
 const LIMITE_MAIS_VENDIDOS = 5
 
-// Estado da área do produtor (loja, produtos e pedidos). Os indicadores são calculados apenas para exibição;
-// valores, estoque e transições de status continuam validados pelo backend.
 export const useProdutorStore = defineStore('produtor', () => {
   const loja = ref(null)
   const semLoja = ref(false)
@@ -130,7 +128,6 @@ export const useProdutorStore = defineStore('produtor', () => {
       throw new Error(extrairMensagemErro(falha))
     }
 
-    // O cancelamento devolve o estoque no backend; recarrega os produtos para refletir isso
     if (novoStatus === 'Cancelado') await recarregarProdutos()
   }
 
@@ -157,8 +154,6 @@ export const useProdutorStore = defineStore('produtor', () => {
     return { erroImagem }
   }
 
-  // Aplica no backend a lista montada no formulário: exclusões, envios, imagem principal e ordem.
-  // Cada falha é acumulada para que o produto salvo não seja perdido por causa de uma imagem.
   async function sincronizarImagens(produtoId, { itens, chavePrincipal, removidas }, imagensAtuais) {
     const falhas = []
     const idsPorChave = {}
@@ -194,7 +189,6 @@ export const useProdutorStore = defineStore('produtor', () => {
       }
     }
 
-    // O backend acrescenta envios novos no fim; só reordena quando a ordem escolhida for diferente disso
     const ordemDesejada = itens.map(item => idsPorChave[item.chave]).filter(Boolean)
     const ordemResultante = [
       ...imagensAtuais.map(imagem => imagem.id).filter(id => ordemDesejada.includes(id)),
@@ -232,7 +226,6 @@ export const useProdutorStore = defineStore('produtor', () => {
     }
   }
 
-  // Só o campo da imagem muda, para não descartar edições de nome e descrição ainda não salvas
   async function salvarImagemLoja(arquivo) {
     try {
       const atualizada = await api.lojas.atualizarImagem(arquivo)
@@ -246,7 +239,6 @@ export const useProdutorStore = defineStore('produtor', () => {
     }
   }
 
-  // 404 indica que não havia imagem (ou só um valor legado inválido): o estado final é o mesmo
   async function removerImagemLoja() {
     try {
       await api.lojas.removerImagem()
@@ -302,7 +294,6 @@ function decimal(valor) {
   return String(valor).replace(',', '.').trim()
 }
 
-// Um novo registro de preço só é criado quando o preço ou o desconto mudam; o backend encerra o preço anterior
 function montarNovoPreco(produtoId, precoVenda, desconto, produtoExistente) {
   const porcentagemDesconto = desconto === '' || desconto === null || desconto === undefined ? null : Number(desconto)
   const informouPreco = String(precoVenda ?? '').trim() !== ''

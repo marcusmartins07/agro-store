@@ -107,11 +107,9 @@ export const api = {
   usuarios: {
     me: () => request('/usuarios/me/'),
     atualizar: (body) => request('/usuarios/me/', { method: 'PATCH', body: jsonBody(body) }),
-    // Remoção da foto só pelo DELETE: enviar valor vazio no PATCH é recusado (RN-018)
     atualizarFoto: (arquivo) => request('/usuarios/me/', { method: 'PATCH', body: comArquivo('foto_perfil', arquivo) }),
     removerFoto: () => request('/usuarios/me/foto/', { method: 'DELETE' }),
   },
-  // Pública (RN-021): usada no cadastro, feito sem login
   tiposTelefone: {
     listar: () => request('/tipos-telefone/', {}, false, { autenticar: false }),
   },
@@ -127,7 +125,6 @@ export const api = {
       method: 'POST',
       body: imagem ? comArquivo('imagem_perfil', imagem, body) : jsonBody(body),
     }),
-    // Pública: sem JWT, para nunca disparar refresh nem redirecionar ao login a partir do detalhe do produto
     obter: (lojaId) => request(`/lojas/lojas/${lojaId}/`, {}, false, { autenticar: false }),
     me: () => request('/lojas/me/'),
     atualizarMinha: (body) => request('/lojas/me/', { method: 'PATCH', body: jsonBody(body) }),
@@ -168,5 +165,6 @@ export const api = {
       body: jsonBody({ status }),
     }),
     cancelar: (pedidoId) => request(`/pedidos/${pedidoId}/cancelar/`, { method: 'PATCH' }),
+    confirmarEntrega: (pedidoId) => request(`/pedidos/${pedidoId}/confirmar-entrega/`, { method: 'PATCH' }),
   },
 }

@@ -58,7 +58,6 @@ def insert_usuarios():
                 is_produtor=usuario['is_produtor']
             )
 
-        # RN-021: celular fictício como principal, somente se o usuário ainda não tiver telefone.
         usuario_semente = Usuario.objects.get(cpf=usuario['cpf'])
         if not usuario_semente.telefones.exists():
             celular = TipoTelefone.objects.get(descricao=TipoTelefone.CELULAR)

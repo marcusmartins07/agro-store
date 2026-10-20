@@ -12,7 +12,6 @@ from .views import (
     TelefoneViewSet,
 )
 
-# SimpleRouter: este módulo é incluído duas vezes em agrostore/urls.py e não precisa da página raiz do DefaultRouter.
 router = SimpleRouter()
 router.register('me/telefones', TelefoneViewSet, basename='telefone')
 

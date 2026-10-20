@@ -11,7 +11,7 @@ class Favorito(BaseModel):
 
     class Meta:
         db_table = 'favorito'
-        unique_together = ('usuario', 'produto')  # mesmo produto não duplica
+        unique_together = ('usuario', 'produto')
 
     def __str__(self):
         return f"{self.usuario.nome} - {self.produto.nome}"
