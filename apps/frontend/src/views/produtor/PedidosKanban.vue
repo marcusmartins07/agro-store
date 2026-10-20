@@ -48,6 +48,7 @@
     <section v-if="cancelados.length" class="mt-4" aria-labelledby="titulo-cancelados">
       <h3 id="titulo-cancelados" class="h6 mb-0">
         <button
+          ref="botaoCancelados"
           type="button"
           class="btn btn-link p-0 d-inline-flex align-items-center gap-2 botao-cancelados"
           :aria-expanded="mostrarCancelados"
@@ -64,13 +65,33 @@
         </div>
       </div>
     </section>
+
+    <ModalConfirmacao
+      ref="modalCancelamento"
+      titulo="Cancelar pedido"
+      texto-confirmar="Cancelar pedido"
+      texto-carregando="Cancelando..."
+      texto-fechar="Manter pedido"
+      :carregando="cancelandoPedidoDoModal"
+      @confirmar="confirmarCancelamento"
+      @fechado="aoFecharCancelamento"
+    >
+      <p class="mb-2 text-break">
+        O pedido <strong>#{{ pedidoParaCancelar?.pedido_id }}</strong><template v-if="nomeClienteParaCancelar">
+          de <strong>{{ nomeClienteParaCancelar }}</strong></template> será cancelado.
+      </p>
+      <p class="small text-body-secondary mb-0">
+        Os produtos voltam ao estoque da loja e o pedido passa para a lista de Cancelados. Esta ação não pode ser desfeita.
+      </p>
+    </ModalConfirmacao>
   </div>
 </template>
 
 <script setup>
-import { computed, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
 import CartaoPedidoKanban from '@/components/CartaoPedidoKanban.vue'
 import IconeSvg from '@/components/IconeSvg.vue'
+import ModalConfirmacao from '@/components/ModalConfirmacao.vue'
 import SeloStatus from '@/components/SeloStatus.vue'
 import { useNotificacoesStore } from '@/stores/notificacoes.js'
 import { useProdutorStore } from '@/stores/produtor.js'
@@ -80,8 +101,16 @@ const produtorStore = useProdutorStore()
 const notificacoes = useNotificacoesStore()
 const atualizando = ref(null)
 const mostrarCancelados = ref(false)
+const modalCancelamento = ref(null)
+const botaoCancelados = ref(null)
+const pedidoParaCancelar = ref(null)
+let focarCancelados = false
 
 const cancelados = computed(() => produtorStore.pedidosPorStatus.Cancelado || [])
+const nomeClienteParaCancelar = computed(() => pedidoParaCancelar.value?.cliente?.nome || '')
+const cancelandoPedidoDoModal = computed(() =>
+  pedidoParaCancelar.value !== null && atualizando.value === pedidoParaCancelar.value.pedido_id
+)
 
 function pedidosDe(status) {
   return produtorStore.pedidosPorStatus[status] || []
@@ -95,9 +124,27 @@ async function avancar(pedido, proximoStatus) {
   await mudarStatus(pedido, proximoStatus, `Pedido #${pedido.pedido_id} movido para ${proximoStatus}.`)
 }
 
-async function cancelar(pedido) {
-  if (!window.confirm(`Cancelar o pedido #${pedido.pedido_id}? Os produtos voltarão ao estoque.`)) return
-  await mudarStatus(pedido, 'Cancelado', `Pedido #${pedido.pedido_id} cancelado.`)
+function cancelar(pedido) {
+  pedidoParaCancelar.value = pedido
+  focarCancelados = false
+  modalCancelamento.value?.abrir()
+}
+
+async function confirmarCancelamento() {
+  const pedido = pedidoParaCancelar.value
+  if (!pedido || atualizando.value === pedido.pedido_id) return
+
+  focarCancelados = await mudarStatus(pedido, 'Cancelado', `Pedido #${pedido.pedido_id} cancelado.`)
+  modalCancelamento.value?.fechar()
+}
+
+async function aoFecharCancelamento() {
+  const devolverFoco = focarCancelados
+  focarCancelados = false
+  pedidoParaCancelar.value = null
+  if (!devolverFoco) return
+  await nextTick()
+  botaoCancelados.value?.focus()
 }
 
 // A notificação global já é anunciada por leitores de tela (aria-live)
@@ -106,8 +153,10 @@ async function mudarStatus(pedido, novoStatus, mensagem) {
   try {
     await produtorStore.atualizarStatus(pedido, novoStatus)
     notificacoes.notificar({ tipo: 'success', mensagem, tempo: 4 })
+    return true
   } catch (falha) {
     notificacoes.notificar({ tipo: 'danger', mensagem: falha.message || 'Não foi possível atualizar o status.' })
+    return false
   } finally {
     atualizando.value = null
   }

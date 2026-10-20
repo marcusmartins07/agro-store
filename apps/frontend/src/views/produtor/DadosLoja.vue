@@ -107,7 +107,7 @@
 
       <section class="card rounded-4" aria-labelledby="titulo-status-loja">
         <div class="card-body p-3 p-md-4">
-          <h2 id="titulo-status-loja" class="h6 fw-semibold d-flex justify-content-between align-items-center gap-2 mb-2 titulo-secao">
+          <h2 id="titulo-status-loja" ref="tituloStatusLoja" class="h6 fw-semibold d-flex justify-content-between align-items-center gap-2 mb-2 titulo-secao" tabindex="-1">
             Status da loja
             <span class="badge rounded-pill selo-status" :class="loja.ativa ? 'selo-entregue' : 'selo-cancelado'">
               {{ loja.ativa ? 'Ativa' : 'Inativa' }}
@@ -117,7 +117,7 @@
             <p class="small text-body-secondary mb-3">
               Ao desativar, a loja deixa de aceitar novas compras. Produtos e pedidos são preservados.
             </p>
-            <button type="button" class="btn btn-outline-danger rounded-pill w-100" :disabled="salvando" @click="desativar">
+            <button type="button" class="btn btn-outline-danger rounded-pill w-100" :disabled="salvando || desativando" @click="modalDesativarLoja?.abrir()">
               Desativar loja
             </button>
           </template>
@@ -136,6 +136,21 @@
       @fechado="aoFecharModalImagem"
     >
       <p class="mb-0">A imagem deixa de aparecer no detalhe dos produtos e na sua área de produtor, e a inicial do nome da loja é exibida no lugar.</p>
+    </ModalConfirmacao>
+
+    <ModalConfirmacao
+      ref="modalDesativarLoja"
+      titulo="Desativar loja?"
+      texto-confirmar="Desativar loja"
+      texto-carregando="Desativando..."
+      :carregando="desativando"
+      @confirmar="desativar"
+      @fechado="aoFecharModalDesativar"
+    >
+      <p class="mb-2 text-break">A loja <strong>{{ loja.nome }}</strong> deixará de aceitar novas compras.</p>
+      <p class="small text-body-secondary mb-0">
+        Produtos, pedidos e a imagem da loja são preservados, e você continua podendo editar o nome, a descrição e a imagem.
+      </p>
     </ModalConfirmacao>
   </div>
 </template>
@@ -162,6 +177,10 @@ const removendoImagem = ref(false)
 const erroImagem = ref('')
 const seletorImagem = ref(null)
 const modalRemoverImagem = ref(null)
+
+const desativando = ref(false)
+const modalDesativarLoja = ref(null)
+const tituloStatusLoja = ref(null)
 
 const loja = computed(() => produtorStore.loja)
 const cnpjFormatado = computed(() => mascaraCnpj(loja.value?.cnpj || ''))
@@ -243,17 +262,24 @@ function aoFecharModalImagem() {
 }
 
 async function desativar() {
-  if (!window.confirm('Desativar a loja impedirá novas compras. Deseja continuar?')) return
+  if (desativando.value) return
 
-  salvando.value = true
+  desativando.value = true
   try {
     await produtorStore.salvarLoja({ ativa: false })
     notificacoes.notificar({ tipo: 'warning', mensagem: 'Loja desativada. Produtos e pedidos foram preservados.' })
   } catch (falha) {
     notificacoes.notificar({ tipo: 'danger', mensagem: falha.message })
   } finally {
-    salvando.value = false
+    desativando.value = false
+    modalDesativarLoja.value?.fechar()
   }
+}
+
+async function aoFecharModalDesativar() {
+  if (loja.value?.ativa) return
+  await nextTick()
+  tituloStatusLoja.value?.focus()
 }
 </script>
 

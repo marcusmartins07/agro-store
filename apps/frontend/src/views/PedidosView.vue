@@ -157,6 +157,16 @@
                   <span v-if="cancelando === pedido.pedido_id" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
                   {{ cancelando === pedido.pedido_id ? 'Cancelando...' : 'Cancelar pedido' }}
                 </button>
+                <button
+                  v-else-if="pedido.status_nome === STATUS_PRONTO"
+                  type="button"
+                  class="btn btn-sm btn-outline-primary rounded-pill px-3"
+                  :disabled="confirmando === pedido.pedido_id"
+                  @click="pedirConfirmacao(pedido)"
+                >
+                  <span v-if="confirmando === pedido.pedido_id" class="spinner-border spinner-border-sm me-1" aria-hidden="true"></span>
+                  {{ confirmando === pedido.pedido_id ? 'Confirmando...' : 'Confirmar recebimento' }}<span class="visually-hidden"> do pedido #{{ pedido.pedido_id }}</span>
+                </button>
               </div>
 
               <dl class="resumo-valores bg-apoio rounded-4 p-3 mb-0">
@@ -222,6 +232,25 @@
         Os produtos voltam ao estoque da loja e o pedido fica no seu histórico como Cancelado. Esta ação não pode ser desfeita.
       </p>
     </ModalConfirmacao>
+
+    <ModalConfirmacao
+      ref="modalConfirmacao"
+      titulo="Confirmar recebimento"
+      texto-confirmar="Confirmar recebimento"
+      texto-carregando="Confirmando..."
+      texto-fechar="Voltar"
+      variante="primary"
+      :carregando="confirmando !== null"
+      @confirmar="confirmarRecebimento"
+      @fechado="aoFecharConfirmacao"
+    >
+      <p class="mb-2 text-break">
+        Confirme que você retirou o pedido <strong>#{{ pedidoParaConfirmar?.pedido_id }}</strong> da loja <strong>{{ pedidoParaConfirmar?.loja_nome }}</strong>.
+      </p>
+      <p class="small text-body-secondary mb-0">
+        Depois disso, o pedido fica como Entregue e você poderá avaliar os produtos. Esta ação não pode ser desfeita.
+      </p>
+    </ModalConfirmacao>
   </section>
 </template>
 
@@ -243,6 +272,7 @@ import { ORDEM_STATUS, ordenarPorMaisRecente } from '@/utils/statusPedido.js'
 
 const TODOS = 'Todos'
 const STATUS_ENTREGUE = 'Entregue'
+const STATUS_PRONTO = 'Pronto para retirada'
 const MENSAGEM_JA_AVALIADO = 'Este item já foi avaliado.'
 const MENSAGEM_FALHA_ENVIO = 'Não foi possível enviar a avaliação. Verifique sua conexão e tente novamente.'
 
@@ -267,6 +297,10 @@ const enviandoAvaliacao = ref(false)
 const modalCancelamento = ref(null)
 const pedidoParaCancelar = ref(null)
 let focoCancelamento = null
+const confirmando = ref(null)
+const modalConfirmacao = ref(null)
+const pedidoParaConfirmar = ref(null)
+let focoConfirmacao = null
 // Para onde levar o foco quando o modal terminar de fechar: id do bloco "Avaliado" ou o título da página
 let focoAposFechar = null
 
@@ -414,6 +448,50 @@ async function aoFecharCancelamento() {
   if (!destino) return
   await nextTick()
   const elemento = document.getElementById(destino) || titulo.value
+  elemento?.focus()
+}
+
+function pedirConfirmacao(pedido) {
+  pedidoParaConfirmar.value = pedido
+  focoConfirmacao = null
+  modalConfirmacao.value.abrir()
+}
+
+async function confirmarRecebimento() {
+  const pedido = pedidoParaConfirmar.value
+  if (confirmando.value !== null || !pedido) return
+
+  let recarregar = false
+  confirmando.value = pedido.pedido_id
+  try {
+    const atualizado = await api.pedidos.confirmarEntrega(pedido.pedido_id)
+    pedidos.value = pedidos.value.map(item => item.pedido_id === atualizado.pedido_id ? atualizado : item)
+    focoConfirmacao = `titulo-pedido-${pedido.pedido_id}`
+    notificacoes.notificar({
+      tipo: 'success',
+      mensagem: `Recebimento do pedido #${pedido.pedido_id} confirmado. Agora você pode avaliar os produtos.`,
+      tempo: 5,
+    })
+  } catch (falha) {
+    notificacoes.notificar({ tipo: 'danger', mensagem: extrairMensagemErro(falha) })
+    if (falha?.status === 400) {
+      recarregar = true
+      focoConfirmacao = 'titulo'
+    }
+  } finally {
+    confirmando.value = null
+  }
+  modalConfirmacao.value?.fechar()
+  if (recarregar) await carregar()
+}
+
+async function aoFecharConfirmacao() {
+  const destino = focoConfirmacao
+  focoConfirmacao = null
+  pedidoParaConfirmar.value = null
+  if (!destino) return
+  await nextTick()
+  const elemento = destino === 'titulo' ? titulo.value : document.getElementById(destino) || titulo.value
   elemento?.focus()
 }
 </script>

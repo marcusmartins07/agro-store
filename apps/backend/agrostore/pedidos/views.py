@@ -177,6 +177,20 @@ class PedidoViewSet(viewsets.ModelViewSet):
         self._atualizar_status_pedido(pedido, status_cancelado)
         return Response(PedidoSerializer(pedido).data)
 
+    @action(detail=True, methods=['patch'], url_path='confirmar-entrega')
+    @transaction.atomic
+    def confirmar_entrega(self, request, pk=None):
+        pedido = self._obter_pedido_para_atualizacao(pk, usuario=request.user)
+
+        if pedido.status.status != 'Pronto para retirada':
+            return Response(
+                {'detail': 'Somente pedidos prontos para retirada podem ter o recebimento confirmado.'},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        self._atualizar_status_pedido(pedido, garantir_status_pedidos()['Entregue'])
+        return Response(PedidoSerializer(pedido).data)
+
     @action(detail=False, methods=['get'], url_path='minha-loja')
     def minha_loja(self, request):
         if not request.user.is_produtor and not request.user.is_staff:
