@@ -106,7 +106,7 @@ Rotas principais (equivalente às views Vue em `router/index.js`):
 | `CarrinhoScreen` | `CarrinhoView.vue` | `/carrinho` |
 | `FavoritosScreen` | `FavoritosView.vue` | `/favoritos` |
 | `PedidosScreen` | `PedidosView.vue` | `/pedidos` |
-| `ClienteScreen` (perfil) | `ClienteView.vue` | `/cliente` |
+| `PerfilScreen` (perfil) | `PerfilView.vue` | `/perfil` (`/cliente` apenas redireciona para `/perfil`) |
 | `LoginScreen` | `LoginView.vue` | `/login` |
 | `LojaScreen` | `LojaView.vue` | `/loja/:id` |
 
@@ -152,16 +152,16 @@ Equivalente a `LoginView.vue`.
 - **Form de login**: campo CPF (com máscara `000.000.000-00`), campo senha (com botão mostrar/ocultar), botão "Acessar marketplace" (verde escuro, full-width).
 - **Form de cadastro**: nome, CPF, celular (com máscara), e-mail, data de nascimento, gênero (dropdown), senha + confirmação.
 
-### 4.4 Tela de Perfil — `ClienteScreen`
+### 4.4 Tela de Perfil — `PerfilScreen`
 
-Equivalente a `ClienteView.vue`.
+Equivalente a `PerfilView.vue` (rota `/perfil`).
 
 - Card 1 (topo/lateral): avatar circular com iniciais (fundo `greenMid`, texto `greenText`), nome, e-mail, badge de tipo de conta ("Produtor rural" verde / "Cliente" cinza).
 - Card 2: lista de informações pessoais em grid 2 colunas — cada campo com label pequeno cinza + valor em um "box" com fundo `grayLight`, borda `border`, `border-radius: 8`.
 
 ### 4.5 Tela vazia/placeholder padrão
 
-Usada em telas ainda não implementadas (`LojaView.vue`, `AvaliacoesView.vue`): card centralizado, `border-radius: 14`, título "Em breve" (bold, `greenText`) e texto cinza explicativo.
+Usada em telas ainda não implementadas (hoje, somente `LojaView.vue`, rota `/loja/:id`; a avaliação de produtos é feita em "Meus pedidos", `PedidosView.vue`, e a rota antiga `/avaliacoes/:id` redireciona para `/pedidos`): card centralizado, `border-radius: 14`, título "Em breve" (bold, `greenText`) e texto cinza explicativo.
 
 ---
 

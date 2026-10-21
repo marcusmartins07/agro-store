@@ -1,0 +1,56 @@
+%% Figura 10 - Ciclo de uma Requisição na API
+%% Baseado em: docs/api-endpoints.md (1.2 Autenticação e 1.3 Erros) e docs/telas-do-sistema.md (1.3 URL base e autenticação).
+sequenceDiagram
+    autonumber
+    actor U as Usuário
+    participant F as Frontend (services/api.js)
+    participant R as Roteador de URLs
+    participant V as View / ViewSet
+    participant AU as Autenticação JWT
+    participant P as Permissões e limites
+    participant S as Serializer
+    participant M as Model (ORM)
+    participant B as Banco de dados
+
+    U->>F: Aciona uma funcionalidade na tela
+    F->>R: Requisição HTTP para /api/v1/... com o token de acesso no cabeçalho Authorization
+    R->>V: Encaminha para a view da rota
+
+    V->>AU: Identifica o usuário a partir do token
+    alt Token inválido ou expirado
+        AU-->>F: 401 Não autenticado
+        F->>R: POST /api/v1/usuarios/token/refresh/ com o token de renovação
+        alt Renovação aceita
+            R-->>F: Novo token de acesso
+            F->>R: Repete a requisição original uma única vez
+        else Renovação recusada
+            F-->>U: Encerra a sessão e leva à tela de login
+        end
+    end
+
+    V->>P: Verifica a permissão do perfil e o limite de requisições
+    alt Sem permissão ou limite excedido
+        P-->>F: 401, 403 ou 429
+        F-->>U: Exibe a mensagem recebida
+    end
+
+    V->>M: Consulta limitada aos recursos do usuário
+    alt Recurso inexistente ou de outro usuário
+        V-->>F: 404 Não encontrado
+    end
+
+    opt Escrita (POST, PATCH ou DELETE)
+        V->>S: Valida os dados recebidos
+        alt Dados inválidos ou regra recusada
+            S-->>F: 400 com as mensagens de validação
+            F-->>U: Exibe as mensagens nos campos
+        end
+        S->>M: Cria ou altera o objeto
+        M->>B: Instruções SQL geradas pelo ORM, em transação quando necessário
+        B-->>M: Confirmação da gravação
+    end
+
+    M-->>S: Objetos do modelo
+    S-->>V: Dados convertidos para JSON
+    V-->>F: Resposta JSON (200, 201 ou 204)
+    F-->>U: Atualiza a tela

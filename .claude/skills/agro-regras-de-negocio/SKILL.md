@@ -27,6 +27,8 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
 ## Usuários e autenticação
 
 - O login é feito por usuário.
+- Decisão v1: o usuário entra com CPF e senha; o CPF é o identificador de acesso da conta e não pode ser alterado pelo próprio usuário.
+  Ao entrar, o usuário recebe os tokens JWT de acesso e de renovação.
 - O papel do usuário é definido por permissões e propriedades do perfil.
 - O usuário pode atuar como cliente, produtor/agricultor ou administrador.
 - O cliente precisa criar conta para comprar, favoritar produtos e usar o carrinho.
@@ -40,6 +42,7 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
 - O cadastro não aceita campos de privilégios, incluindo `is_produtor`, `is_staff` ou permissões.
 - O cadastro de cliente não cria loja nem inicia solicitação para perfil de produtor.
 - Cadastro, aprovação de produtor, ativação de loja e notificações administrativas serão definidos em tarefa futura.
+  No MVP, a habilitação do produtor segue a RN-023.
 - No perfil, o usuário pode alterar nome, e-mail, data de nascimento, gênero e foto de perfil, com as mesmas validações do cadastro,
   e gerenciar seus telefones (adicionar, editar, excluir e definir o principal) conforme a RN-021.
   CPF e papéis (`is_produtor`, `is_staff`) não podem ser alterados pelo próprio usuário.
@@ -106,6 +109,10 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
 - Alterar o perfil não muda pedidos já realizados: eles mantêm o snapshot dos dados do cliente.
   Exceção (RN-021): o telefone não faz parte do snapshot; nos pedidos em aberto, o produtor vê o telefone principal atual do cliente.
 - O usuário que não é produtor vê apenas uma orientação para procurar a organização da feira; o frontend não oferece criação de loja para ele.
+- Habilitação do produtor rural (RN-023): decisão v1: o papel de produtor (`is_produtor`) é concedido somente pelo administrador,
+  na área administrativa do Django, depois do contato presencial do interessado com a organização da feira.
+  O sistema não oferece solicitação de habilitação pelo cliente; quem não é produtor vê apenas a orientação de procurar a organização da feira.
+  Nenhuma permissão administrativa nova é criada. A solicitação e a aprovação da habilitação pelo próprio sistema ficam para o futuro.
 
 ## Produtor, agricultor e loja
 
@@ -124,6 +131,8 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
   preservando o histórico.
 - O produtor pode alterar o nome, a descrição e a imagem e desativar sua própria loja. CNPJ e proprietário não são alterados por essa área.
   A desativação preserva o histórico e impede novas compras.
+- Decisão v1: o CNPJ da loja é único na plataforma: duas lojas não podem ter o mesmo CNPJ. A API recusa o cadastro de CNPJ já usado
+  e o banco também impede a duplicidade. O CNPJ é tratado como texto.
 - Imagem da loja (RN-018): cada loja pode ter uma única imagem, opcional, que pode ser escolhida já na criação da loja ou enviada depois
   na área do produtor. Se a imagem enviada na criação for inválida, a loja não é criada e o produtor corrige o arquivo.
   Somente o proprietário da loja envia, troca ou remove a imagem; a remoção é permitida sem enviar outra.
@@ -159,6 +168,8 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
 - Categorias não podem ser excluídas; devem ser inativadas quando não puderem receber novos produtos.
 - Produtor pode sugerir uma categoria, que deve nascer inativa e ficar visível publicamente.
 - Somente administrador pode criar categoria já ativa, renomear, ativar ou inativar categorias.
+- Decisão v1: o nome da categoria é único: não podem existir duas categorias com o mesmo nome, ativas ou inativas.
+  A API recusa a criação ou a renomeação para um nome já usado e o banco também impede a duplicidade.
 - Produto inativo não deve aparecer como disponível para compra.
 - Produtos não são excluídos: o produtor os desativa (e pode reativá-los). A API não oferece exclusão de produto.
   Se um produto for excluído, os itens de pedidos já realizados são preservados com o snapshot (RN-019).
@@ -190,6 +201,10 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
 - O preço vigente deve ser considerado no momento da compra.
 - O backend deve validar o preço final no fechamento do pedido.
 - O frontend pode apenas exibir totais para facilitar a experiência do usuário.
+- Decisão v1: cada novo preço cadastrado para o produto passa a ser o preço vigente e encerra a vigência do preço anterior,
+  que recebe a data de fim. Os preços anteriores são preservados no histórico; a API não edita nem exclui preços.
+- Decisão v1: o desconto é informado como percentual inteiro de 0 a 100 sobre o preço de venda, e o valor do desconto é calculado no backend.
+  A API recusa percentual fora dessa faixa com a mensagem "Informe um desconto entre 0 e 100%.".
 
 ## Carrinho
 
@@ -290,6 +305,8 @@ Não implementar sem autorização:
 - Decisão v1 (RN-008): a feira ocorre todos os sábados, das 6h às 12h, na Rua Major Lúcio Meireles, nº 61, Centro, Camaquã (junto ao prédio nos fundos da Igreja Imaculada / escritório da Emater).
 - O dia e o horário da feira são uma configuração única e global da plataforma, não variam por loja/produtor.
 - A informação é apenas exibida ao cliente (catálogo/carrinho/pedidos); o backend não valida nem bloqueia a criação de pedidos fora desse dia/horário no MVP.
+- Decisão v1 (RN-008): o dia, o horário e o local da feira são uma informação fixa e única da plataforma, definida em um só ponto
+  do sistema e exibida igual em todas as telas. No MVP não há edição dessa informação pelo administrador; a edição fica para o futuro.
 
 ## Status do pedido
 
@@ -366,6 +383,7 @@ Para organizar a retirada, o produtor pode consultar somente o nome do cliente r
 - Administradores podem ter permissões mais amplas.
 - Regras administrativas devem ser tratadas com cuidado para não liberar ações indevidas.
 - Não criar permissões administrativas novas sem validar necessidade.
+- A concessão do papel de produtor é feita pelo administrador na área administrativa do Django (RN-023).
 
 ## Cuidados ao alterar regras de negócio
 
@@ -420,6 +438,13 @@ Adicionar novas regras abaixo conforme o projeto evoluir.
 
 - Histórico de mudanças de status do pedido, com quem alterou e quando (RN-022).
 
+### Habilitação do produtor (fora da RN-023)
+
+- Solicitação da habilitação de produtor rural pelo cliente e aprovação pelo próprio sistema (RN-023).
+
+### Retirada (fora da RN-008)
+
+- Edição do dia, do horário e do local da feira pelo administrador (RN-008).
+
 ### Regras pendentes de definição
 - Se o produtor poderá recusar pedido.
-- Como o cliente solicitará a habilitação de produtor rural.

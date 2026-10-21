@@ -20,14 +20,43 @@ Monorepo com API Django e aplicação web Vue.
 - Área do produtor (`/minha-loja`): painel de indicadores, pedidos, produtos, preços, imagens e dados da loja.
 - Informação de retirada presencial na feira (sem pagamento online, entrega ou frete no MVP).
 
+## Tecnologias
+
+Versões lidas de `apps/backend/requirements.txt`, `apps/frontend/package.json` e dos requisitos abaixo.
+
+| Camada | Tecnologia | Versão |
+| --- | --- | --- |
+| Backend | Python | 3.14.2 |
+| Backend | Django | 6.0.3 |
+| Backend | Django REST Framework | 3.16.1 |
+| Backend | Simple JWT (autenticação JWT) | 5.5.1 |
+| Backend | django-cors-headers | 4.9.0 |
+| Backend | django-storages e boto3 (Supabase Storage via S3) | 1.14.6 e 1.43.113 |
+| Backend | psycopg (PostgreSQL) | 3.3.6 |
+| Backend | gunicorn (servidor WSGI) | 26.2.0 |
+| Frontend | Node.js | 20.19+ ou 22.12+ |
+| Frontend | Vue | ^3.5.30 |
+| Frontend | Vite | ^8.0.0 |
+| Frontend | Pinia | ^3.0.4 |
+| Frontend | Vue Router | ^5.0.3 |
+| Frontend | Bootstrap | ^5.3.8 |
+| Dados | SQLite (desenvolvimento) e PostgreSQL no Supabase (produção) | — |
+
+Hospedagem: backend no Render, frontend na Vercel, banco PostgreSQL e armazenamento de imagens no Supabase. Detalhes em [Publicação](#publicação-em-produção).
+
 ## Estrutura
 
 ```text
 apps/
   backend/   API Django REST Framework
-  frontend/  SPA Vue + Vite
+  frontend/  SPA Vue + Vite (inclui vercel.json)
 scripts/
   dev.mjs    inicia os dois serviços
+  backend.mjs executa comandos do Django carregando o .env
+docs/
+  TCC.md, api-endpoints.md, telas-do-sistema.md, modelo-logico.sql,
+  flutter-design-guide.md, diagramas/ (fontes Mermaid)
+.env.example modelo das variáveis de ambiente
 ```
 
 ## Requisitos
@@ -93,9 +122,45 @@ Os nomes e os valores de exemplo estão em `.env.example`. Nunca versione valore
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | Dados do servidor SMTP (usados com o backend SMTP). |
 | `EMAIL_TIMEOUT` | Segundos de espera pelo servidor SMTP (padrão `10`). |
 | `DEFAULT_FROM_EMAIL` | Remetente dos e-mails enviados. |
-| `VITE_API_URL`, `VITE_BACKEND_URL` | Endereço da API usado pelo frontend; vazio em desenvolvimento para usar o proxy do Vite. |
+| `VITE_API_URL`, `VITE_BACKEND_URL` | Endereço da API usado pelo frontend; vazio em desenvolvimento para usar o proxy do Vite. Em produção (Vercel), defina com `<URL do backend>`. |
 | `DATABASE_URL`, `DATABASE_SSLMODE`, `DATABASE_CONN_MAX_AGE` | Banco de dados (vazio usa SQLite). |
 | `SUPABASE_STORAGE_BUCKET`, `SUPABASE_URL`, `SUPABASE_S3_REGION`, `SUPABASE_S3_ACCESS_KEY_ID`, `SUPABASE_S3_SECRET_ACCESS_KEY` | Armazenamento de imagens. Com `SUPABASE_STORAGE_BUCKET` vazio, os arquivos ficam em `apps/backend/media` (`MEDIA_ROOT`, servidos em `/media/`). Com o bucket definido (produção, Supabase Storage com bucket público), `SUPABASE_URL`, `SUPABASE_S3_REGION`, `SUPABASE_S3_ACCESS_KEY_ID` e `SUPABASE_S3_SECRET_ACCESS_KEY` passam a ser obrigatórios, e o backend não inicia se faltar alguma. As chaves ficam só no `.env` do ambiente. |
+
+## Publicação em produção
+
+Arquitetura de produção: frontend na Vercel, backend no Render e banco PostgreSQL com armazenamento de imagens no Supabase. Este repositório não contém `render.yaml`, `Procfile` nem `Dockerfile`; a configuração do Render é feita no painel do serviço. URLs e valores reais não são versionados: este documento usa `<URL do backend>` e `<domínio da Vercel>`.
+
+### Frontend (Vercel, SCRUM-142)
+
+O arquivo `apps/frontend/vercel.json` define:
+
+- framework `vite`, instalação com `npm ci --workspaces=false`, build com `npm run build` e saída em `dist`;
+- reescrita de todas as rotas para `/index.html`, necessária porque o Vue Router roda como SPA (rotas como `/pedidos` e `/redefinir-senha` abertas direto no navegador);
+- cache longo e imutável (`public, max-age=31536000, immutable`) para `/assets/*`.
+
+Configuração esperada no projeto da Vercel: diretório raiz `apps/frontend` (conferir no painel da Vercel). Em produção não há proxy do Vite; defina `VITE_API_URL` (e `VITE_BACKEND_URL`) com `<URL do backend>`. Conforme `services/api.js`, `VITE_API_URL` tem o padrão `/api/v1` quando vazia, e `VITE_BACKEND_URL` o padrão vazio; confira no painel da Vercel o valor adequado ao formato da URL.
+
+### Backend (Render)
+
+O backend é um serviço web Python do Render que executa o Django por WSGI com o `gunicorn` (presente em `requirements.txt`; módulo `agrostore.wsgi`, em `apps/backend/agrostore/wsgi.py`). O diretório de execução, o comando de build e o comando de início exatos devem ser conferidos no painel do Render, pois não estão versionados. Variáveis de ambiente que o `settings.py` lê:
+
+| Variável | Uso em produção |
+| --- | --- |
+| `DJANGO_SECRET_KEY` | Chave secreta do Django (valor só no painel). |
+| `DJANGO_DEBUG` | `false` em produção. |
+| `DJANGO_ALLOWED_HOSTS` | Host do serviço no Render (`<URL do backend>`, sem o protocolo). |
+| `CORS_ALLOWED_ORIGINS` | `<domínio da Vercel>`, com o protocolo. |
+| `FRONTEND_URL` | `<domínio da Vercel>`; obrigatória com `DJANGO_DEBUG=false` (links de redefinição de senha). |
+| `DRF_NUM_PROXIES` | `1` quando o serviço está atrás do proxy reverso do Render (conferir no painel do Render). |
+| `DATABASE_URL`, `DATABASE_SSLMODE`, `DATABASE_CONN_MAX_AGE` | Conexão PostgreSQL do Supabase (Session pooler). |
+| `SUPABASE_STORAGE_BUCKET`, `SUPABASE_URL`, `SUPABASE_S3_REGION`, `SUPABASE_S3_ACCESS_KEY_ID`, `SUPABASE_S3_SECRET_ACCESS_KEY` | Supabase Storage para as imagens (o backend não inicia se faltar alguma com o bucket definido). |
+| `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_TIMEOUT`, `DEFAULT_FROM_EMAIL` | SMTP para o e-mail de redefinição de senha. |
+
+Não foi verificado neste repositório como o Render serve os arquivos estáticos do Django Admin (não há `STATIC_ROOT` nem WhiteNoise no `settings.py`); conferir no painel do Render.
+
+### Ordem de publicação com migrations
+
+Migrations de renomeação das tabelas (`*_nomes_fisicos_modelo_logico`) e a publicação do backend devem sair juntas (ver [Procedimento para aplicar no Supabase](#procedimento-para-aplicar-no-supabase)). Publique o frontend da Vercel depois do backend, pois ele depende dos contratos da API atuais.
 
 ## Contrato de categorias
 
@@ -504,7 +569,7 @@ Comportamento:
 
 ## Vínculo do pedido com o cliente
 
-O dono de um pedido é identificado pelo registro `PedidoCliente` (tabela `pedidos_pedidocliente`, relação um-para-um com `Pedido`, acessível por `pedido.cliente`). A tabela `Pedido` não possui mais o campo `usuario`.
+O dono de um pedido é identificado pelo registro `PedidoCliente` (tabela `pedido_cliente`, relação um-para-um com `Pedido`, acessível por `pedido.cliente`). A tabela `Pedido` não possui mais o campo `usuario`.
 
 - `PedidoCliente.usuario` é uma chave estrangeira obrigatória para o usuário (`related_name='pedidos_cliente'`) e convive com o snapshot do cliente no momento da compra: nome, CPF, e-mail, data de nascimento e gênero. O telefone não faz parte do snapshot (RN-021): o produtor vê o telefone principal atual do cliente nos pedidos em aberto.
 - No checkout (`POST /api/v1/pedidos/`), o `PedidoCliente` é criado logo após o `Pedido`, na mesma transação. Se qualquer etapa falhar, nada é gravado.
@@ -552,10 +617,20 @@ Criam `tipo_telefone` e `telefone`, copiam o antigo `Usuario.telefone` e removem
 
 Estado: **aplicado no Supabase até `lojas` 0003 e `usuarios` 0005**. Conferências com `showmigrations`:
 
-- 15/10/2026: todas as migrations existentes na época aplicadas, incluindo `pedidos` 0001 a 0005 (os 7 registros de `pedidos_pedidocliente` com `usuario_id` preenchido) e `lojas` 0003.
+- 15/10/2026: todas as migrations existentes na época aplicadas, incluindo `pedidos` 0001 a 0005 (os 7 registros do vínculo do cliente com o pedido, então na tabela `pedidos_pedidocliente`, hoje `pedido_cliente`, com `usuario_id` preenchido) e `lojas` 0003.
 - 16/10/2026: conferido com `node scripts/backend.mjs showmigrations`; sem migration pendente na época (inclui `usuarios` 0005).
 
-**Pendentes de aplicação** na branch integrada (exigem autorização e backup): `usuarios` 0006 a 0008 (telefones), `pedidos` 0006 (irreversível, remove o telefone do snapshot) e `pedidos` 0007 (item do pedido com produto opcional e `SET_NULL`, DB-015), e `avaliacoes` 0002 (avaliação com produto opcional e `SET_NULL`, DB-015).
+**Pendentes de aplicação** conforme o repositório (estado não verificado em 20/10/2026, sem saída recente de `showmigrations`; conferir antes de aplicar). Exigem autorização e backup:
+
+- `usuarios` 0006 a 0008 (telefones) e `usuarios` 0009 (nomes físicos).
+- `pedidos` 0006 (irreversível, remove o telefone do snapshot), `pedidos` 0007 (item do pedido com produto opcional e `SET_NULL`, DB-015) e `pedidos` 0008 (nomes físicos).
+- `avaliacoes` 0002 (avaliação com produto opcional e `SET_NULL`, DB-015) e `avaliacoes` 0003 (nomes físicos).
+- `produtos` 0006 (copia a imagem legada para a imagem principal), `produtos` 0007 (nomes físicos) e `produtos` 0008 (remove o campo legado `Produto.imagem`). Não foi verificado se `produtos` 0004 e 0005 já estão aplicadas.
+- `lojas` 0004, `carrinhos` 0002 e `favoritos` 0002 (nomes físicos).
+
+As migrations `*_nomes_fisicos_modelo_logico` (SCRUM-138) renomeiam as tabelas e colunas para os nomes do modelo lógico (`usuario`, `pedido`, `pedido_cliente`, `redefinicao_senha` etc.; os models usam `db_table` com esses nomes). **O código atual do backend já usa os nomes novos: aplique as migrations de renomeação e publique o backend no mesmo momento.** Aplicar só o código quebra a produção, e aplicar só as migrations quebra o backend antigo.
+
+Os nomes das tabelas na consulta abaixo (`pedido`, `pedido_cliente`) valem depois das renomeações; antes delas, eram `pedidos_pedido` e `pedidos_pedidocliente`. O nome de app em `django_migrations` continua sendo `pedidos`, `lojas`, `usuarios` e `produtos`.
 
 O procedimento abaixo vale como referência para essas aplicações e para as futuras.
 
@@ -564,11 +639,11 @@ O procedimento abaixo vale como referência para essas aplicações e para as fu
    ```sql
    SELECT app, name FROM django_migrations WHERE app IN ('pedidos','lojas','usuarios','produtos') ORDER BY app, id;
 
-   SELECT COUNT(*) FROM pedidos_pedido p
-   LEFT JOIN pedidos_pedidocliente pc ON pc.pedido_id = p.pedido_id
+   SELECT COUNT(*) FROM pedido p
+   LEFT JOIN pedido_cliente pc ON pc.pedido_id = p.pedido_id
    WHERE pc.pedido_cliente_id IS NULL;
    ```
-   A segunda consulta deve retornar `0`; caso contrário, a migration 0004 será interrompida e os pedidos órfãos devem ser tratados antes.
+   Os nomes de tabela e de coluna acima seguem o modelo lógico; confira-os em `docs/modelo-logico.sql` (Camila) antes de executar. A segunda consulta deve retornar `0`; caso contrário, a migration 0004 será interrompida e os pedidos órfãos devem ser tratados antes.
 3. Pare o backend publicado.
 4. Aplique um app por vez, rodando `--plan` antes de cada um: primeiro as pendentes de `lojas`, `usuarios` e `produtos`; `pedidos` por último.
    ```powershell
@@ -621,7 +696,7 @@ Fluxo:
 
 Regras implementadas:
 
-- Código aleatório (`secrets.token_urlsafe`); o banco guarda apenas o hash SHA-256 (tabela `usuarios_redefinicaosenha`, migration `usuarios` 0005), nunca o código.
+- Código aleatório (`secrets.token_urlsafe`); o banco guarda apenas o hash SHA-256 (tabela `redefinicao_senha`, criada na migration `usuarios` 0005), nunca o código.
 - Cada link vale 30 minutos e pode ser usado uma única vez (`data_utilizacao` é preenchida).
 - Pedir um novo link marca como usados os links pendentes anteriores. Ao concluir a troca, os demais links pendentes também são invalidados.
 - Link inexistente, expirado, usado ou de conta inativa retorna sempre a mesma mensagem de erro.

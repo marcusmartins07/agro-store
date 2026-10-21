@@ -22,22 +22,28 @@ Não é preciso instalar nenhuma dependência.
 | — | Figura 1 - Modelo Conceitual (DER) | Mantido em notação de Chen, fora do Mermaid (responsabilidade do autor) |
 | `fig02-modelo-logico.mmd` | Figura 2 - Modelo Lógico | `erDiagram` |
 | `fig03-casos-de-uso.mmd` | Figura 3 - Diagrama de Casos de Uso | `flowchart LR` (aproximação) |
-| `fig04-seq-cadastro.mmd` | Figura 4 - Diagrama de Sequência I - Cadastro de Usuário | `sequenceDiagram` |
+| `fig04-seq-cadastro.mmd` | Figura 4 - Diagrama de Sequência I - Cadastro de Cliente | `sequenceDiagram` |
 | `fig05-seq-login.mmd` | Figura 5 - Diagrama de Sequência II - Acesso ao Sistema | `sequenceDiagram` |
 | `fig06-seq-cadastro-loja.mmd` | Figura 6 - Diagrama de Sequência III - Cadastro de Loja | `sequenceDiagram` |
 | `fig07-seq-produto-preco.mmd` | Figura 7 - Diagrama de Sequência IV - Produto e Preço | `sequenceDiagram` |
 | `fig08-seq-catalogo.mmd` | Figura 8 - Diagrama de Sequência V - Catálogo | `sequenceDiagram` |
 | `fig09-atividades-pedido.mmd` | Figura 9 - Diagrama de Atividades I - Geração de Pedido | `flowchart TD` (aproximação) |
-| `fig10-estados-pedido.mmd` | Figura 10 - Diagrama de Estados do Pedido (Seção 4.2) | `stateDiagram-v2` |
-| `fig11-seq-imagens-produto.mmd` | Figura 11 - Diagrama de Sequência VI - Imagens do Produto (Seção 4.3) | `sequenceDiagram` |
-| `fig12-seq-avaliacao.mmd` | Figura 12 - Diagrama de Sequência VII - Avaliação de Item Entregue (Seção 4.6) | `sequenceDiagram` |
-| `fig13-seq-redefinicao-senha.mmd` | Figura 13 - Diagrama de Sequência VIII - Redefinição de Senha | `sequenceDiagram` |
+| `fig14-ciclo-requisicao.mmd` | Figura 10 - Ciclo de uma Requisição na API (Seção 4.1) | `sequenceDiagram` |
+| `fig10-estados-pedido.mmd` | Figura 11 - Diagrama de Estados do Pedido (Seção 4.4.2) | `stateDiagram-v2` |
+| `fig11-seq-imagens-produto.mmd` | Figura 12 - Diagrama de Sequência VI - Imagens do Produto (Seção 4.4.3) | `sequenceDiagram` |
+| `fig12-seq-avaliacao.mmd` | Figura 13 - Diagrama de Sequência VII - Avaliação de Item Entregue (Seção 4.4.6) | `sequenceDiagram` |
+| `fig13-seq-redefinicao-senha.mmd` | Figura 14 - Diagrama de Sequência VIII - Redefinição de Senha (Seção 4.4.8) | `sequenceDiagram` |
+
+Os números das figuras no TCC não seguem o número do arquivo `.mmd` a partir da Figura 10 (por exemplo, `fig14-ciclo-requisicao.mmd` é a Figura 10). As telas do sistema ocupam as Figuras 15 a 35 (`docs/telas/`).
+
+`fig02-modelo-logico.mmd` representa o modelo-alvo de `docs/modelo-logico.sql` v2.4, com os nomes físicos das tabelas alinhados ao modelo lógico (SCRUM-138). A regeneração do arquivo é da Camila (DBA).
 
 No `docs/TCC.md`, as figuras apontam para `diagramas/figNN-*.png`, um caminho relativo à pasta `docs/`. Ao converter com o pandoc,
 execute o comando a partir de `docs/` ou informe `--resource-path=docs`.
 
 ## Observações
 
-- Os diagramas seguem o código implementado (models, views e serializers do backend). Os comentários `%%`
+- Os diagramas seguem o código implementado (models, views e serializers do backend), com uma exceção: o `fig02-modelo-logico.mmd`
+  representa o modelo-alvo de `docs/modelo-logico.sql` v2.4, e não o schema atual. Os comentários `%%`
   de cada arquivo indicam onde o fluxo foi conferido e onde o `docs/modelo-logico.sql` (modelo-alvo) diverge.
 - Os caminhos de endpoint nos diagramas de sequência partem de `/api/v1/`.

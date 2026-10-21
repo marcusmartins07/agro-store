@@ -1,217 +1,211 @@
 %% Figura 2 - Modelo Lógico do Banco de Dados (Agro Store)
-%% Fonte da verdade: models do Django em apps/backend/agrostore/*/models.py (estado implementado, após a DB-018, a DB-015 e a DB-003/DB-014, versão 2.4: tipo_telefone e telefone; telefone removido de usuario e pedido_cliente; SET NULL em pedido_produto e avaliacao; loja única por produtor).
-%% Nomes de colunas seguem os models. docs/modelo-logico.sql é o modelo-alvo (PostgreSQL) e usa nomes em português
-%% (id_usuario, e_produtor, esta_ativa...). As divergências de on_delete e de restrições estão anotadas em cada tabela.
-%% Todas as tabelas, exceto USUARIO, GENERO, STATUS_PEDIDO, TIPO_TELEFONE e REDEFINICAO_SENHA, herdam data_criacao e data_atualizacao (BaseModel).
-%% REDEFINICAO_SENHA tem somente data_criacao. Versão 2.4 do modelo (DB-018: telefones do usuário, RN-021; DB-015: SET NULL em item e avaliação; DB-003/DB-014: loja única por produtor, RN-013).
+%% Fonte da verdade: docs/modelo-logico.sql, versão 2.4 (modelo-alvo PostgreSQL): 18 tabelas, colunas, chaves e cardinalidades conforme o DDL.
+%% O schema implementado (models e migrations do Django) diverge em on_delete, CHECK/UNIQUE, nomes de constraint e nulidade; as divergências estão no cabeçalho do modelo-logico.sql e na seção 3.2.4 do TCC.
 erDiagram
-    GENERO ||--o{ USUARIO : classifica
-    USUARIO ||--o{ REDEFINICAO_SENHA : solicita
-    USUARIO ||--o{ TELEFONE : possui
-    TIPO_TELEFONE ||--o{ TELEFONE : classifica
-    USUARIO ||--o| LOJA : "é proprietário de"
-    LOJA ||--o{ PRODUTO : oferece
-    CATEGORIA ||--o{ PRODUTO : classifica
-    PRODUTO ||--o{ PRECO_PRODUTO : "tem histórico de"
-    PRODUTO ||--o{ IMAGEM_PRODUTO : "possui (0 a 5)"
-    USUARIO ||--o{ CARRINHO : possui
-    LOJA ||--o{ CARRINHO : agrupa
-    CARRINHO ||--o{ CARRINHO_PRODUTO : contem
-    PRODUTO ||--o{ CARRINHO_PRODUTO : "está em"
-    LOJA ||--o{ PEDIDO : recebe
-    STATUS_PEDIDO ||--o{ PEDIDO : define
-    PEDIDO ||--|| PEDIDO_CLIENTE : "preserva o cliente em"
-    USUARIO ||--o{ PEDIDO_CLIENTE : realiza
-    PEDIDO ||--|{ PEDIDO_PRODUTO : contem
-    PRODUTO |o--o{ PEDIDO_PRODUTO : "vendido em"
-    USUARIO ||--o{ FAVORITO : marca
-    PRODUTO ||--o{ FAVORITO : "favoritado em"
-    USUARIO ||--o{ AVALIACAO : escreve
-    PRODUTO |o--o{ AVALIACAO : recebe
-    PEDIDO_PRODUTO ||--o| AVALIACAO : "avaliado por"
+    genero ||--o{ usuario : classifica
+    usuario ||--o{ redefinicao_senha : solicita
+    usuario ||--o{ telefone : possui
+    tipo_telefone ||--o{ telefone : classifica
+    usuario ||--o| loja : "é proprietário de"
+    loja ||--o{ produto : oferece
+    categoria ||--o{ produto : classifica
+    produto ||--o{ preco_produto : "tem histórico de"
+    produto ||--o{ imagem : possui
+    usuario ||--o{ carrinho : possui
+    loja ||--o{ carrinho : agrupa
+    carrinho ||--o{ carrinho_produto : contem
+    produto ||--o{ carrinho_produto : "está em"
+    loja ||--o{ pedido : recebe
+    status_pedido ||--o{ pedido : define
+    pedido ||--o| pedido_cliente : "preserva o cliente em"
+    usuario ||--o{ pedido_cliente : realiza
+    pedido ||--o{ pedido_produto : contem
+    produto |o--o{ pedido_produto : "vendido em"
+    usuario ||--o{ favorito : marca
+    produto ||--o{ favorito : "favoritado em"
+    usuario ||--o{ avaliacao : escreve
+    produto |o--o{ avaliacao : recebe
+    pedido_produto ||--o| avaliacao : "avaliado por"
 
-    %% USUARIO ||--o| LOJA: uma loja por produtor (RN-013) garantida no banco por uq_loja_proprietario e validada na API.
-    %% proprietario com PROTECT, igual ao RESTRICT do modelo-alvo (DB-003/DB-014, migration lojas/0003).
-    %% PEDIDO ||--|| PEDIDO_CLIENTE: o OneToOne garante no máximo um snapshot por pedido; a API cria o pedido
-    %% e o snapshot na mesma transação. PEDIDO ||--|{ PEDIDO_PRODUTO: a API só cria pedido com ao menos um item.
-
-    GENERO {
-        varchar(2) id_genero PK
-        varchar(55) genero UK
+    genero {
+        varchar(2) codigo_genero PK
+        varchar(55) nome UK
     }
 
-    USUARIO {
-        int id PK
+    usuario {
+        bigint id_usuario PK
         varchar(150) nome
-        varchar(11) cpf UK "somente dígitos"
+        varchar(11) cpf UK
         varchar(254) email UK
         date data_nascimento
-        varchar(2) genero_id FK
-        varchar(255) foto_perfil "opcional"
-        varchar(128) password "hash"
-        datetime last_login
-        boolean is_produtor
-        boolean is_active
-        boolean is_staff
-        boolean is_superuser
+        varchar(255) foto_perfil "vazio quando sem foto"
+        varchar(128) senha
+        timestamptz ultimo_login "opcional"
+        boolean e_produtor
+        boolean esta_ativo
+        boolean e_equipe
+        boolean e_superusuario
+        varchar(2) codigo_genero FK "RESTRICT"
     }
 
-    TIPO_TELEFONE {
-        int id PK
-        varchar(30) descricao UK "Celular, Fixo, Comercial"
+    redefinicao_senha {
+        bigint id_redefinicao PK
+        bigint id_usuario FK "CASCADE"
+        varchar(64) token_hash UK
+        timestamptz data_expiracao "CHECK maior que data_criacao"
+        timestamptz data_utilizacao "opcional"
+        timestamptz data_criacao
     }
-    %% TIPO_TELEFONE (RN-021): tipos fixos carregados por migration (usuarios/0007).
 
-    TELEFONE {
-        int id PK
-        int usuario_id FK
-        int tipo_id FK
-        varchar(11) numero "somente dígitos, com DDD"
-        boolean e_principal "1 principal por usuário"
+    tipo_telefone {
+        bigint id_tipo_telefone PK
+        varchar(30) descricao UK
     }
-    %% TELEFONE (RN-021): usuario com CASCADE e tipo com PROTECT (RESTRICT no modelo-alvo).
-    %% UniqueConstraint condicional telefone_principal_unico_por_usuario (no máximo 1 principal).
-    %% Mínimo de 1 telefone e dígitos por tipo validados na API/admin; contas legadas e createsuperuser podem ter 0.
 
-    REDEFINICAO_SENHA {
-        int id PK
-        int usuario_id FK
-        varchar(64) token_hash UK "somente o hash"
-        datetime data_expiracao "criação + 30 min"
-        datetime data_utilizacao "NULL = pendente"
-        datetime data_criacao
+    telefone {
+        bigint id_telefone PK
+        bigint id_usuario FK "CASCADE"
+        bigint id_tipo_telefone FK "RESTRICT"
+        varchar(11) numero
+        boolean e_principal "único por usuário quando verdadeiro"
+        timestamptz data_criacao
+        timestamptz data_atualizacao
     }
-    %% REDEFINICAO_SENHA (RN-020): uso único; data_utilizacao também é preenchida ao invalidar pendentes.
-    %% usuario com CASCADE (igual ao modelo-alvo). CHECK data_expiracao > data_criacao no model e no modelo-alvo.
 
-    LOJA {
-        int loja_id PK
-        int proprietario_id FK, UK
+    loja {
+        bigint id_loja PK
+        bigint id_proprietario FK, UK "RESTRICT, uq_loja_proprietario"
         varchar(150) nome
         text descricao
         varchar(14) cnpj UK
-        varchar(255) imagem_perfil "opcional"
-        boolean ativa
+        varchar(255) imagem_perfil "vazio quando sem imagem"
+        boolean esta_ativa
+        timestamptz data_criacao
+        timestamptz data_atualizacao
     }
 
-    CATEGORIA {
-        int categoria_id PK
+    categoria {
+        bigint id_categoria PK
         varchar(100) nome UK
-        boolean ativo
+        boolean esta_ativa
+        timestamptz data_criacao
+        timestamptz data_atualizacao
     }
 
-    PRODUTO {
-        int produto_id PK
-        int loja_id FK
-        int categoria_id FK
+    produto {
+        bigint id_produto PK
+        bigint id_loja FK "RESTRICT"
+        bigint id_categoria FK "RESTRICT"
         varchar(155) nome
         text descricao
-        varchar(13) codigo_barras
-        int estoque "não negativo, validado na API"
-        varchar(50) sku UK "gerado: loja, categoria, produto"
-        boolean ativo
-        varchar(100) imagem "legado, sem uso na API"
-    }
-    %% PRODUTO: o modelo-alvo tem CHECK (estoque >= 0), sku NOT NULL e ON DELETE RESTRICT para loja;
-    %% o model usa CASCADE para loja e PROTECT para categoria. A trava de estoque no banco está pendente.
-
-    PRECO_PRODUTO {
-        int id PK
-        int produto_id FK
-        decimal preco_venda
-        decimal preco_custo
-        decimal preco_desconto
-        int porcentagem_desconto "0 a 100"
-        datetime vigencia_inicio
-        datetime vigencia_fim "nulo = preço vigente"
-    }
-    %% PRECO_PRODUTO: model com CASCADE; modelo-alvo com ON DELETE RESTRICT.
-
-    IMAGEM_PRODUTO {
-        int id PK
-        int produto_id FK
-        varchar(100) imagem "nome aleatório no storage"
-        smallint ordem
-        boolean e_principal "no máximo uma por produto"
-    }
-    %% IMAGEM_PRODUTO: restrição única condicional imagem_principal_unica_por_produto
-    %% (UNIQUE produto_id WHERE e_principal = true). Ao excluir a principal, a API promove a próxima pela ordem.
-    %% O limite de 5 imagens é validado na API. O modelo-alvo chama a tabela de imagem, tem UNIQUE (id_produto, ordem)
-    %% e ainda não declara a restrição da imagem principal.
-
-    CARRINHO {
-        int carrinho_id PK
-        int usuario_id FK
-        int loja_id FK
-        decimal valor_bruto
-        decimal valor_desconto
-        decimal valor_liquido
-    }
-    %% CARRINHO: UNIQUE (usuario_id, loja_id) - um carrinho por cliente e loja (decisão v1).
-
-    CARRINHO_PRODUTO {
-        int carrinho_produto_id PK
-        int carrinho_id FK
-        int produto_id FK
-        int quantidade "0 indica Sem estoque (RN-017)"
-    }
-    %% CARRINHO_PRODUTO: UNIQUE (carrinho_id, produto_id). O modelo-alvo tem CHECK (quantidade > 0),
-    %% incompatível com a RN-017, que mantém o item com quantidade 0.
-
-    STATUS_PEDIDO {
-        int status_pedido_id PK
-        varchar(55) status UK
+        varchar(13) codigo_barras "opcional"
+        integer estoque "CHECK maior ou igual a 0"
+        varchar(50) sku UK
+        boolean esta_ativo
+        timestamptz data_criacao
+        timestamptz data_atualizacao
     }
 
-    PEDIDO {
-        int pedido_id PK
-        int loja_id FK
-        int status_id FK
-        decimal valor_bruto
-        decimal valor_desconto
-        decimal valor_liquido
+    preco_produto {
+        bigint id_preco_produto PK
+        bigint id_produto FK "RESTRICT"
+        decimal valor_venda "10,2; CHECK maior ou igual a 0"
+        decimal valor_custo "10,2; opcional; CHECK maior ou igual a 0"
+        decimal valor_desconto "10,2; opcional; CHECK maior ou igual a 0"
+        integer porcentagem_desconto "opcional; CHECK entre 0 e 100"
+        timestamptz vigencia_inicio
+        timestamptz vigencia_fim "opcional; ck_preco_vigencia"
+        timestamptz data_criacao
+        timestamptz data_atualizacao
     }
-    %% PEDIDO: sem FK de cliente (DB-010). loja e status com PROTECT, iguais ao RESTRICT do modelo-alvo.
 
-    PEDIDO_CLIENTE {
-        int pedido_cliente_id PK
-        int pedido_id FK, UK
-        int usuario_id FK "obrigatória"
+    imagem {
+        bigint id_imagem PK
+        bigint id_produto FK, UK "CASCADE; uq_imagem_produto_ordem (id_produto, ordem)"
+        varchar(255) caminho
+        integer ordem UK "CHECK maior ou igual a 0"
+        boolean e_principal "única por produto quando verdadeiro"
+        timestamptz data_criacao
+        timestamptz data_atualizacao
+    }
+
+    carrinho {
+        bigint id_carrinho PK
+        bigint id_usuario FK, UK "CASCADE; uq_carrinho_usuario_loja (id_usuario, id_loja)"
+        bigint id_loja FK, UK "CASCADE"
+        decimal valor_bruto "10,2; CHECK maior ou igual a 0"
+        decimal valor_desconto "10,2; CHECK maior ou igual a 0"
+        decimal valor_liquido "10,2; CHECK maior ou igual a 0"
+        timestamptz data_criacao
+        timestamptz data_atualizacao
+    }
+
+    carrinho_produto {
+        bigint id_carrinho_produto PK
+        bigint id_carrinho FK, UK "CASCADE; uq_carrinho_produto (id_carrinho, id_produto)"
+        bigint id_produto FK, UK "CASCADE"
+        integer quantidade "CHECK maior ou igual a 0"
+        timestamptz data_criacao
+        timestamptz data_atualizacao
+    }
+
+    status_pedido {
+        bigint id_status_pedido PK
+        varchar(55) nome UK
+    }
+
+    pedido {
+        bigint id_pedido PK
+        bigint id_loja FK "RESTRICT"
+        bigint id_status_pedido FK "RESTRICT"
+        decimal valor_bruto "10,2; CHECK maior ou igual a 0"
+        decimal valor_desconto "10,2; CHECK maior ou igual a 0"
+        decimal valor_liquido "10,2; CHECK maior ou igual a 0"
+        timestamptz data_criacao
+        timestamptz data_atualizacao
+    }
+
+    pedido_cliente {
+        bigint id_pedido_cliente PK
+        bigint id_pedido FK, UK "CASCADE"
+        bigint id_usuario FK "RESTRICT"
         varchar(150) nome
         varchar(11) cpf
         varchar(254) email
         date data_nascimento
         varchar(55) genero
+        timestamptz data_criacao
+        timestamptz data_atualizacao
     }
-    %% PEDIDO_CLIENTE: snapshot do cliente no momento da compra, exceto o telefone (RN-021: telefone principal atual do cliente). usuario com PROTECT (RESTRICT no modelo-alvo).
 
-    PEDIDO_PRODUTO {
-        int pedido_produto_id PK
-        int pedido_id FK
-        int produto_id FK
-        varchar(155) nome_produto "snapshot"
-        int quantidade
-        decimal valor_unitario
-        decimal valor_desconto
-        decimal subtotal
+    pedido_produto {
+        bigint id_pedido_produto PK
+        bigint id_pedido FK "CASCADE"
+        bigint id_produto FK "opcional; SET NULL"
+        varchar(155) nome_produto
+        integer quantidade "CHECK maior que 0"
+        decimal valor_unitario "10,2; CHECK maior ou igual a 0"
+        decimal valor_desconto "10,2; CHECK maior ou igual a 0"
+        decimal subtotal "10,2; CHECK maior ou igual a 0"
+        timestamptz data_criacao
+        timestamptz data_atualizacao
     }
-    %% PEDIDO_PRODUTO (DB-015): produto_id é opcional com ON DELETE SET NULL, no model e no modelo-alvo; o snapshot do item permanece.
-    %% CHECK quantidade > 0 e valor_unitario, valor_desconto e subtotal >= 0. A relação com pedido é CASCADE.
 
-    FAVORITO {
-        int favorito_id PK
-        int usuario_id FK
-        int produto_id FK
+    favorito {
+        bigint id_favorito PK
+        bigint id_usuario FK, UK "CASCADE; uq_favorito_usuario_produto (id_usuario, id_produto)"
+        bigint id_produto FK, UK "CASCADE"
+        timestamptz data_criacao
+        timestamptz data_atualizacao
     }
-    %% FAVORITO: UNIQUE (usuario_id, produto_id).
 
-    AVALIACAO {
-        int avaliacao_id PK
-        int usuario_id FK
-        int produto_id FK
-        int pedido_produto_id FK, UK "uma por item"
-        int nota "1 a 5"
-        text comentario "até 500, validado na API"
+    avaliacao {
+        bigint id_avaliacao PK
+        bigint id_usuario FK "RESTRICT"
+        bigint id_produto FK "opcional; SET NULL"
+        bigint id_pedido_produto FK, UK "RESTRICT"
+        integer nota "CHECK entre 1 e 5"
+        text comentario "ck_avaliacao_comentario_tamanho: até 500"
+        timestamptz data_criacao
+        timestamptz data_atualizacao
     }
-    %% AVALIACAO (DB-015): produto_id é opcional com ON DELETE SET NULL, no model e no modelo-alvo; a avaliação continua ligada ao item do pedido.
-    %% Só usuario e pedido_produto seguem com CASCADE no model e ON DELETE RESTRICT no modelo-alvo.

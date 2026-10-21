@@ -1,7 +1,7 @@
 %% Figura 3 - Diagrama de Casos de Uso (aproximação em Mermaid)
 %% O Mermaid não possui diagrama de casos de uso UML: atores são retângulos, casos de uso são elipses
 %% e a generalização entre atores é representada por seta tracejada com o rótulo "herda".
-%% Casos tracejados em cinza estão fora do MVP (RN-009 pendente).
+%% Casos tracejados em cinza estão fora do MVP (RN-023: solicitação e aprovação pelo sistema ficam para o futuro).
 flowchart LR
     VI["Visitante"]:::ator
     CL["Cliente"]:::ator
@@ -35,6 +35,7 @@ flowchart LR
         UC21(["Aprovar produtor e loja"]):::foraMVP
         UC22(["Redefinir senha"])
         UC23(["Confirmar recebimento"])
+        UC24(["Conceder papel de produtor"])
     end
 
     VI --- UC01
@@ -64,6 +65,7 @@ flowchart LR
     AD --- UC04
     AD --- UC18
     AD --- UC19
+    AD --- UC24
     AD -.- UC21
 
     classDef ator fill:#ffffff,stroke:#333333,stroke-width:2px
