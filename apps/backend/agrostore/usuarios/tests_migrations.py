@@ -129,3 +129,94 @@ class MigracaoTelefonesTests(TransactionTestCase):
         executor.migrate(alvo)
         executor = MigrationExecutor(connection)
         return executor.loader.project_state(alvo).apps
+
+
+ANTES_GENERO = [('usuarios', '0009_nomes_fisicos_modelo_logico')]
+ATUAL_GENERO = [('usuarios', '0010_genero_prefiro_nao_informar')]
+
+
+class MigracaoGeneroTests(TransactionTestCase):
+    """A 0010 normaliza os códigos legados para M, F e I e renomeia I para 'Prefiro não informar'."""
+
+    def setUp(self):
+        self.apps_antes = self._migrar(ANTES_GENERO)
+
+    def tearDown(self):
+        apps = self._migrar(ATUAL_GENERO)
+        apps.get_model('usuarios', 'Usuario').objects.filter(email__endswith='@migracao.test').delete()
+        apps.get_model('usuarios', 'Genero').objects.exclude(id_genero__in=['M', 'F', 'I']).delete()
+        self._migrar_para_folhas()
+
+    def test_banco_padrao_renomeia_i_para_prefiro_nao_informar_e_preserva_m_f_e_o_usuario(self):
+        self._montar_generos({'M': 'Masculino', 'F': 'Feminino', 'I': 'Indefinido'})
+        usuario_id = self._criar_usuario('padrao', 'I')
+
+        apps = self._migrar(ATUAL_GENERO)
+
+        self.assertEqual(self._generos(apps), {'M': 'Masculino', 'F': 'Feminino', 'I': 'Prefiro não informar'})
+        self.assertEqual(self._genero_do_usuario(apps, usuario_id), 'I')
+
+    def test_codigos_legados_sao_normalizados_e_os_usuarios_migrados_sem_perda(self):
+        self._montar_generos({'1': 'Masculino', '2': 'Feminino', '3': 'Outro', '4': 'Prefiro não informar', '9': 'Indefinido'})
+        usuarios = {codigo: self._criar_usuario(f'legado{codigo}', codigo) for codigo in ('1', '2', '3', '4', '9')}
+
+        apps = self._migrar(ATUAL_GENERO)
+
+        esperado = {'1': 'M', '2': 'F', '3': '3', '4': 'I', '9': 'I'}
+        for codigo, usuario_id in usuarios.items():
+            self.assertEqual(self._genero_do_usuario(apps, usuario_id), esperado[codigo], codigo)
+        generos = self._generos(apps)
+        self.assertEqual(set(generos), {'3', 'F', 'I', 'M'})
+        self.assertEqual(generos['3'], 'Outro')
+        self.assertEqual((generos['M'], generos['F'], generos['I']), ('Masculino', 'Feminino', 'Prefiro não informar'))
+        self.assertFalse([nome for nome in generos.values() if nome.startswith('legado-')])
+
+    def test_migracao_e_idempotente(self):
+        self._montar_generos({'M': 'Masculino', 'F': 'Feminino', 'I': 'Indefinido'})
+        usuario_id = self._criar_usuario('idem', 'I')
+        apps = self._migrar(ATUAL_GENERO)
+        primeiro = self._generos(apps)
+
+        self._migrar(ANTES_GENERO)
+        apps = self._migrar(ATUAL_GENERO)
+
+        self.assertEqual(self._generos(apps), primeiro)
+        self.assertEqual(self._genero_do_usuario(apps, usuario_id), 'I')
+
+    def test_reversao_devolve_o_nome_indefinido_ao_codigo_i(self):
+        self._montar_generos({'M': 'Masculino', 'F': 'Feminino', 'I': 'Indefinido'})
+        self._migrar(ATUAL_GENERO)
+
+        apps = self._migrar(ANTES_GENERO)
+
+        self.assertEqual(self._generos(apps)['I'], 'Indefinido')
+
+    def _montar_generos(self, generos):
+        genero_model = self.apps_antes.get_model('usuarios', 'Genero')
+        self.apps_antes.get_model('usuarios', 'Usuario').objects.all().delete()
+        genero_model.objects.all().delete()
+        for codigo, nome in generos.items():
+            genero_model.objects.create(id_genero=codigo, genero=nome)
+
+    def _criar_usuario(self, nome, codigo_genero):
+        usuario = self.apps_antes.get_model('usuarios', 'Usuario').objects.create(
+            cpf=f'{abs(hash(nome)) % 10**11:011d}', email=f'{nome}@migracao.test', nome=nome, data_nascimento='1990-01-01',
+            genero_id=codigo_genero, password='x', foto_perfil='',
+        )
+        return usuario.pk
+
+    def _generos(self, apps):
+        return dict(apps.get_model('usuarios', 'Genero').objects.values_list('id_genero', 'genero'))
+
+    def _genero_do_usuario(self, apps, usuario_id):
+        return apps.get_model('usuarios', 'Usuario').objects.get(pk=usuario_id).genero_id
+
+    def _migrar_para_folhas(self):
+        executor = MigrationExecutor(connection)
+        executor.migrate(executor.loader.graph.leaf_nodes())
+
+    def _migrar(self, alvo):
+        executor = MigrationExecutor(connection)
+        executor.migrate(alvo)
+        executor = MigrationExecutor(connection)
+        return executor.loader.project_state(alvo).apps

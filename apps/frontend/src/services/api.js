@@ -113,6 +113,9 @@ export const api = {
   tiposTelefone: {
     listar: () => request('/tipos-telefone/', {}, false, { autenticar: false }),
   },
+  generos: {
+    listar: () => request('/generos/', {}, false, { autenticar: false }),
+  },
   telefones: {
     listar: () => request('/usuarios/me/telefones/'),
     criar: (body) => request('/usuarios/me/telefones/', { method: 'POST', body: jsonBody(body) }),

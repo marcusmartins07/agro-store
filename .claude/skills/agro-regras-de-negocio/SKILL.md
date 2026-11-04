@@ -37,6 +37,19 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
 - O cadastro público cria somente contas de cliente e deve retornar tokens JWT para iniciar a sessão automaticamente.
 - O cadastro exige nome, CPF válido e único, e-mail único, um telefone com seu tipo (que se torna o principal, conforme RN-021),
   data de nascimento, gênero e senha com no mínimo 8 caracteres. O cliente deve ter pelo menos 16 anos.
+- Opções de gênero (RN-024): as opções de gênero do cadastro e do perfil são as cadastradas na tabela `genero`.
+  O administrador pode mantê-las pela área administrativa do Django (cadastrar e renomear); um gênero em uso não pode ser excluído.
+  Nenhuma permissão administrativa nova é criada.
+  As opções padrão são M Masculino, F Feminino e I Prefiro não informar, exibidas nessa ordem; as demais opções cadastradas
+  (por exemplo, "Outro", que é mantida) vêm depois, em ordem alfabética.
+  As opções podem ser consultadas publicamente (GET /api/v1/generos/), pois são necessárias no cadastro, feito sem login
+  (mesmo padrão dos tipos de telefone, RN-021).
+  O backend aceita somente um código existente na tabela; código inexistente, vazio ou nulo é recusado com a mensagem
+  "Informe uma opção de gênero válida.".
+  Migração: uma migration de dados normalizou os códigos legados para M, F e I e renomeou o código I de "Indefinido"
+  para "Prefiro não informar".
+  Snapshot: o pedido grava o nome do gênero vigente no momento da compra. Os pedidos antigos mantêm "Indefinido"
+  e os pedidos novos de clientes com código I gravam "Prefiro não informar". Renomear um gênero não altera pedidos já realizados.
 - CPF e telefones são persistidos somente com dígitos. CPF, e-mail, idade e telefones (quantidade de dígitos conforme o tipo, RN-021)
   são validados no backend.
 - O cadastro não aceita campos de privilégios, incluindo `is_produtor`, `is_staff` ou permissões.
@@ -75,6 +88,7 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
   Justificativa: o telefone serve apenas como contato operacional para a retirada, e só o número atual permite contatar o cliente;
   não copiar o telefone em cada pedido e não exibi-lo em pedidos encerrados reduz a exposição de dado pessoal (minimização, LGPD).
   Os demais dados do snapshot (nome, CPF, e-mail, data de nascimento e gênero) continuam preservados no pedido.
+  O gênero é gravado pelo nome vigente no momento da compra (RN-024).
   Decisão v1: a validação considera apenas a quantidade de dígitos; a validação de DDD e do nono dígito fica para o futuro.
   Decisão v1: o telefone do produtor não é exibido ao cliente; o contato da loja continua em tarefa própria (DB-013).
   Migração: somente o antigo telefone único do usuário (`Usuario.telefone`) é copiado para a nova estrutura, como telefone principal.

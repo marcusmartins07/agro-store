@@ -215,6 +215,8 @@ replicar o hexadecimal em views ou componentes.
   Não chama a API: o `PerfilView.vue` coordena o envio.
 - `src/stores/tiposTelefone.js`: tipos de telefone públicos, carregados uma vez (cache) e reaproveitados pelo cadastro
   e pelo perfil; nunca usar ids fixos (localizar Celular pela `descricao`).
+- `src/stores/generos.js`: opções de gênero públicas (`api.generos.listar`, RN-024), carregadas uma vez (cache) e
+  reaproveitadas pelo cadastro (`LoginView`) e pelo perfil (`PerfilView`); o formulário envia o `codigo`.
 - `src/utils/statusPedido.js`: ordem, classe do selo e próxima ação de cada status do pedido
   (espelho de exibição do fluxo do backend, que continua validando as transições).
 - `SeloStatus.vue`: badge de status com texto visível; `variante` aplica um selo que não é de pedido.

@@ -18,7 +18,7 @@ O conteúdo foi levantado a partir de:
 - `src/router/index.js` (rotas e guard de navegação) e `src/App.vue` (cabeçalho e elementos globais);
 - `src/views/` e `src/views/produtor/` (telas);
 - `src/components/` (componentes compartilhados);
-- `src/stores/` (`auth.js`, `index.js` com carrinho e favoritos, `produtor.js`, `tiposTelefone.js`, `notificacoes.js`);
+- `src/stores/` (`auth.js`, `index.js` com carrinho e favoritos, `produtor.js`, `tiposTelefone.js`, `generos.js`, `notificacoes.js`);
 - `src/services/api.js` (único ponto de comunicação HTTP com a API).
 
 ### 1.3 URL base e autenticação
@@ -34,9 +34,9 @@ O conteúdo foi levantado a partir de:
 - Refresh automático: ao receber 401, `request()` chama `POST /usuarios/token/refresh/` com o `refresh` salvo, grava o novo `access` e repete a
   requisição uma única vez. Se o endpoint de refresh responder com erro, os tokens `access_token` e `refresh_token` são removidos e o navegador é levado para `/login`
   (a chave `usuario` do `localStorage` não é removida). Sem `refresh_token` salvo, ou com falha de rede na chamada de refresh, a função apenas lança uma exceção, sem remover tokens nem redirecionar.
-  Login, cadastro, as duas chamadas de redefinição de senha, `GET /tipos-telefone/` e `GET /lojas/lojas/{id}/` são enviados com `retry = false` (não tentam refresh);
+  Login, cadastro, as duas chamadas de redefinição de senha, `GET /tipos-telefone/`, `GET /generos/` e `GET /lojas/lojas/{id}/` são enviados com `retry = false` (não tentam refresh);
   `api.auth.refresh` também, mas nenhuma tela a usa.
-- Endpoints chamados sem token (`autenticar: false`): `GET /tipos-telefone/`, `GET /lojas/lojas/{id}/`, `POST /usuarios/redefinir-senha/` e
+- Endpoints chamados sem token (`autenticar: false`): `GET /tipos-telefone/`, `GET /generos/`, `GET /lojas/lojas/{id}/`, `POST /usuarios/redefinir-senha/` e
   `POST /usuarios/redefinir-senha/confirmar/`. As demais chamadas, inclusive as de leitura pública (catálogo, detalhe do produto, categorias,
   avaliações) e as de login e cadastro, enviam o token quando ele existe.
 - Erros: o service lança `{ status, data }` com o corpo JSON da resposta; cada tela traduz esse objeto em mensagem. Resposta 204 devolve `null`.
@@ -231,6 +231,7 @@ gênero (Masculino, Feminino, Prefiro não informar), senha e confirmação. Em 
 | POST | `/usuarios/login/` | ao enviar a aba "Entrar" | `api.auth.login` / `useAuthStore().login` |
 | POST | `/usuarios/cadastro/` | ao enviar a aba "Criar conta" | `api.auth.cadastrar` / `useAuthStore().cadastrar` |
 | GET | `/tipos-telefone/` | ao abrir a aba "Criar conta" e em "Tentar novamente", somente se a store ainda não tiver os tipos (cache); sem token | `api.tiposTelefone.listar` / `useTiposTelefoneStore().carregar` |
+| GET | `/generos/` | ao abrir a aba "Criar conta", somente se a store ainda não tiver as opções (cache); sem token; o formulário envia o `codigo` | `api.generos.listar` / store `generos` |
 
 #### 4.1.2 Esqueci a senha (`EsqueciSenhaView`)
 
@@ -549,6 +550,7 @@ Figura 17 - Telefones do perfil
 | GET | `/usuarios/me/` | ao abrir a tela; a resposta já traz os telefones | `api.usuarios.me` |
 | GET | `/lojas/me/` | ao abrir a tela, se `tem_loja` for verdadeiro | `api.lojas.me` |
 | GET | `/tipos-telefone/` | ao abrir a tela, somente se a store ainda não tiver os tipos (cache); sem token | `api.tiposTelefone.listar` / `useTiposTelefoneStore().carregar` |
+| GET | `/generos/` | ao abrir a tela, somente se a store ainda não tiver as opções (cache); sem token | `api.generos.listar` / store `generos` |
 | PATCH | `/usuarios/me/` (JSON) | ao salvar "Informações pessoais" | `api.usuarios.atualizar` |
 | PATCH | `/usuarios/me/` (multipart, campo `foto_perfil`) | em "Salvar imagem" | `api.usuarios.atualizarFoto` |
 | DELETE | `/usuarios/me/foto/` | ao confirmar "Remover foto de perfil?" (404 é tratado como já removida) | `api.usuarios.removerFoto` |
@@ -808,6 +810,7 @@ As variações JSON e multipart de `PATCH /usuarios/me/` e de `PATCH /lojas/me/`
 | 7 | PATCH | `/usuarios/me/` | Perfil (dados pessoais e foto) | `api.usuarios.atualizar`, `api.usuarios.atualizarFoto` |
 | 8 | DELETE | `/usuarios/me/foto/` | Perfil | `api.usuarios.removerFoto` |
 | 9 | GET | `/tipos-telefone/` | Login (aba Criar conta), Perfil | `api.tiposTelefone.listar` |
+| 9a | GET | `/generos/` | Login (aba Criar conta), Perfil | `api.generos.listar` |
 | 10 | GET | `/usuarios/me/telefones/` | Perfil | `api.telefones.listar` |
 | 11 | POST | `/usuarios/me/telefones/` | Perfil | `api.telefones.criar` |
 | 12 | PATCH | `/usuarios/me/telefones/{id}/` | Perfil | `api.telefones.atualizar` |

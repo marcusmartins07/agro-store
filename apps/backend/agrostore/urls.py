@@ -4,7 +4,7 @@ from django.contrib import admin
 from django.urls import path, include
 from rest_framework_simplejwt.views import TokenRefreshView
 
-from agrostore.usuarios.views import TipoTelefoneListView
+from agrostore.usuarios.views import GeneroListView, TipoTelefoneListView
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -12,6 +12,7 @@ urlpatterns = [
     path('api/', include('agrostore.usuarios.urls')),
     path('api/v1/usuarios/', include('agrostore.usuarios.urls')),
     path('api/v1/tipos-telefone/', TipoTelefoneListView.as_view(), name='tipos-telefone'),
+    path('api/v1/generos/', GeneroListView.as_view(), name='generos'),
     path('api/v1/lojas/', include('agrostore.lojas.urls')),
     path('api/v1/produtos/', include('agrostore.produtos.urls')),
     path('api/v1/carrinhos/', include('agrostore.carrinhos.urls')),

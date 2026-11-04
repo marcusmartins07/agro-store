@@ -856,3 +856,135 @@ class QaRedefinicaoSenhaComplementaresTests(RedefinicaoSenhaBaseTests):
         from agrostore.pedidos.models import PedidoCliente
         campo = PedidoCliente._meta.get_field('usuario')
         self.assertEqual(campo.remote_field.on_delete, models.PROTECT)
+
+
+MENSAGEM_GENERO_INVALIDO = 'Informe uma opção de gênero válida.'
+
+
+def garantir_generos_padrao():
+    for codigo, nome in (('M', 'Masculino'), ('F', 'Feminino'), ('I', 'Prefiro não informar')):
+        Genero.objects.update_or_create(id_genero=codigo, defaults={'genero': nome})
+
+
+class GenerosPublicosTests(APITestCase):
+    url = '/api/v1/generos/'
+
+    def setUp(self):
+        garantir_generos_padrao()
+
+    def test_lista_sem_autenticacao_sem_paginacao_e_com_codigo_e_nome(self):
+        resposta = self.client.get(self.url)
+
+        self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+        self.assertIsInstance(resposta.data, list)
+        self.assertEqual(set(resposta.data[0]), {'codigo', 'nome'})
+        self.assertEqual([item['codigo'] for item in resposta.data], ['M', 'F', 'I'])
+        self.assertEqual(resposta.data[2]['nome'], 'Prefiro não informar')
+
+    def test_token_invalido_nao_derruba_a_listagem_publica(self):
+        resposta = self.client.get(self.url, HTTP_AUTHORIZATION='Bearer token-invalido')
+
+        self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+
+    def test_generos_extras_vem_depois_dos_padroes_em_ordem_alfabetica(self):
+        Genero.objects.create(id_genero='Y', genero='Outro')
+        Genero.objects.create(id_genero='A', genero='Agênero')
+
+        resposta = self.client.get(self.url)
+
+        self.assertEqual([item['codigo'] for item in resposta.data], ['M', 'F', 'I', 'A', 'Y'])
+
+    def test_nao_aceita_escrita(self):
+        for metodo in (self.client.post, self.client.put, self.client.patch, self.client.delete):
+            resposta = metodo(self.url, {'codigo': 'Q', 'nome': 'Novo'}, format='json')
+            self.assertEqual(resposta.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+        self.assertFalse(Genero.objects.filter(id_genero='Q').exists())
+
+
+class GeneroDoBancoNoCadastroTests(APITestCase):
+    url_cadastro = '/api/v1/usuarios/cadastro/'
+
+    def setUp(self):
+        garantir_generos_padrao()
+        self.dados = {
+            'nome': 'Cliente de Teste', 'cpf': '529.982.247-25', 'email': 'cliente@example.com',
+            'telefone': '(51) 99999-0000', 'tipo_telefone': TipoTelefone.objects.get(descricao='Celular').pk,
+            'data_nascimento': '2000-05-10', 'genero': 'M',
+            'password': 'SenhaForte123', 'password_confirmacao': 'SenhaForte123',
+        }
+
+    def test_recusa_codigo_inexistente_vazio_nulo_e_tipo_invalido(self):
+        for valor in ('X', '', None, ['M'], {'codigo': 'M'}):
+            resposta = self.client.post(self.url_cadastro, {**self.dados, 'genero': valor}, format='json')
+
+            self.assertEqual(resposta.status_code, status.HTTP_400_BAD_REQUEST, valor)
+            self.assertEqual(resposta.data['genero'][0], MENSAGEM_GENERO_INVALIDO, valor)
+        self.assertFalse(Usuario.objects.filter(cpf='52998224725').exists())
+
+    def test_recusa_genero_ausente(self):
+        dados = {chave: valor for chave, valor in self.dados.items() if chave != 'genero'}
+
+        resposta = self.client.post(self.url_cadastro, dados, format='json')
+
+        self.assertEqual(resposta.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn('genero', resposta.data)
+
+    def test_aceita_prefiro_nao_informar_e_o_perfil_devolve_o_codigo(self):
+        resposta = self.client.post(self.url_cadastro, {**self.dados, 'genero': 'I'}, format='json')
+
+        self.assertEqual(resposta.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Usuario.objects.get(cpf='52998224725').genero_id, 'I')
+        self.assertEqual(resposta.data['usuario']['genero'], 'I')
+
+    def test_aceita_genero_criado_pelo_administrador(self):
+        Genero.objects.create(id_genero='Y', genero='Outro')
+
+        resposta = self.client.post(self.url_cadastro, {**self.dados, 'genero': 'Y'}, format='json')
+
+        self.assertEqual(resposta.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Usuario.objects.get(cpf='52998224725').genero_id, 'Y')
+        self.assertEqual(resposta.data['usuario']['genero'], 'Y')
+
+
+class GeneroDoBancoNoPerfilTests(APITestCase):
+    url_perfil = '/api/v1/usuarios/me/'
+
+    def setUp(self):
+        garantir_generos_padrao()
+        self.usuario = criar_usuario_com_telefone(
+            cpf='52998224725', email='perfil@example.com', password='SenhaForte123', nome='Cliente Perfil',
+            data_nascimento=date(2000, 1, 1), genero=Genero.objects.get(id_genero='M'),
+        )
+        self.client.force_authenticate(self.usuario)
+
+    def test_recusa_codigo_inexistente_vazio_nulo_e_tipo_invalido(self):
+        for valor in ('X', '', None, ['M'], {'codigo': 'M'}):
+            resposta = self.client.patch(self.url_perfil, {'genero': valor}, format='json')
+
+            self.assertEqual(resposta.status_code, status.HTTP_400_BAD_REQUEST, valor)
+            self.assertEqual(resposta.data['genero'][0], MENSAGEM_GENERO_INVALIDO, valor)
+        self.usuario.refresh_from_db()
+        self.assertEqual(self.usuario.genero_id, 'M')
+
+    def test_aceita_prefiro_nao_informar_e_devolve_o_codigo(self):
+        resposta = self.client.patch(self.url_perfil, {'genero': 'I'}, format='json')
+
+        self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+        self.assertEqual(resposta.data['genero'], 'I')
+        self.assertEqual(self.client.get(self.url_perfil).data['genero'], 'I')
+
+    def test_aceita_genero_criado_pelo_administrador(self):
+        Genero.objects.create(id_genero='Y', genero='Outro')
+
+        resposta = self.client.patch(self.url_perfil, {'genero': 'Y'}, format='json')
+
+        self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+        self.assertEqual(resposta.data['genero'], 'Y')
+        self.usuario.refresh_from_db()
+        self.assertEqual(self.usuario.genero_id, 'Y')
+
+    def test_atualizacao_sem_genero_preserva_o_atual(self):
+        resposta = self.client.patch(self.url_perfil, {'nome': 'Outro Nome'}, format='json')
+
+        self.assertEqual(resposta.status_code, status.HTTP_200_OK)
+        self.assertEqual(resposta.data['genero'], 'M')

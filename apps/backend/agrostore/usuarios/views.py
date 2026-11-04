@@ -1,5 +1,5 @@
 from django.db import transaction
-from django.db.models import Prefetch, prefetch_related_objects
+from django.db.models import Case, IntegerField, Prefetch, Value, When, prefetch_related_objects
 from rest_framework import status, viewsets
 from rest_framework.exceptions import APIException, Throttled
 from rest_framework.generics import ListAPIView
@@ -12,11 +12,12 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from agrostore.main.imagens import nome_gerenciado, remover_arquivo_apos_commit
 from . import redefinicao_senha
 from . import telefones as servico_telefones
-from .models import Telefone, TipoTelefone
+from .models import Genero, Telefone, TipoTelefone
 from .serializers import (
     PASTA_FOTO_USUARIO,
     CadastroClienteSerializer,
     ConfirmacaoRedefinicaoSenhaSerializer,
+    GeneroSerializer,
     LoginSerializer,
     SolicitacaoRedefinicaoSenhaSerializer,
     TelefoneSerializer,
@@ -138,6 +139,23 @@ class TipoTelefoneListView(ListAPIView):
     serializer_class = TipoTelefoneSerializer
     pagination_class = None
     queryset = TipoTelefone.objects.order_by('id')
+
+
+class GeneroListView(ListAPIView):
+    authentication_classes = []
+    permission_classes = [AllowAny]
+    serializer_class = GeneroSerializer
+    pagination_class = None
+    queryset = Genero.objects.order_by(
+        Case(
+            When(id_genero='M', then=Value(0)),
+            When(id_genero='F', then=Value(1)),
+            When(id_genero='I', then=Value(2)),
+            default=Value(3),
+            output_field=IntegerField(),
+        ),
+        'genero',
+    )
 
 
 class MinhaFotoView(APIView):

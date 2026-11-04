@@ -171,6 +171,13 @@
                   <div id="ajuda-perfil-cpf" class="form-text">O CPF identifica sua conta e não pode ser alterado.</div>
                 </div>
 
+                <div v-if="generosStore.erro" class="col-12">
+                  <div id="alerta-perfil-generos" class="alert alert-warning small py-2 d-flex flex-wrap align-items-center gap-2 mb-0" role="alert">
+                    <span>Não foi possível carregar as opções de gênero. Você pode salvar os demais dados.</span>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" @click="generosStore.carregar()">Tentar novamente</button>
+                  </div>
+                </div>
+
                 <div class="col-12 col-sm-6">
                   <label for="perfil-nascimento" class="form-label">Data de nascimento <span class="text-danger">*</span></label>
                   <input
@@ -197,10 +204,16 @@
                     v-model="form.genero"
                     class="form-select"
                     :class="{ 'is-invalid': erros.genero }"
+                    :disabled="!generosDisponiveis"
                     required
-                    aria-describedby="erro-perfil-genero"
+                    :aria-describedby="generosStore.erro ? 'alerta-perfil-generos erro-perfil-genero' : 'erro-perfil-genero'"
                   >
-                    <option v-for="(rotulo, codigo) in GENEROS" :key="codigo" :value="codigo">{{ rotulo }}</option>
+                    <option v-if="generosStore.carregando" :value="form.genero">Carregando opções...</option>
+                    <option v-else-if="generosStore.erro" :value="form.genero">Indisponível no momento</option>
+                    <template v-else>
+                      <option disabled value="">Selecione</option>
+                      <option v-for="genero in generosStore.generos" :key="genero.codigo" :value="genero.codigo">{{ genero.nome }}</option>
+                    </template>
                   </select>
                   <div id="erro-perfil-genero" class="invalid-feedback">{{ erros.genero }}</div>
                 </div>
@@ -393,6 +406,7 @@ import ModalConfirmacao from '@/components/ModalConfirmacao.vue'
 import SeletorImagemUnica from '@/components/SeletorImagemUnica.vue'
 import { api } from '@/services/api.js'
 import { useAuthStore } from '@/stores/auth.js'
+import { useGenerosStore } from '@/stores/generos.js'
 import { useNotificacoesStore } from '@/stores/notificacoes.js'
 import { useTiposTelefoneStore } from '@/stores/tiposTelefone.js'
 import {
@@ -400,10 +414,9 @@ import {
 } from '@/utils/formatacao.js'
 import { MENSAGEM_FALHA_REMOCAO_IMAGEM, mensagemErroEnvioImagem } from '@/utils/imagem.js'
 
-const GENEROS = { M: 'Masculino', F: 'Feminino', I: 'Prefiro não informar' }
-
 const route = useRoute()
 const authStore = useAuthStore()
+const generosStore = useGenerosStore()
 const notificacoes = useNotificacoesStore()
 const usuario = ref(null)
 const loja = ref(null)
@@ -447,9 +460,19 @@ const camposLeitura = computed(() => {
     { rotulo: 'CPF', valor: formatarCpf(dados.cpf) },
     { rotulo: 'Data de nascimento', valor: formatarData(dados.data_nascimento) },
     { rotulo: 'Idade', valor: idade === null ? 'Não informada' : `${idade} anos` },
-    { rotulo: 'Gênero', valor: GENEROS[dados.genero] || 'Não informado' },
+    { rotulo: 'Gênero', valor: rotuloDoGenero(dados.genero) },
   ]
 })
+
+const generosDisponiveis = computed(() => !generosStore.carregando && !generosStore.erro && generosStore.generos.length > 0)
+
+function rotuloDoGenero(codigo) {
+  if (!codigo) return 'Não informado'
+  const nome = generosStore.nomeDoGenero(codigo)
+  if (nome) return nome
+  if (generosStore.carregando) return 'Carregando...'
+  return generosStore.erro ? 'Indisponível no momento' : 'Não informado'
+}
 
 const idadeFormulario = computed(() => calcularIdade(form.value.data_nascimento))
 
@@ -461,6 +484,7 @@ onMounted(() => {
   if (authStore.estaLogado) {
     carregar()
     tiposTelefoneStore.carregar()
+    generosStore.carregar()
   }
 })
 
@@ -501,6 +525,7 @@ async function iniciarEdicao() {
   }
   erros.value = {}
   erroGeral.value = ''
+  generosStore.carregar()
   editando.value = true
   await nextTick()
   document.getElementById('perfil-nome')?.focus()
@@ -570,7 +595,8 @@ function validar() {
   if (!form.value.nome) novosErros.nome = 'Informe seu nome completo.'
   if (!/^\S+@\S+\.\S+$/.test(form.value.email || '')) novosErros.email = 'Informe um e-mail válido.'
   if (!form.value.data_nascimento) novosErros.data_nascimento = 'Informe sua data de nascimento.'
-  if (!GENEROS[form.value.genero]) novosErros.genero = 'Selecione uma opção.'
+  const generoInvalido = generosDisponiveis.value ? !generosStore.nomeDoGenero(form.value.genero) : !form.value.genero
+  if (generoInvalido) novosErros.genero = 'Selecione uma opção.'
   erros.value = novosErros
   return Object.keys(novosErros).length === 0
 }

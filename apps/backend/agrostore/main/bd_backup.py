@@ -9,7 +9,7 @@ def insert_generos():
     generos = [
         {'id_genero': 'M', 'genero': 'Masculino'},
         {'id_genero': 'F', 'genero': 'Feminino'},
-        {'id_genero': 'I', 'genero': 'Indefinido'}
+        {'id_genero': 'I', 'genero': 'Prefiro não informar'}
     ]
 
     for genero in generos:

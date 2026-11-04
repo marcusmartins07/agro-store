@@ -33,7 +33,7 @@ Fluxo:
 
 Observação: nos endpoints públicos que usam a autenticação padrão (ex.: `GET /api/v1/produtos/`), um header `Authorization` com token
 inválido ou expirado resulta em 401 em vez de ser ignorado. Por isso o frontend não envia o token em alguns endpoints públicos.
-Nos endpoints com `authentication_classes = []` (tipos de telefone e redefinição de senha) o header é ignorado.
+Nos endpoints com `authentication_classes = []` (tipos de telefone, gêneros e redefinição de senha) o header é ignorado.
 
 Papéis usados neste documento:
 
@@ -102,6 +102,7 @@ Prefixo canônico das rotas de usuário: `/api/v1/usuarios/` (o mesmo conjunto t
 | PATCH | `/api/v1/usuarios/me/telefones/{id}/` | Autenticado (dono) | Edita telefone / define principal |
 | DELETE | `/api/v1/usuarios/me/telefones/{id}/` | Autenticado (dono) | Exclui telefone |
 | GET | `/api/v1/tipos-telefone/` | Público | Lista tipos de telefone |
+| GET | `/api/v1/generos/` | Público | Lista opções de gênero |
 | GET | `/api/v1/lojas/lojas/` | Público | Lista lojas |
 | POST | `/api/v1/lojas/lojas/` | Produtor | Cria a loja do produtor |
 | GET | `/api/v1/lojas/lojas/{id}/` | Público | Detalha loja |
@@ -177,7 +178,7 @@ Como funciona:
 - E-mail: único, sem diferenciar maiúsculas; gravado em minúsculas.
 - Telefone (RN-021): um telefone e o seu tipo; o número é validado pela quantidade de dígitos do tipo (Celular 11, Fixo 10, Comercial 10 ou 11) e vira o telefone principal.
 - Data de nascimento: idade mínima de 16 anos.
-- Gênero: `M`, `F` ou `I` (precisa existir na tabela de gêneros).
+- Gênero: recebe o `codigo` de uma opção de `GET /api/v1/generos/` (padrão `M`, `F` ou `I`; o administrador pode cadastrar outras). Código inexistente, vazio ou nulo é recusado (RN-024).
 - Senha: mínimo de 8 caracteres, validadores de senha do Django (similaridade com atributos, senhas comuns, apenas numérica) e confirmação igual.
 - Tudo é criado em uma transação (usuário + telefone).
 
@@ -226,7 +227,7 @@ Erros:
 - 400 `{"cpf": ["Informe um CPF válido."]}` ou `["Já existe uma conta cadastrada com este CPF."]`
 - 400 `{"email": ["Já existe uma conta cadastrada com este e-mail."]}`
 - 400 `{"data_nascimento": ["É necessário ter pelo menos 16 anos para criar uma conta."]}`
-- 400 `{"genero": ["Informe uma opção de gênero válida."]}` (ou `"A opção de gênero não está disponível."`)
+- 400 `{"genero": ["Informe uma opção de gênero válida."]}` (código inexistente, vazio ou nulo)
 - 400 `{"tipo_telefone": ["Informe um tipo de telefone válido."]}`
 - 400 `{"telefone": ["Celular deve ter 11 dígitos com DDD."]}` (Fixo: `"Telefone fixo deve ter 10 dígitos com DDD."`; Comercial: `"Telefone comercial deve ter 10 ou 11 dígitos com DDD."`)
 - 400 `{"password_confirmacao": ["As senhas não coincidem."]}` e `{"password": [ ...mensagens dos validadores... ]}` (no cadastro o erro é relançado dentro de `validate()` e sai como lista)
@@ -281,7 +282,7 @@ Erros:
 - Autenticação: JWT (qualquer usuário)
 - Para que serve: devolve os dados do perfil, com os telefones.
 
-Resposta (200): o mesmo objeto `usuario` mostrado no cadastro. Campos: `id`, `nome`, `cpf`, `email`, `telefones[]`, `data_nascimento`, `genero` (`M`/`F`/`I`),
+Resposta (200): o mesmo objeto `usuario` mostrado no cadastro. Campos: `id`, `nome`, `cpf`, `email`, `telefones[]`, `data_nascimento`, `genero` (código do gênero, ex.: `M`/`F`/`I`),
 `foto_perfil` (URL absoluta ou `null`), `is_produtor`, `tem_loja`, `idade`. Todos somente leitura.
 
 Erros: 401.
@@ -295,7 +296,7 @@ Erros: 401.
 Como funciona:
 
 - Campos aceitos: `nome`, `email`, `data_nascimento`, `genero`, `foto_perfil`. Qualquer outro campo (CPF, `is_produtor`, `is_staff`, `telefones`...) faz a requisição inteira ser recusada com 400.
-- Atualização parcial; validações iguais às do cadastro (e-mail único ignorando o próprio usuário, idade mínima de 16 anos, gênero `M`/`F`/`I`).
+- Atualização parcial; validações iguais às do cadastro (e-mail único ignorando o próprio usuário, idade mínima de 16 anos, `genero` deve ser um código existente em `GET /api/v1/generos/`; caso contrário, 400 `{"genero": ["Informe uma opção de gênero válida."]}`).
 - Foto: JPG, PNG ou WEBP de até 5 MB, conferindo extensão e conteúdo; o arquivo é renomeado com nome aleatório. A nova foto substitui a anterior e o arquivo antigo é removido do storage após o commit.
 - Enviar JSON para dados de texto; enviar `multipart/form-data` com o campo `foto_perfil` para a imagem.
 - A remoção de foto é feita somente por `DELETE /me/foto/` (seção 3.7). Enviar `foto_perfil=''` em multipart resulta em 400 `{"foto_perfil": ["Envie uma imagem JPG, PNG ou WEBP válida."]}`.
@@ -511,6 +512,24 @@ Resposta (200):
 ```
 
 Os ids acima são ilustrativos: os registros são populados por migration, e o cliente deve consultar a lista em vez de fixar ids.
+
+### 5.1 Gêneros (RN-024)
+
+- Método e URL: `GET /api/v1/generos/`
+- Autenticação: pública (sem autenticação JWT; header `Authorization` ignorado). Necessário no cadastro, que é feito sem login.
+- Para que serve: lista as opções de gênero cadastradas na tabela `genero`. Sem paginação. Somente leitura. As opções padrão (M, F, I) vêm primeiro, nessa ordem; as demais cadastradas pelo administrador vêm depois, ordenadas por nome.
+
+Resposta (200):
+
+```json
+[
+  { "codigo": "M", "nome": "Masculino" },
+  { "codigo": "F", "nome": "Feminino" },
+  { "codigo": "I", "nome": "Prefiro não informar" }
+]
+```
+
+Os campos `genero` do cadastro e de `PATCH /usuarios/me/` recebem o `codigo`. O snapshot do pedido grava o `nome` vigente na compra; pedidos antigos mantêm "Indefinido". A migration de dados `usuarios/0010_genero_prefiro_nao_informar` normalizou os códigos legados para M/F/I e renomeou "Indefinido" para "Prefiro não informar".
 
 ---
 

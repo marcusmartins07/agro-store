@@ -657,7 +657,7 @@ A concentração do vínculo com o cliente e do *snapshot* em uma mesma entidade
 **Avaliação**: armazena os registros de avaliações realizadas pelos compradores sobre os produtos adquiridos, contendo dados como nota, comentário, data de criação e data de atualização. Relaciona-se com a entidade Pedido_Produto, que representa o item do pedido, na cardinalidade (0,1) para (1,1): cada avaliação refere-se a exatamente um item de pedido, e cada item de pedido pode receber no máximo uma avaliação. Relaciona-se também com a entidade Usuário, na cardinalidade (0,n) para (1,1), pois um usuário pode registrar diversas avaliações e cada avaliação pertence a um único usuário, e com a entidade Produto, na cardinalidade (0,n) para (0,1), pois um produto pode receber diversas avaliações e cada avaliação refere-se a no máximo um produto: caso o produto seja excluído, o vínculo é desfeito, e a avaliação permanece associada ao item do pedido. A associação com o pedido ocorre de forma indireta, por meio do item avaliado, o que contribui para que somente produtos efetivamente comprados possam ser avaliados.
 
 <!-- orientador: revisar -->
-**Gênero**: armazena os gêneros disponíveis para classificação dos usuários cadastrados no sistema, por meio dos atributos código e nome. Relaciona-se com a entidade Usuário, permitindo associar cada usuário ao gênero informado no cadastro.
+**Gênero**: armazena os gêneros disponíveis para classificação dos usuários cadastrados no sistema, por meio dos atributos código e nome. Relaciona-se com a entidade Usuário, permitindo associar cada usuário ao gênero informado no cadastro. As opções padrão são Masculino (código M), Feminino (código F) e Prefiro não informar (código I); outras opções podem ser cadastradas ou renomeadas pelo administrador, e um gênero associado a algum usuário não pode ser excluído. Como o *snapshot* de Pedido_Cliente registra o nome do gênero vigente no momento da compra, a renomeação de uma opção não altera os pedidos já realizados.
 
 <!-- orientador: revisar -->
 **Telefone**: armazena os telefones de contato dos usuários, contendo o número, com o DDD (Discagem Direta a Distância), um indicador de telefone principal, a data de criação e a data de atualização. Relaciona-se com a entidade Usuário na cardinalidade (1,n) para (1,1): cada telefone pertence a exatamente um usuário, e cada usuário possui ao menos um telefone, podendo possuir diversos, sem limite de quantidade, dos quais exatamente um é o principal. Essa cardinalidade mínima representa a regra de negócio adotada, segundo a qual todo usuário mantém ao menos um meio de contato. No modelo lógico (Figura 2), o mesmo relacionamento aparece com a cardinalidade (0,n), pois o banco de dados não impõe esse mínimo: ele é garantido pela aplicação, conforme a Seção 3.2.4, e o banco admite a exceção das contas anteriores a essa funcionalidade e das contas de superusuário criadas pela linha de comando, descrita na Seção 4.4.4. Relaciona-se também com a entidade Tipo_Telefone, que classifica cada número. Não há restrição de unicidade sobre o número, de modo que um mesmo telefone pode estar cadastrado para usuários diferentes, como pode ocorrer com um telefone compartilhado por membros de uma mesma família.
@@ -833,7 +833,7 @@ O Diagrama de Sequência I busca representar visualmente a lógica por trás do 
 
   <!-- orientador: revisar -->
 
-  - **Preenche dados de cadastro:** o fluxo inicia-se quando o visitante informa seus dados pessoais na interface: nome, CPF, e-mail, um telefone e o respectivo tipo (Celular, Fixo ou Comercial), data de nascimento, gênero, senha e confirmação da senha. Os tipos de telefone disponíveis são obtidos da API por meio de uma consulta pública, uma vez que o visitante ainda não está autenticado.
+  - **Preenche dados de cadastro:** o fluxo inicia-se quando o visitante informa seus dados pessoais na interface: nome, CPF, e-mail, um telefone e o respectivo tipo (Celular, Fixo ou Comercial), data de nascimento, gênero, senha e confirmação da senha. Os tipos de telefone e as opções de gênero disponíveis são obtidos da API por meio de consultas públicas, uma vez que o visitante ainda não está autenticado.
 
   - **Envia dados de cadastro:** o *frontend* encaminha as informações preenchidas para a API/Backend.
 
@@ -973,7 +973,11 @@ O Diagrama de Sequência IV busca representar visualmente o processo de cadastro
 
   <!-- orientador: revisar -->
 
-  - **Preenche dados do produto:** o fluxo inicia-se quando o produtor informa os dados do produto, como nome, descrição, categoria, código de barras, estoque, preço de venda e percentual de desconto. A loja não é informada, pois o sistema vincula o produto automaticamente à loja do produtor autenticado.
+  - **Carrega as categorias ativas:** ao abrir o formulário de produto, antes do preenchimento dos dados, o *frontend* consulta na API/Backend as categorias ativas, que são obtidas do banco de dados e apresentadas ao produtor no campo de seleção de categoria.
+
+  <!-- orientador: revisar -->
+
+  - **Preenche dados do produto:** em seguida, o produtor informa os dados do produto, como nome, descrição, categoria, código de barras, estoque, preço de venda e percentual de desconto. A loja não é informada, pois o sistema vincula o produto automaticamente à loja do produtor autenticado.
 
   - **Envia produto:** o *frontend* encaminha os dados do produto para a API/Backend.
 
@@ -1149,7 +1153,7 @@ Os conceitos que fundamentam as principais tecnologias foram apresentados na Se�
 
 - **Vue Router:** roteador oficial do Vue.js, responsável pela navegação entre as telas e pela verificação de acesso às rotas do produtor (VUE ROUTER, 2026);
 
-- **Pinia:** biblioteca de gerenciamento de estado do Vue.js, utilizada nas *stores* de sessão, carrinho, favoritos, área do produtor, tipos de telefone e notificações (PINIA, 2026);
+- **Pinia:** biblioteca de gerenciamento de estado do Vue.js, utilizada nas *stores* de sessão, carrinho, favoritos, área do produtor, tipos de telefone, gêneros e notificações (PINIA, 2026);
 
 - **Vite:** ferramenta de desenvolvimento e de empacotamento da interface, que fornece o servidor local e o encaminhamento das requisições à API em desenvolvimento (VITE, 2026);
 
@@ -1198,7 +1202,7 @@ As respostas utilizam os códigos de status do protocolo HTTP para indicar o res
 
 Fonte: Confeccionado pelo autor (2026).
 
-A API reúne cinquenta e nove combinações de método e endereço, organizadas por módulo nos Quadros 4 a 11, nos quais os endpoints são apresentados sem o prefixo /api/v1. Na coluna Permissão, "Público" indica acesso sem autenticação, "Autenticado" indica qualquer usuário com sessão ativa, inclusive o produtor, "Dono" indica o proprietário do recurso, "Produtor" indica o usuário com papel de produtor e "Administrador" indica o usuário da equipe da plataforma. O Quadro 4 apresenta os endpoints de autenticação e de perfil do usuário.
+A API reúne sessenta combinações de método e endereço, organizadas por módulo nos Quadros 4 a 11, nos quais os endpoints são apresentados sem o prefixo /api/v1. Na coluna Permissão, "Público" indica acesso sem autenticação, "Autenticado" indica qualquer usuário com sessão ativa, inclusive o produtor, "Dono" indica o proprietário do recurso, "Produtor" indica o usuário com papel de produtor e "Administrador" indica o usuário da equipe da plataforma. O Quadro 4 apresenta os endpoints de autenticação e de perfil do usuário.
 
 **Quadro 4** - Endpoints de autenticação e perfil do usuário
 
@@ -1212,6 +1216,7 @@ A API reúne cinquenta e nove combinações de método e endereço, organizadas 
 | DELETE | /usuarios/me/foto/ | Autenticado | Remove a foto de perfil |
 | POST | /usuarios/redefinir-senha/ | Público, até 5 por hora | Solicita o link de redefinição de senha |
 | POST | /usuarios/redefinir-senha/confirmar/ | Público, até 10 por hora | Define a nova senha a partir do link |
+| GET | /generos/ | Público | Lista as opções de gênero, usadas no cadastro e no perfil |
 
 Fonte: Confeccionado pelo autor (2026).
 
@@ -1493,7 +1498,7 @@ A aba "Criar conta" permite que o visitante crie sua conta de cliente. Atende ao
 
 Fonte: Confeccionado pelo autor (2026).
 
-Na Figura 16, o formulário solicita o nome completo, o CPF, com máscara de preenchimento, o tipo e o número do telefone, o e-mail, a data de nascimento, o gênero, com as opções Masculino, Feminino e Prefiro não informar, a senha e sua confirmação. Os tipos de telefone são carregados da API ao abrir a aba, com o tipo Celular pré-selecionado; se a consulta falhar, a tela exibe um alerta com a opção "Tentar novamente", e o botão "Criar conta" fica desabilitado até que os tipos estejam disponíveis. Quanto às decisões técnicas, a interface realiza validações locais, como os campos obrigatórios, a quantidade de dígitos do telefone conforme o tipo, o tamanho mínimo da senha e a igualdade da confirmação, apenas para orientar o usuário; a validade do CPF e a idade mínima são verificadas somente pelo *backend*, que é a camada responsável pela validação final (RNF10). Concluído o cadastro, a sessão é iniciada automaticamente.
+Na Figura 16, o formulário solicita o nome completo, o CPF, com máscara de preenchimento, o tipo e o número do telefone, o e-mail, a data de nascimento, o gênero, a senha e sua confirmação. Os tipos de telefone e as opções de gênero são carregados da API ao abrir a aba, com o tipo Celular pré-selecionado; as opções de gênero são, por padrão, Masculino, Feminino e Prefiro não informar, seguidas das demais cadastradas pelo administrador. Se alguma das consultas falhar, a tela exibe um alerta com a opção "Tentar novamente", e o botão "Criar conta" fica desabilitado até que os tipos de telefone e as opções de gênero estejam disponíveis. Quanto às decisões técnicas, a interface realiza validações locais, como os campos obrigatórios, a quantidade de dígitos do telefone conforme o tipo, o tamanho mínimo da senha e a igualdade da confirmação, apenas para orientar o usuário; a validade do CPF e a idade mínima são verificadas somente pelo *backend*, que é a camada responsável pela validação final (RNF10). Concluído o cadastro, a sessão é iniciada automaticamente.
 
 <!-- orientador: revisar -->
 ### 4.5.3 Recuperação de Senha

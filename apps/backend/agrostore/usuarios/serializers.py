@@ -14,6 +14,7 @@ from .telefones import somente_digitos
 
 
 PASTA_FOTO_USUARIO = 'usuarios'
+MENSAGEM_GENERO_INVALIDO = 'Informe uma opção de gênero válida.'
 
 
 def cpf_valido(cpf):
@@ -28,16 +29,15 @@ def cpf_valido(cpf):
     return True
 
 
-def validar_genero(valor):
-    opcoes = {'M': 'Masculino', 'F': 'Feminino', 'I': 'Indefinido'}
-    descricao = opcoes.get(valor)
-    if not descricao:
-        raise serializers.ValidationError('Informe uma opção de gênero válida.')
-    genero = Genero.objects.filter(id_genero=valor).first()
-    genero = genero or Genero.objects.filter(genero=descricao).first()
-    if not genero:
-        raise serializers.ValidationError('A opção de gênero não está disponível.')
-    return genero
+def campo_genero():
+    return serializers.PrimaryKeyRelatedField(
+        queryset=Genero.objects.all(),
+        error_messages={
+            'does_not_exist': MENSAGEM_GENERO_INVALIDO,
+            'incorrect_type': MENSAGEM_GENERO_INVALIDO,
+            'null': MENSAGEM_GENERO_INVALIDO,
+        },
+    )
 
 
 def validar_data_nascimento(valor):
@@ -66,6 +66,15 @@ def validar_nova_senha(senha, confirmacao, usuario):
         validate_password(senha, usuario)
     except DjangoValidationError as erro:
         raise serializers.ValidationError({'password': erro.messages}) from erro
+
+
+class GeneroSerializer(serializers.ModelSerializer):
+    codigo = serializers.CharField(source='id_genero', read_only=True)
+    nome = serializers.CharField(source='genero', read_only=True)
+
+    class Meta:
+        model = Genero
+        fields = ['codigo', 'nome']
 
 
 class TipoTelefoneSerializer(serializers.ModelSerializer):
@@ -108,7 +117,7 @@ class TelefoneSerializer(serializers.ModelSerializer):
 class UsuarioPerfilSerializer(serializers.ModelSerializer):
     idade = serializers.ReadOnlyField()
     tem_loja = serializers.SerializerMethodField()
-    genero = serializers.SerializerMethodField()
+    genero = serializers.CharField(source='genero_id', read_only=True)
     foto_perfil = CampoImagemUnica(pasta=PASTA_FOTO_USUARIO, read_only=True)
     telefones = TelefoneSerializer(many=True, read_only=True)
 
@@ -132,10 +141,6 @@ class UsuarioPerfilSerializer(serializers.ModelSerializer):
     def get_tem_loja(self, obj):
         return obj.lojas.exists()
 
-    def get_genero(self, obj):
-        codigos_por_descricao = {'Masculino': 'M', 'Feminino': 'F', 'Indefinido': 'I'}
-        return codigos_por_descricao.get(obj.genero.genero, obj.genero_id)
-
 
 class CadastroClienteSerializer(serializers.ModelSerializer):
     cpf = serializers.CharField(max_length=14)
@@ -148,7 +153,7 @@ class CadastroClienteSerializer(serializers.ModelSerializer):
             'incorrect_type': servico_telefones.MENSAGEM_TIPO_INDISPONIVEL,
         },
     )
-    genero = serializers.CharField(max_length=2)
+    genero = campo_genero()
     password = serializers.CharField(write_only=True, min_length=8, trim_whitespace=False)
     password_confirmacao = serializers.CharField(write_only=True, trim_whitespace=False)
 
@@ -168,9 +173,6 @@ class CadastroClienteSerializer(serializers.ModelSerializer):
 
     def validate_email(self, valor):
         return validar_email_unico(valor)
-
-    def validate_genero(self, valor):
-        return validar_genero(valor)
 
     def validate_data_nascimento(self, valor):
         return validar_data_nascimento(valor)
@@ -209,7 +211,7 @@ class UsuarioAtualizacaoSerializer(serializers.ModelSerializer):
     """Dados pessoais editáveis no perfil. CPF e papéis do usuário não são alterados por aqui."""
 
     email = serializers.EmailField(max_length=254)
-    genero = serializers.CharField(max_length=2)
+    genero = campo_genero()
     foto_perfil = CampoImagemUnica(pasta=PASTA_FOTO_USUARIO)
 
     class Meta:
@@ -218,9 +220,6 @@ class UsuarioAtualizacaoSerializer(serializers.ModelSerializer):
 
     def validate_email(self, valor):
         return validar_email_unico(valor, usuario_atual=self.instance)
-
-    def validate_genero(self, valor):
-        return validar_genero(valor)
 
     def validate_data_nascimento(self, valor):
         return validar_data_nascimento(valor)

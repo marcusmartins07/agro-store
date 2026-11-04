@@ -228,6 +228,22 @@ class PedidoCheckoutTests(APITestCase):
         self.assertIn('data_criacao', response.data[0])
         self.assertIsNotNone(response.data[0]['data_criacao'])
 
+    def test_snapshot_do_pedido_grava_o_nome_do_genero_vigente_e_renomear_nao_altera_pedido_anterior(self):
+        genero_i, _ = Genero.objects.update_or_create(id_genero='I', defaults={'genero': 'Prefiro não informar'})
+        self.cliente.genero = genero_i
+        self.cliente.save()
+        item = self._adicionar_item(self.produto_a, 1)
+
+        response = self._checkout(item)
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        pedido_cliente = PedidoCliente.objects.get(usuario=self.cliente)
+        self.assertEqual(pedido_cliente.genero, 'Prefiro não informar')
+        genero_i.genero = 'Renomeado'
+        genero_i.save()
+        pedido_cliente.refresh_from_db()
+        self.assertEqual(pedido_cliente.genero, 'Prefiro não informar')
+
     def test_alteracao_do_perfil_preserva_snapshot_do_cliente_no_pedido(self):
         item = self._adicionar_item(self.produto_a, 1)
         checkout = self.client.post('/api/v1/pedidos/', {'carrinho_produto_ids': [item.carrinho_produto_id]}, format='json')

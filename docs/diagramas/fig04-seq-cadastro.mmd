@@ -1,5 +1,5 @@
 %% Figura 4 - Diagrama de Sequência I - Cadastro de Cliente
-%% Conferido em: usuarios/views.py (CadastroClienteView) e usuarios/serializers.py (CadastroClienteSerializer).
+%% Conferido em: usuarios/views.py (CadastroClienteView, GeneroListView e TipoTelefoneListView) e usuarios/serializers.py (CadastroClienteSerializer).
 %% O cadastro público cria somente cliente (seção "Usuários e autenticação"; papel de produtor só pelo administrador, RN-023); campos de privilégio não são aceitos.
 sequenceDiagram
     autonumber
@@ -9,13 +9,22 @@ sequenceDiagram
     participant B as Banco de dados
 
     C->>F: Abre a tela de cadastro
-    F->>A: GET /api/v1/tipos-telefone/ (público)
-    A-->>F: Tipos de telefone (Celular, Fixo, Comercial)
+    par Tipos de telefone
+        F->>A: GET /api/v1/tipos-telefone/ (público)
+        A->>B: Consulta os tipos de telefone
+        B-->>A: Celular, Fixo, Comercial
+        A-->>F: Lista de tipos de telefone
+    and Gêneros
+        F->>A: GET /api/v1/generos/ (público)
+        A->>B: Consulta as opções de gênero
+        B-->>A: Opções de gênero
+        A-->>F: Lista de gêneros
+    end
     C->>F: Preenche nome, CPF, e-mail, telefone e tipo, data de nascimento, gênero, senha e confirmação
     F->>A: POST /api/v1/usuarios/cadastro/
-    A->>B: Consulta CPF e e-mail já cadastrados
+    A->>B: Consulta CPF e e-mail já cadastrados, gênero e tipo de telefone informados
     B-->>A: Resultado da consulta
-    A->>A: Valida CPF, e-mail único, dígitos do telefone conforme o tipo (Celular 11, Fixo 10, Comercial 10 ou 11, com DDD), idade mínima de 16 anos, gênero e senha
+    A->>A: Valida CPF, e-mail único, dígitos do telefone conforme o tipo, idade mínima de 16 anos, gênero e senha
 
     alt Dados inválidos ou já cadastrados
         A-->>F: 400 com a mensagem de cada campo

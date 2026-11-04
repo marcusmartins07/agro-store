@@ -98,8 +98,30 @@
           <div id="ajuda-telefone-principal" class="form-text">Este será seu telefone principal. Você poderá adicionar outros no perfil.</div>
         </div>
         <div class="col-12"><label class="form-label small fw-semibold" for="cadastro-email">E-mail</label><input id="cadastro-email" v-model.trim="cadastro.email" type="email" class="form-control" autocomplete="email" required></div>
+        <div v-if="generosStore.erro" class="col-12">
+          <div id="alerta-generos" class="alert alert-warning small py-2 d-flex flex-wrap align-items-center gap-2 mb-0" role="alert">
+            <span>Não foi possível carregar as opções de gênero.</span>
+            <button type="button" class="btn btn-sm btn-outline-secondary" @click="generosStore.carregar()">Tentar novamente</button>
+          </div>
+        </div>
         <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-data">Data de nascimento</label><input id="cadastro-data" v-model="cadastro.data_nascimento" type="date" class="form-control" required></div>
-        <div class="col-12 col-sm-6"><label class="form-label small fw-semibold" for="cadastro-genero">Gênero</label><select id="cadastro-genero" v-model="cadastro.genero" class="form-select" required><option disabled value="">Selecione</option><option value="M">Masculino</option><option value="F">Feminino</option><option value="I">Prefiro não informar</option></select></div>
+        <div class="col-12 col-sm-6">
+          <label class="form-label small fw-semibold" for="cadastro-genero">Gênero</label>
+          <select
+            id="cadastro-genero"
+            v-model="cadastro.genero"
+            class="form-select"
+            :disabled="!generosDisponiveis"
+            :aria-describedby="generosStore.erro ? 'alerta-generos' : null"
+            required
+          >
+            <option v-if="generosStore.carregando" value="">Carregando opções...</option>
+            <template v-else>
+              <option disabled value="">Selecione</option>
+              <option v-for="genero in generosStore.generos" :key="genero.codigo" :value="genero.codigo">{{ genero.nome }}</option>
+            </template>
+          </select>
+        </div>
         <div class="col-12 col-sm-6">
           <label class="form-label small fw-semibold" for="cadastro-senha">Senha</label>
           <div class="input-group">
@@ -123,8 +145,8 @@
       <button
         type="submit"
         class="btn btn-primary btn-lg rounded-pill w-100 fw-semibold mt-4"
-        :disabled="carregandoCadastro || !tiposDisponiveis"
-        :aria-describedby="tiposTelefoneStore.erro ? 'alerta-tipos-telefone' : null"
+        :disabled="carregandoCadastro || !tiposDisponiveis || !generosDisponiveis"
+        :aria-describedby="alertasCadastro"
       >
         <span v-if="carregandoCadastro" class="spinner-border spinner-border-sm me-2" aria-hidden="true"></span>
         {{ carregandoCadastro ? 'Criando conta...' : 'Criar conta' }}
@@ -138,6 +160,7 @@ import { computed, reactive, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import PainelAcesso from '@/components/PainelAcesso.vue'
 import { useAuthStore } from '@/stores/auth.js'
+import { useGenerosStore } from '@/stores/generos.js'
 import { useNotificacoesStore } from '@/stores/notificacoes.js'
 import { useTiposTelefoneStore } from '@/stores/tiposTelefone.js'
 import {
@@ -149,6 +172,7 @@ const router = useRouter()
 const authStore = useAuthStore()
 const notificacoesStore = useNotificacoesStore()
 const tiposTelefoneStore = useTiposTelefoneStore()
+const generosStore = useGenerosStore()
 const aba = ref('entrar')
 const cpf = ref('')
 const senha = ref('')
@@ -162,7 +186,14 @@ const cadastro = reactive({
 })
 
 const tiposDisponiveis = computed(() => !tiposTelefoneStore.carregando && !tiposTelefoneStore.erro && tiposTelefoneStore.tipos.length > 0)
+const generosDisponiveis = computed(() => !generosStore.carregando && !generosStore.erro && generosStore.generos.length > 0)
 const descricaoTipoCadastro = computed(() => tiposTelefoneStore.descricaoDoTipo(cadastro.tipo_telefone))
+const alertasCadastro = computed(() => {
+  const alertas = []
+  if (tiposTelefoneStore.erro) alertas.push('alerta-tipos-telefone')
+  if (generosStore.erro) alertas.push('alerta-generos')
+  return alertas.length ? alertas.join(' ') : null
+})
 
 async function carregarTiposTelefone() {
   await tiposTelefoneStore.carregar()
@@ -170,7 +201,10 @@ async function carregarTiposTelefone() {
 }
 
 watch(aba, (abaAtual) => {
-  if (abaAtual === 'cadastrar') carregarTiposTelefone()
+  if (abaAtual === 'cadastrar') {
+    carregarTiposTelefone()
+    generosStore.carregar()
+  }
 })
 
 function mensagemErro(erro, fallback) {

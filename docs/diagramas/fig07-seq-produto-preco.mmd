@@ -1,6 +1,9 @@
 %% Figura 7 - Diagrama de Sequência IV - Cadastro de Produto e Definição de Preço
-%% Conferido em: produtos/views.py (ProdutoViewSet, PrecoProdutoViewSet), produtos/serializers.py,
-%% produtos/models.py (Produto.save, gerar_sku e PrecoProduto.save) e frontend stores/produtor.js (salvarProduto).
+%% Conferido em: produtos/views.py (CategoriaViewSet, ProdutoViewSet, PrecoProdutoViewSet), produtos/serializers.py,
+%% produtos/models.py (Produto.save, gerar_sku e PrecoProduto.save), frontend services/api.js (categorias.listar)
+%% e frontend stores/produtor.js (salvarProduto).
+%% A lista de categorias ativas é carregada junto com o painel do produtor e representada no diagrama
+%% como passo anterior ao preenchimento do formulário.
 %% As imagens são enviadas depois do produto salvo (ver Figura 11).
 sequenceDiagram
     autonumber
@@ -9,6 +12,12 @@ sequenceDiagram
     participant A as API/Backend
     participant B as Banco de dados
 
+    P->>F: Abre o formulário de produto
+    F->>A: GET /api/v1/produtos/categorias/?ativo=true
+    A->>B: Consulta as categorias com ativo = true
+    B-->>A: Categorias ativas
+    A-->>F: 200 com a lista de categorias
+    F-->>P: Exibe as categorias ativas no campo de seleção
     P->>F: Informa nome, descrição, categoria, código de barras, estoque, preço e desconto
     F->>A: POST /api/v1/produtos/ com token JWT
     alt Estoque negativo ou categoria inativa

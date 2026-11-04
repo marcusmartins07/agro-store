@@ -681,7 +681,27 @@ Público. Cria uma conta de cliente e retorna `access`, `refresh` e um objeto se
 
 `tipo_telefone` é o `id` de um tipo retornado por `GET /api/v1/tipos-telefone/`. O telefone informado vira o telefone principal da conta. A resposta traz `usuario.telefones` (lista com `id`, `numero`, `tipo`, `tipo_descricao` e `e_principal`); o campo `usuario.telefone` não existe mais.
 
-Valida CPF, unicidade de CPF/e-mail, telefone conforme o tipo (ver [Telefones do usuário](#telefones-do-usuário-rn-021)), idade mínima de 16 anos e senha de ao menos oito caracteres. Retorna `400` para dados inválidos ou duplicados, por exemplo `{"telefone": ["Celular deve ter 11 dígitos com DDD."]}` ou `{"tipo_telefone": ["Informe um tipo de telefone válido."]}`.
+`genero` é o `codigo` de uma opção retornada por `GET /api/v1/generos/` (RN-024).
+
+Valida CPF, unicidade de CPF/e-mail, telefone conforme o tipo (ver [Telefones do usuário](#telefones-do-usuário-rn-021)), gênero, idade mínima de 16 anos e senha de ao menos oito caracteres. Retorna `400` para dados inválidos ou duplicados, por exemplo `{"telefone": ["Celular deve ter 11 dígitos com DDD."]}`, `{"tipo_telefone": ["Informe um tipo de telefone válido."]}` ou `{"genero": ["Informe uma opção de gênero válida."]}` (código inexistente, vazio ou nulo).
+
+### Listar gêneros (RN-024)
+
+- Método: GET
+- URL: `/api/v1/generos/`
+- Autenticação: pública (somente leitura, sem paginação)
+
+Resposta esperada (`200`); outros gêneros cadastrados pelo administrador vêm depois, ordenados por nome:
+
+```json
+[
+  { "codigo": "M", "nome": "Masculino" },
+  { "codigo": "F", "nome": "Feminino" },
+  { "codigo": "I", "nome": "Prefiro não informar" }
+]
+```
+
+A migration de dados `usuarios/0010_genero_prefiro_nao_informar` normalizou os códigos legados para M/F/I e renomeou "Indefinido" para "Prefiro não informar"; os pedidos antigos mantêm o snapshot.
 
 ## Redefinição de senha (RN-020)
 
@@ -772,7 +792,7 @@ O envio usa `send_mail` do Django, configurado pelas variáveis `EMAIL_*` e `DEF
 ## Perfil do usuário
 
 - `GET /api/v1/usuarios/me/`: retorna os dados do usuário autenticado, incluindo `foto_perfil` (URL absoluta ou `null`), `telefones` (principal primeiro; `[]` em conta legada sem telefone), `is_produtor`, `tem_loja` e `idade`.
-- `PATCH /api/v1/usuarios/me/`: altera `nome`, `email`, `data_nascimento`, `genero` e `foto_perfil` (ver [Imagem da loja e foto de perfil](#imagem-da-loja-e-foto-de-perfil-rn-018)), com as mesmas validações do cadastro (e-mail único e idade mínima de 16 anos). CPF, telefone e papéis (`is_produtor`, `is_staff`) não podem ser alterados por aqui e retornam `400`. Os telefones são gerenciados em `/api/v1/usuarios/me/telefones/` (ver [Telefones do usuário](#telefones-do-usuário-rn-021)).
+- `PATCH /api/v1/usuarios/me/`: altera `nome`, `email`, `data_nascimento`, `genero` (código de `GET /api/v1/generos/`; inválido retorna `400`) e `foto_perfil` (ver [Imagem da loja e foto de perfil](#imagem-da-loja-e-foto-de-perfil-rn-018)), com as mesmas validações do cadastro (e-mail único e idade mínima de 16 anos). CPF, telefone e papéis (`is_produtor`, `is_staff`) não podem ser alterados por aqui e retornam `400`. Os telefones são gerenciados em `/api/v1/usuarios/me/telefones/` (ver [Telefones do usuário](#telefones-do-usuário-rn-021)).
 - Pedidos já realizados mantêm o snapshot dos dados do cliente (nome, CPF, e-mail, data de nascimento e gênero); alterar o perfil não muda o histórico. O telefone é exceção (RN-021): não é copiado para o pedido.
 
 ## Telefones do usuário (RN-021)
