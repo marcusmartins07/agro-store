@@ -168,7 +168,7 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
   "Envie uma imagem JPG, PNG ou WEBP válida." e "A imagem deve ter no máximo 5 MB."; quando o envio é recusado, a imagem atual é mantida.
   Diferente da imagem do produto, enviar uma nova imagem substitui a anterior. O arquivo anterior é removido do storage ao trocar
   ou remover, mas só é removido se não for usado por outra loja.
-  Os arquivos ficam no disco local em desenvolvimento e no Supabase Storage em produção.
+  Os arquivos ficam no armazenamento local de mídia do backend (`MEDIA_ROOT`).
   A imagem da loja e a foto do usuário não fazem parte do snapshot do pedido; trocá-las ou removê-las não altera pedidos já realizados.
   Os valores já existentes em `Loja.imagem_perfil` são preservados na mudança do campo; um valor que não aponta para arquivo válido
   é exibido como "sem imagem", sem apagar o dado.
@@ -210,7 +210,7 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
   Somente o produtor dono do produto (ou administrador) envia, ordena, define a principal ou exclui imagens; a leitura segue a visibilidade do produto.
   O backend aceita apenas JPG, PNG ou WEBP de até 5 MB, conferindo extensão e conteúdo, e renomeia o arquivo com nome aleatório.
   Uma imagem enviada não é substituída: para trocá-la, o produtor exclui a imagem e envia outra. O arquivo excluído é removido do storage.
-  Os arquivos ficam no disco local em desenvolvimento e no Supabase Storage em produção.
+  Os arquivos ficam no armazenamento local de mídia do backend (`MEDIA_ROOT`).
   O campo legado `Produto.imagem` foi copiado para a imagem principal e removido.
 - Valores financeiros devem usar Decimal no backend.
 

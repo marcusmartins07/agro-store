@@ -1,5 +1,4 @@
-export const API_BASE_URL = (import.meta.env.VITE_API_URL || '/api/v1').replace(/\/$/, '')
-export const BACKEND_URL = (import.meta.env.VITE_BACKEND_URL || '').replace(/\/$/, '')
+export const API_BASE_URL = '/api/v1'
 
 async function refreshAccessToken() {
   const refresh = localStorage.getItem('refresh_token')

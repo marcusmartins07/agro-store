@@ -23,8 +23,8 @@ apps/backend/
 - Django.
 - Django REST Framework.
 - Simple JWT.
-- SQLite em desenvolvimento.
-- PostgreSQL como objetivo final.
+- PostgreSQL 17.
+- Execução somente via `docker compose` (sem SQLite, Supabase ou deploy externo).
 
 ## Regras obrigatórias
 
@@ -34,7 +34,7 @@ apps/backend/
 - Usar `flake8` como verificação recomendada quando estiver disponível no ambiente.
 - Usar `# noqa` somente quando necessário, com o código da regra e uma justificativa no comentário.
 - Preferir código simples, legível e sem abstrações desnecessárias.
-- Manter compatibilidade com SQLite e PostgreSQL.
+- Rodar comandos do Django somente no container (`docker compose exec backend ...`).
 - Não alterar models sem avaliar impactos.
 - Criar migrations automaticamente quando models forem alterados após aprovação.
 - Não expor dados sensíveis nem criar endpoints públicos sem necessidade.
@@ -72,8 +72,8 @@ apps/backend/
 ## Segurança e variáveis de ambiente
 
 - Usar `os.getenv` para configurações de ambiente e converter valores para o tipo esperado de forma explícita.
-- O arquivo `.env` é local, não pode ser versionado e deve partir do modelo `.env.example`, que
-  contém apenas valores seguros de desenvolvimento e placeholders.
+- As variáveis de desenvolvimento ficam no `environment` do `docker-compose.yml`, apenas com valores seguros
+  de desenvolvimento; um `.env` local, se existir, não pode ser versionado.
 - Não armazenar segredos em código Python, arquivos de configuração versionados, comandos, documentação, prints ou logs.
 - Para produção, a configuração deve falhar de forma segura:
   `DJANGO_SECRET_KEY` deve existir e ser segura; `DJANGO_DEBUG` deve ser `false`; e
@@ -97,8 +97,8 @@ uma tarefa específica, pois altera o comportamento de inicialização do backen
 - Quando disponível, executar `python -m flake8 apps/backend` e corrigir os achados relevantes,
   respeitando o limite de 150 caracteres definido nesta skill.
 - Antes de uma alteração relevante, revisar permissões, exposição de dados, validações no backend,
-  transações, migrations, compatibilidade SQLite/PostgreSQL, testes e impacto no frontend.
-- Ao alterar configurações, revisar `.env.example`, `.gitignore`, `settings.py`, `ALLOWED_HOSTS`,
+  transações, migrations, compatibilidade com PostgreSQL, testes e impacto no frontend.
+- Ao alterar configurações, revisar `docker-compose.yml`, `.gitignore`, `settings.py`, `ALLOWED_HOSTS`,
   CORS, `DEBUG` e o risco de expor valores em logs ou no controle de versão.
 - Ao alterar regra de negócio, seguir também `.ai/skills/business-rules.md` e avaliar impacto em
   backend, frontend, banco, testes, documentação técnica e TCC.

@@ -21,7 +21,7 @@ class CarrinhoViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
     def get_queryset(self):
         return Carrinho.objects.filter(
             usuario=self.request.user
-        ).select_related('loja').prefetch_related('itens__produto__precos', 'itens__produto__loja')
+        ).select_related('loja').prefetch_related('itens__produto__precos', 'itens__produto__loja', 'itens__produto__imagens')
 
     def get_serializer_class(self):
         if self.action == 'create':
@@ -53,7 +53,7 @@ class CarrinhoViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
             item = CarrinhoProduto.objects.create(carrinho=carrinho, produto=produto, quantidade=quantidade)
 
         carrinho.recalcular_totais()
-        return Response(CarrinhoProdutoSerializer(item).data, status=status.HTTP_201_CREATED)
+        return Response(CarrinhoProdutoSerializer(item, context=self.get_serializer_context()).data, status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=['patch'], url_path=r'itens/(?P<item_id>[^/.]+)')
     @transaction.atomic
@@ -72,7 +72,7 @@ class CarrinhoViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
         item.quantidade = quantidade
         item.save(update_fields=['quantidade', 'data_atualizacao'])
         item.carrinho.recalcular_totais()
-        return Response(CarrinhoProdutoSerializer(item).data)
+        return Response(CarrinhoProdutoSerializer(item, context=self.get_serializer_context()).data)
 
     @atualizar_item.mapping.delete
     @transaction.atomic
@@ -92,4 +92,4 @@ class CarrinhoViewSet(mixins.ListModelMixin, mixins.RetrieveModelMixin, viewsets
         return get_object_or_404(CarrinhoProduto.objects.select_related(
             'carrinho',
             'produto',
-        ), carrinho__usuario=request.user, carrinho_produto_id=item_id)
+        ).prefetch_related('produto__imagens'), carrinho__usuario=request.user, carrinho_produto_id=item_id)

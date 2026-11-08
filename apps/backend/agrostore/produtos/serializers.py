@@ -5,6 +5,14 @@ from agrostore.main.imagens import arquivo_e_imagem
 from .models import Produto, PrecoProduto, Categoria, ImagemProduto
 
 
+def url_imagem_principal(produto, request):
+    principal = next((imagem for imagem in produto.imagens.all() if imagem.e_principal), None)
+    if principal is None:
+        return None
+    url = principal.imagem.url
+    return request.build_absolute_uri(url) if request else url
+
+
 class CategoriaSerializer(serializers.ModelSerializer):
     class Meta:
         model = Categoria
@@ -104,12 +112,7 @@ class ProdutoSerializer(serializers.ModelSerializer):
         read_only_fields = ['loja', 'sku']
 
     def get_imagem(self, obj):
-        principal = next((imagem for imagem in obj.imagens.all() if imagem.e_principal), None)
-        if principal is None:
-            return None
-        url = principal.imagem.url
-        request = self.context.get('request')
-        return request.build_absolute_uri(url) if request else url
+        return url_imagem_principal(obj, self.context.get('request'))
 
     def validate_estoque(self, estoque):
         if estoque < 0:

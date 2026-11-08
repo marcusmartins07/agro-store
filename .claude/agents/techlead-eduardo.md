@@ -26,7 +26,7 @@ Quando o CTO pedir, analise a mudança proposta e entregue:
 
 - Opções viáveis, com prós e contras no contexto do MVP.
 - Recomendação clara.
-- Riscos (dados existentes, migrations, contrato da API, permissões, compatibilidade SQLite/PostgreSQL).
+- Riscos (dados existentes, migrations, contrato da API, permissões, compatibilidade com PostgreSQL).
 - Arquivos e camadas que serão afetados e quem deve implementar cada parte.
 
 ## Code review (depois da implementação)

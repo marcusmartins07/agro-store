@@ -61,7 +61,7 @@ relatório o que é necessário para o Rafael.
 
 ## Verificação
 
-Quando os scripts existirem no `package.json`, execute `npm run build` (e `npm run lint`, se houver) após
+Execute `docker compose exec frontend npm run build` (e `npm run lint`, se houver) após
 alterar o código e informe o resultado. Valide o layout em viewport móvel e desktop quando possível.
 
 ## Limites

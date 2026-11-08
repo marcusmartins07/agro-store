@@ -3,7 +3,6 @@ import shutil
 import tempfile
 from unittest import mock
 
-from botocore.exceptions import ClientError
 from django.core.exceptions import ValidationError
 from django.core.files.storage import FileSystemStorage
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -378,7 +377,7 @@ class LojaImagemPerfilAPITests(ImagemLojaTestMixin, APITestCase):
         self.enviar_imagem_valida()
         nome_anterior = self.loja.imagem_perfil.name
 
-        for erro in (OSError('disco'), ClientError({'Error': {'Code': '500'}}, 'DeleteObject')):
+        for erro in (OSError('disco'),):
             with self.subTest(erro=type(erro).__name__):
                 with mock.patch.object(FileSystemStorage, 'delete', side_effect=erro):
                     with self.assertLogs('agrostore.main.imagens', level='WARNING') as logs:

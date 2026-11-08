@@ -31,92 +31,57 @@ Versões lidas de `apps/backend/requirements.txt`, `apps/frontend/package.json` 
 | Backend | Django REST Framework | 3.16.1 |
 | Backend | Simple JWT (autenticação JWT) | 5.5.1 |
 | Backend | django-cors-headers | 4.9.0 |
-| Backend | django-storages e boto3 (Supabase Storage via S3) | 1.14.6 e 1.43.113 |
 | Backend | psycopg (PostgreSQL) | 3.3.6 |
-| Backend | gunicorn (servidor WSGI) | 26.2.0 |
-| Frontend | Node.js | 20.19+ ou 22.12+ |
+| Frontend | Node.js (imagem `node:24-slim` do Docker) | 24 |
 | Frontend | Vue | ^3.5.30 |
 | Frontend | Vite | ^8.0.0 |
 | Frontend | Pinia | ^3.0.4 |
 | Frontend | Vue Router | ^5.0.3 |
 | Frontend | Bootstrap | ^5.3.8 |
-| Dados | SQLite (desenvolvimento) e PostgreSQL no Supabase (produção) | — |
+| Dados | PostgreSQL 17 (container `postgres:17`) | 17 |
+| Infraestrutura | Docker e Docker Compose (único modo de execução) | — |
 
-Hospedagem: backend no Render, frontend na Vercel, banco PostgreSQL e armazenamento de imagens no Supabase. Detalhes em [Publicação](#publicação-em-produção).
+O projeto roda somente com Docker Compose. Não há instalação local de Python, Node.js ou banco, nem publicação em nuvem configurada neste repositório.
 
 ## Estrutura
 
 ```text
 apps/
-  backend/   API Django REST Framework
-  frontend/  SPA Vue + Vite (inclui vercel.json)
-scripts/
-  dev.mjs    inicia os dois serviços
-  backend.mjs executa comandos do Django carregando o .env
-  copiar-supabase.mjs copia os dados do Supabase para o banco do Docker local
-docker-compose.yml ambiente Docker local (apenas desenvolvimento)
+  backend/   API Django REST Framework (Dockerfile; imagens enviadas em media/)
+  frontend/  SPA Vue + Vite (Dockerfile)
+docker-compose.yml ambiente completo: banco, backend e frontend
 docs/
   TCC.md, api-endpoints.md, telas-do-sistema.md, modelo-logico.sql,
   flutter-design-guide.md, diagramas/ (fontes Mermaid)
-.env.example modelo das variáveis de ambiente
 ```
 
 ## Requisitos
 
-- Python 3.14.2
-- Node.js 20.19+ ou 22.12+
+- Docker Desktop (ou Docker Engine com o plugin Compose) em execução.
 
-## Instalação
+## Instalação e execução
 
-No diretório raiz:
-
-```powershell
-python -m venv .venv
-.\.venv\Scripts\Activate.ps1
-python -m pip install -r apps/backend/requirements.txt
-npm install
-npm run migrate
-```
-
-No Linux/macOS, ative o ambiente com `source .venv/bin/activate`.
-
-## Desenvolvimento
-
-Com o ambiente virtual ativado:
+Na raiz do repositório:
 
 ```powershell
-npm run dev
+docker compose up --build
 ```
 
-- Frontend: http://localhost:5173
+O backend aplica as migrations (`migrate`) ao iniciar. Para criar um administrador, em outro terminal:
+
+```powershell
+docker compose exec backend python manage.py createsuperuser
+```
+
+- Frontend: http://127.0.0.1:5173
 - Backend: http://127.0.0.1:8000
 - Admin Django: http://127.0.0.1:8000/admin/
 
-O Vite encaminha `/api` e `/media` ao Django. Assim, o frontend não depende
-de uma URL local fixa e a mesma origem pode ser usada em produção.
+O Vite encaminha `/api` e `/media` ao backend (`http://backend:8000`, na rede do Compose). A API do frontend é fixa em `/api/v1`.
 
-Comandos separados:
-
-```powershell
-npm run dev:backend
-npm run dev:frontend
-```
-
-Validação:
-
-```powershell
-npm run check
-```
-
-O arquivo `.env` da raiz (copie de `.env.example`) só é carregado quando o backend é iniciado por `node scripts/backend.mjs <comando>` ou pelos scripts do `package.json`. Rodar `python apps/backend/manage.py` direto não lê o `.env`. Para aplicar migrations de um app específico, use, por exemplo, `node scripts/backend.mjs migrate usuarios`.
-
-## Ambiente Docker local
-
-Alternativa ao `npm run dev` para subir banco, backend e frontend em containers. É um ambiente apenas de desenvolvimento: os `Dockerfile` não são usados na publicação, que continua na arquitetura descrita em [Publicação em produção](#publicação-em-produção) (Vercel, Render e Supabase).
+## Ambiente Docker
 
 Pré-requisito: Docker Desktop aberto.
-
-> **Atenção: os containers não usam o `.env` da raiz, mas `npm run migrate`, `npm run dev` e `node scripts/backend.mjs` continuam carregando esse `.env`.** Se ele apontar para o Supabase (`DATABASE_URL` preenchida), esses comandos atingem a produção. No ambiente Docker, execute os comandos do Django somente com `docker compose exec`.
 
 Serviços:
 
@@ -133,46 +98,28 @@ docker compose up --build                  # sobe o ambiente (acrescente -d para
 docker compose down                        # para os containers e preserva o banco
 docker compose down -v                     # para e zera o banco
 docker compose up --build -V               # depois de mudar dependências do frontend
-docker compose exec backend python manage.py <comando>   # comandos do Django no ambiente Docker
+docker compose exec backend python manage.py <comando>   # comandos do Django
+docker compose exec backend python manage.py test --noinput agrostore   # testes do backend
+docker compose exec frontend npm run build               # build do frontend
 ```
 
-Acesso:
+Acesso: use `http://127.0.0.1:5173`.
 
-- Use `http://127.0.0.1:5173`. Se houver um Vite local rodando, `localhost:5173` pode cair nele, e não no container.
-- Com os containers no ar, a porta 8000 fica ocupada, o que impede o backend de `npm run dev`.
+As variáveis de desenvolvimento ficam somente no `environment` do `docker-compose.yml` (não há `.env` nem `.env.example`). O destino do proxy do Vite (`http://backend:8000`) está fixo em `apps/frontend/vite.config.js`.
 
-Variáveis do Vite lidas por `apps/frontend/vite.config.js`: `API_PROXY_TARGET` (destino do proxy de `/api` e `/media`), `API_PROXY_CHANGE_ORIGIN` e `DEV_SERVER_POLLING`. O `docker-compose.yml` as define; fora do Docker o comportamento padrão não muda.
+As imagens enviadas ficam em `apps/backend/media` (`MEDIA_ROOT`, montado do host no container) e são servidas em `/media/` com `DJANGO_DEBUG=true`. Com `DJANGO_DEBUG=false`, as imagens não são servidas pelo backend.
 
-### Copiar os dados do Supabase para o Docker local
+### Testes
+
+Os testes rodam no PostgreSQL do container:
 
 ```powershell
-node scripts/copiar-supabase.mjs                          # gera um dump e restaura no banco local
-node scripts/copiar-supabase.mjs backups/<arquivo>.dump   # restaura um dump existente, sem acessar o Supabase
+docker compose exec backend python manage.py test --noinput agrostore
 ```
-
-Como funciona:
-
-- Lê o `DATABASE_URL` do `.env` e faz um `pg_dump` somente leitura do schema `public`, usando a imagem `postgres:17` (não é preciso instalar `pg_dump`). O arquivo é gravado em `backups/agro-store-supabase-<data>-<hora>.dump`.
-- Inclui tabelas, dados e sequências do `public`. Não inclui os schemas `auth` e `storage`, roles, permissões nem os arquivos de imagem do bucket.
-- O script faz restore completo (schema antigo e `django_migrations`) e depois `migrate`; não gera um banco "do zero". O modo somente dados é a DB-024 (ver [Banco de dados e migrations](#banco-de-dados-e-migrations)).
-- A restauração usa um banco temporário: se o `pg_restore` falhar, o banco local é preservado. O `migrate` roda depois da troca de banco; se ele falhar, o banco antigo não volta, e o dump continua disponível.
-
-Limitações conhecidas:
-
-- Precisa de saída de rede para a porta 5432. Em redes ou ambientes que bloqueiam essa porta, a cópia pode falhar com `Connection refused`; a alternativa é repetir em outra rede.
-- Se um dump futuro tiver políticas RLS, a restauração para com erro e o banco local fica intacto. O dump atual não trouxe políticas.
-- As imagens dos dados copiados aparecem quebradas (404), porque os arquivos ficam no bucket, que o Docker não acessa.
-- O procedimento foi executado com sucesso em 06/11/2026 e validado comparando as contagens do dump com as do banco local.
-
-> **Dados pessoais:** `backups/` (ignorado no git) e o volume do banco passam a conter CPF, e-mail e hashes de senha reais, sem criptografia. Cada cópia gera um novo dump, e a limpeza é manual: apague os dumps e rode `docker compose down -v`. Quem copiou os dados consegue entrar com as senhas reais dos usuários, e os e-mails de redefinição de senha aparecem no log do backend.
-
-### Testes no Postgres do container
-
-A suíte roda com 399 testes, sem erros conhecidos. O erro antigo de `usuarios.tests_migrations` (`varchar(11)`) deixou de existir com a remoção desses testes (DB-022). Rode com `manage.py test agrostore`; `npm run test:backend` não inclui `agrostore.main`.
 
 ## Variáveis de ambiente
 
-Os nomes e os valores de exemplo estão em `.env.example`. Nunca versione valores reais, principalmente senhas, chaves e `DJANGO_SECRET_KEY`.
+Os valores de desenvolvimento estão no `environment` do serviço `backend` em `docker-compose.yml`. Não há `.env`. Nunca versione valores reais de produção, principalmente senhas, chaves e `DJANGO_SECRET_KEY`.
 
 | Variável | Finalidade |
 | --- | --- |
@@ -184,45 +131,10 @@ Os nomes e os valores de exemplo estão em `.env.example`. Nunca versione valore
 | `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS` | Dados do servidor SMTP (usados com o backend SMTP). |
 | `EMAIL_TIMEOUT` | Segundos de espera pelo servidor SMTP (padrão `10`). |
 | `DEFAULT_FROM_EMAIL` | Remetente dos e-mails enviados. |
-| `VITE_API_URL`, `VITE_BACKEND_URL` | Endereço da API usado pelo frontend; vazio em desenvolvimento para usar o proxy do Vite. Em produção (Vercel), defina com `<URL do backend>`. |
-| `DATABASE_URL`, `DATABASE_SSLMODE`, `DATABASE_CONN_MAX_AGE` | Banco de dados (vazio usa SQLite). |
-| `SUPABASE_STORAGE_BUCKET`, `SUPABASE_URL`, `SUPABASE_S3_REGION`, `SUPABASE_S3_ACCESS_KEY_ID`, `SUPABASE_S3_SECRET_ACCESS_KEY` | Armazenamento de imagens. Com `SUPABASE_STORAGE_BUCKET` vazio, os arquivos ficam em `apps/backend/media` (`MEDIA_ROOT`, servidos em `/media/`). Com o bucket definido (produção, Supabase Storage com bucket público), `SUPABASE_URL`, `SUPABASE_S3_REGION`, `SUPABASE_S3_ACCESS_KEY_ID` e `SUPABASE_S3_SECRET_ACCESS_KEY` passam a ser obrigatórios, e o backend não inicia se faltar alguma. As chaves ficam só no `.env` do ambiente. |
+| `DATABASE_URL` | Conexão PostgreSQL (`postgresql://...`). Obrigatória: sem ela o backend não inicia (`ImproperlyConfigured`). Não existe fallback para SQLite. No Compose aponta para o serviço `db`. |
+| `DATABASE_CONN_MAX_AGE` | Tempo, em segundos, de reutilização da conexão com o banco (padrão `0`). |
 
-## Publicação em produção
-
-Arquitetura de produção: frontend na Vercel, backend no Render e banco PostgreSQL com armazenamento de imagens no Supabase. Este repositório não contém `render.yaml` nem `Procfile`; a configuração do Render é feita no painel do serviço. Os `Dockerfile` e o `docker-compose.yml` existentes servem somente ao ambiente de desenvolvimento local (ver [Ambiente Docker local](#ambiente-docker-local)) e não fazem parte da publicação. URLs e valores reais não são versionados: este documento usa `<URL do backend>` e `<domínio da Vercel>`.
-
-### Frontend (Vercel, SCRUM-142)
-
-O arquivo `apps/frontend/vercel.json` define:
-
-- framework `vite`, instalação com `npm ci --workspaces=false`, build com `npm run build` e saída em `dist`;
-- reescrita de todas as rotas para `/index.html`, necessária porque o Vue Router roda como SPA (rotas como `/pedidos` e `/redefinir-senha` abertas direto no navegador);
-- cache longo e imutável (`public, max-age=31536000, immutable`) para `/assets/*`.
-
-Configuração esperada no projeto da Vercel: diretório raiz `apps/frontend` (conferir no painel da Vercel). Em produção não há proxy do Vite; defina `VITE_API_URL` (e `VITE_BACKEND_URL`) com `<URL do backend>`. Conforme `services/api.js`, `VITE_API_URL` tem o padrão `/api/v1` quando vazia, e `VITE_BACKEND_URL` o padrão vazio; confira no painel da Vercel o valor adequado ao formato da URL.
-
-### Backend (Render)
-
-O backend é um serviço web Python do Render que executa o Django por WSGI com o `gunicorn` (presente em `requirements.txt`; módulo `agrostore.wsgi`, em `apps/backend/agrostore/wsgi.py`). O diretório de execução, o comando de build e o comando de início exatos devem ser conferidos no painel do Render, pois não estão versionados. Variáveis de ambiente que o `settings.py` lê:
-
-| Variável | Uso em produção |
-| --- | --- |
-| `DJANGO_SECRET_KEY` | Chave secreta do Django (valor só no painel). |
-| `DJANGO_DEBUG` | `false` em produção. |
-| `DJANGO_ALLOWED_HOSTS` | Host do serviço no Render (`<URL do backend>`, sem o protocolo). |
-| `CORS_ALLOWED_ORIGINS` | `<domínio da Vercel>`, com o protocolo. |
-| `FRONTEND_URL` | `<domínio da Vercel>`; obrigatória com `DJANGO_DEBUG=false` (links de redefinição de senha). |
-| `DRF_NUM_PROXIES` | `1` quando o serviço está atrás do proxy reverso do Render (conferir no painel do Render). |
-| `DATABASE_URL`, `DATABASE_SSLMODE`, `DATABASE_CONN_MAX_AGE` | Conexão PostgreSQL do Supabase (Session pooler). |
-| `SUPABASE_STORAGE_BUCKET`, `SUPABASE_URL`, `SUPABASE_S3_REGION`, `SUPABASE_S3_ACCESS_KEY_ID`, `SUPABASE_S3_SECRET_ACCESS_KEY` | Supabase Storage para as imagens (o backend não inicia se faltar alguma com o bucket definido). |
-| `EMAIL_BACKEND`, `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`, `EMAIL_TIMEOUT`, `DEFAULT_FROM_EMAIL` | SMTP para o e-mail de redefinição de senha. |
-
-Não foi verificado neste repositório como o Render serve os arquivos estáticos do Django Admin (não há `STATIC_ROOT` nem WhiteNoise no `settings.py`); conferir no painel do Render.
-
-### Ordem de publicação com migrations
-
-Aplique no Supabase as migrations pendentes antes de publicar o backend que depende delas (ver [Procedimento para aplicar migrations no Supabase](#procedimento-para-aplicar-migrations-no-supabase)). Até a DB-023, não rode `migrate` no Supabase nem crie migrations novas (ver [Estado do Supabase e trava até a DB-023](#estado-do-supabase-e-trava-até-a-db-023)). Publique o frontend da Vercel depois do backend, pois ele depende dos contratos da API atuais.
+O frontend não usa variáveis de ambiente: a API é fixa em `/api/v1` e o proxy do Vite encaminha `/api` e `/media` ao backend.
 
 ## Contrato de categorias
 
@@ -293,7 +205,7 @@ Regras comuns:
 - Enviar uma nova imagem substitui a anterior. Para remover sem enviar outra, use o `DELETE` da respectiva rota; enviar `""` ou `null` no `PATCH` retorna `400`.
 - O arquivo anterior é apagado do storage somente depois que a alteração é confirmada no banco e, no caso da loja, só se nenhuma outra loja usar o mesmo arquivo. Nomes fora do padrão gerado pelo sistema (valores antigos) são exibidos como `null` e nunca são apagados.
 - As imagens são devolvidas como URL absoluta. Os envios usam `multipart/form-data`.
-- Armazenamento: disco local (`MEDIA_ROOT`) em desenvolvimento; Supabase Storage em produção, quando `SUPABASE_STORAGE_BUCKET` está definido (ver [Variáveis de ambiente](#variáveis-de-ambiente)).
+- Armazenamento: disco local, em `apps/backend/media` (`MEDIA_ROOT`), servido em `/media/` com `DJANGO_DEBUG=true`. Com `DJANGO_DEBUG=false`, as imagens não são servidas pelo backend.
 - A imagem da loja e a foto do usuário não entram no snapshot do pedido.
 
 ### Enviar ou trocar a foto de perfil
@@ -417,7 +329,7 @@ Possíveis erros:
 ### Limitações aceitas no v1
 
 - Se o banco falhar depois do upload do arquivo novo, o arquivo fica órfão no storage.
-- No Supabase, o bucket é público também para a foto do usuário. O nome do arquivo é um UUID e nenhum endpoint de terceiros devolve a foto, mas quem souber a URL consegue abri-la.
+- Os arquivos em `/media/` são servidos sem autenticação, inclusive a foto do usuário. O nome do arquivo é um UUID e nenhum endpoint de terceiros devolve a foto, mas quem souber a URL consegue abri-la.
 - Troca de imagem pelo Admin do Django não é validada nem remove o arquivo anterior. A moderação de imagens é trabalho futuro.
 - Valores antigos fora do padrão gerado aparecem como `null` e permanecem no banco.
 - A mensagem de extensão inválida da imagem do produto (RN-016) é diferente da usada na loja e na foto do usuário.
@@ -644,9 +556,7 @@ O dono de um pedido é identificado pelo registro `PedidoCliente` (tabela `pedid
 
 ## Banco de dados e migrations
 
-O banco é definido por `DATABASE_URL`. Com a variável vazia, o backend usa SQLite local; com `postgresql://...`, usa PostgreSQL (Supabase em produção). O modelo lógico está em `docs/modelo-logico.sql`.
-
-> **Alerta:** o `.env` da raiz pode conter um `DATABASE_URL` apontando para o Supabase. Rodar `migrate` com essa variável preenchida aplica as migrations **em produção**. No desenvolvimento, execute os comandos com `DATABASE_URL=` vazio (use o `.env.example` como base; ele traz a variável vazia).
+O banco é PostgreSQL 17, executado no container `db` e acessado pelo backend por `DATABASE_URL` (obrigatória; sem ela o backend não inicia). Os dados ficam no volume `db_data`; para zerar o banco, use `docker compose down -v`. O modelo lógico está em `docs/modelo-logico.sql`.
 
 ### Histórico consolidado (DB-022)
 
@@ -662,42 +572,9 @@ A migration `usuarios/0002_dados_iniciais` carrega os dados fixos:
 
 O `status_pedido` continua sendo criado sob demanda. Os testes dessa migration estão em `usuarios/tests_dados_iniciais.py` (4 testes); os antigos `tests_migrations.py` foram removidos.
 
-### Recriar o banco local a partir de um dump
+### Aplicar migrations e recriar o banco
 
-Procedimento resumido para o PostgreSQL do Docker, a partir de um dump do Supabase (faça os comandos do Django com `docker compose exec`, nunca com o `.env` da raiz apontando para o Supabase):
-
-1. Faça um backup do banco local com `pg_dump`.
-2. Rode `drop database` e `create database`.
-3. Rode `docker compose exec backend python manage.py migrate`.
-4. Restaure só os dados com `pg_restore --data-only --single-transaction --use-list`, listando apenas as 16 tabelas de negócio. Ficam de fora `django_migrations`, `genero`, `tipo_telefone`, `contenttypes`, permissões e os `SEQUENCE SET`, porque os nomes das sequences do Supabase são antigos.
-5. Reajuste as sequences: `manage.py sqlsequencereset <apps>` dos 7 apps, aplicado via `psql`.
-6. Confira as contagens de linhas.
-
-Observações:
-
-- No Git Bash, `docker compose exec` com caminhos precisa de `MSYS_NO_PATHCONV=1`.
-- Para comandos Django fora do Docker, chame o Python do venv com `DATABASE_URL` explícito, porque o `.env` da raiz pode apontar para o Supabase de produção.
-- Para o SQLite, copie os dados do Postgres com `dumpdata` (com `PYTHONUTF8=1`) e `loaddata`, e apague o JSON em seguida, pois contém dados pessoais.
-
-### Estado do Supabase e trava até a DB-023
-
-O Supabase **não foi alterado** pela DB-022. A tabela `django_migrations` de lá ainda tem os registros antigos e os nomes físicos antigos de sequences e constraints. Uma simulação local indicou que o `migrate` no Supabase aplicaria somente `usuarios.0002_dados_iniciais`.
-
-O ajuste será feito na DB-023: backup, `migrate --plan`, aplicar a `usuarios.0002` e apagar os registros antigos dos 7 apps, mantendo as `0001_initial`.
-
-> **Trava até a DB-023:** não crie migrations novas nos 7 apps e não rode `migrate` no Supabase. Uma migration nova com o mesmo nome de uma antiga seria pulada em silêncio, por já constar como aplicada em `django_migrations`.
-
-`scripts/copiar-supabase.mjs` ainda faz restore completo (schema antigo e `django_migrations`) e depois `migrate`; ele não gera um banco "do zero". A adaptação para restaurar somente os dados é a DB-024.
-
-### Procedimento para aplicar migrations no Supabase
-
-Vale após a DB-023. Enquanto ela não for concluída, vale a trava acima.
-
-1. Faça backup (`pg_dump` ou painel do Supabase).
-2. Confira o estado: `SELECT app, name FROM django_migrations ORDER BY app, id;`.
-3. Pare o backend publicado, se a migration alterar o schema usado pelo código em produção.
-4. Rode `node scripts/backend.mjs migrate --plan`, revise o plano e aplique com `node scripts/backend.mjs migrate`.
-5. Publique o backend e, depois, o frontend.
+O backend executa `migrate` ao subir. Para aplicar manualmente: `docker compose exec backend python manage.py migrate`. Para recriar o banco do zero (apaga todos os dados): `docker compose down -v` e `docker compose up --build`. Os dados anteriores do Supabase foram descartados e não há procedimento de cópia.
 
 ## SKU de produtos
 
@@ -822,8 +699,8 @@ Possíveis erros:
 
 O envio usa `send_mail` do Django, configurado pelas variáveis `EMAIL_*` e `DEFAULT_FROM_EMAIL` (ver [Variáveis de ambiente](#variáveis-de-ambiente)).
 
-- Desenvolvimento: com o backend `console` (padrão do `.env.example`), o e-mail com o link aparece no terminal do backend.
-- Produção: use `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend` e informe `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` e `EMAIL_USE_TLS`. Recomenda-se uma conta própria do projeto (Gmail com senha de app, Mailtrap ou Brevo). As credenciais ficam somente no `.env` do ambiente, nunca no repositório.
+- Desenvolvimento: com o backend `console` (definido no `docker-compose.yml`), o e-mail com o link aparece no log do backend (`docker compose logs backend`).
+- Para enviar e-mail real, use `EMAIL_BACKEND=django.core.mail.backends.smtp.EmailBackend` e informe `EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD` e `EMAIL_USE_TLS`. As credenciais nunca vão para o repositório.
 - Falhas de SMTP não alteram a resposta da API (continua `200`) e são registradas no log do backend sem o endereço de e-mail nem o código.
 
 ### Limitações aceitas no v1
@@ -933,7 +810,7 @@ Possíveis erros:
 Na migração, o antigo `Usuario.telefone` foi copiado como telefone principal: 11 dígitos viram Celular, 10 viram Fixo, e valor fora do padrão entra como Celular. Valor vazio não gera telefone. O telefone do snapshot dos pedidos não é aproveitado. Para listar os casos a corrigir (somente leitura; mostra apenas os ids, nunca o número):
 
 ```powershell
-node scripts/backend.mjs telefones_fora_do_padrao
+docker compose exec backend python manage.py telefones_fora_do_padrao
 ```
 
 ## Favoritos
