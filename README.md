@@ -106,7 +106,7 @@ Validação:
 npm run check
 ```
 
-O arquivo `.env` da raiz (copie de `.env.example`) só é carregado quando o backend é iniciado por `node scripts/backend.mjs <comando>` ou pelos scripts do `package.json`. Rodar `python apps/backend/manage.py` direto não lê o `.env`. Para aplicar migrations de um app específico, use, por exemplo, `node scripts/backend.mjs migrate usuarios 0005`.
+O arquivo `.env` da raiz (copie de `.env.example`) só é carregado quando o backend é iniciado por `node scripts/backend.mjs <comando>` ou pelos scripts do `package.json`. Rodar `python apps/backend/manage.py` direto não lê o `.env`. Para aplicar migrations de um app específico, use, por exemplo, `node scripts/backend.mjs migrate usuarios`.
 
 ## Variáveis de ambiente
 
@@ -160,7 +160,7 @@ Não foi verificado neste repositório como o Render serve os arquivos estático
 
 ### Ordem de publicação com migrations
 
-Migrations de renomeação das tabelas (`*_nomes_fisicos_modelo_logico`) e a publicação do backend devem sair juntas (ver [Procedimento para aplicar no Supabase](#procedimento-para-aplicar-no-supabase)). Publique o frontend da Vercel depois do backend, pois ele depende dos contratos da API atuais.
+Aplique no Supabase as migrations pendentes antes de publicar o backend que depende delas (ver [Procedimento para aplicar migrations no Supabase](#procedimento-para-aplicar-migrations-no-supabase)). Até a DB-023, não rode `migrate` no Supabase nem crie migrations novas (ver [Estado do Supabase e trava até a DB-023](#estado-do-supabase-e-trava-até-a-db-023)). Publique o frontend da Vercel depois do backend, pois ele depende dos contratos da API atuais.
 
 ## Contrato de categorias
 
@@ -586,74 +586,56 @@ O banco é definido por `DATABASE_URL`. Com a variável vazia, o backend usa SQL
 
 > **Alerta:** o `.env` da raiz pode conter um `DATABASE_URL` apontando para o Supabase. Rodar `migrate` com essa variável preenchida aplica as migrations **em produção**. No desenvolvimento, execute os comandos com `DATABASE_URL=` vazio (use o `.env.example` como base; ele traz a variável vazia).
 
-### Migration de loja única por produtor (lojas 0003)
+### Histórico consolidado (DB-022)
 
-`lojas/0003_loja_proprietario_unico_protect` altera `Loja.proprietario` para `on_delete=PROTECT` e cria a restrição única `uq_loja_proprietario`. Ela tem uma guarda que **interrompe** a migration se algum produtor tiver mais de uma loja. Já está aplicada no Supabase.
+As 37 migrations antigas foram apagadas. Cada app (`usuarios`, `lojas`, `produtos`, `carrinhos`, `pedidos`, `favoritos` e `avaliacoes`) tem uma única `0001_initial`, gerada a partir dos models, sem alterar o schema. Os nomes físicos de tabelas e colunas seguem o modelo lógico (`docs/modelo-logico.sql`).
 
-No SQLite local de desenvolvimento, se o `migrate` parar nessa guarda, o banco tem produtores com duas ou mais lojas. Sane o banco deixando uma loja por produtor (por exemplo, pelo Admin ou `manage.py shell`, preservando a loja que tem pedidos) ou recrie o `db.sqlite3` (apague o arquivo e rode `migrate`), e então rode `migrate` novamente.
+### Dados iniciais
 
-### Migrations do vínculo do cliente (pedidos 0003 a 0005)
+A migration `usuarios/0002_dados_iniciais` carrega os dados fixos:
 
-Movem o usuário de `Pedido` para `PedidoCliente`, em três migrations separadas e reversíveis:
+- gêneros `M` Masculino, `F` Feminino e `I` Prefiro não informar, criados somente se não existirem;
+- troca o nome do código `I` de "Indefinido" para "Prefiro não informar" apenas quando ainda for "Indefinido"; nomes já alterados pelo administrador nunca são desfeitos (RN-024);
+- tipos de telefone Celular, Fixo e Comercial.
 
-1. `0003_pedidocliente_usuario` (schema): adiciona `PedidoCliente.usuario` como campo nulo.
-2. `0004_copiar_usuario_para_pedidocliente` (dados): copia o usuário de cada pedido e **interrompe** se existir pedido sem `pedido_cliente`. Tem operação reversa.
-3. `0005_remover_pedido_usuario` (schema): torna `PedidoCliente.usuario` obrigatório e remove `Pedido.usuario`.
+O `status_pedido` continua sendo criado sob demanda. Os testes dessa migration estão em `usuarios/tests_dados_iniciais.py` (4 testes); os antigos `tests_migrations.py` foram removidos.
 
-Elas ficam separadas por compatibilidade com PostgreSQL: misturar alteração de dados e de schema na mesma transação causa o erro "pending trigger events".
+### Recriar o banco local a partir de um dump
 
-### Migrations dos telefones (usuarios 0006 a 0008 e pedidos 0006)
+Procedimento resumido para o PostgreSQL do Docker, a partir de um dump do Supabase (faça os comandos do Django com `docker compose exec`, nunca com o `.env` da raiz apontando para o Supabase):
 
-Criam `tipo_telefone` e `telefone`, copiam o antigo `Usuario.telefone` e removem os campos antigos (RN-021):
+1. Faça um backup do banco local com `pg_dump`.
+2. Rode `drop database` e `create database`.
+3. Rode `docker compose exec backend python manage.py migrate`.
+4. Restaure só os dados com `pg_restore --data-only --single-transaction --use-list`, listando apenas as 16 tabelas de negócio. Ficam de fora `django_migrations`, `genero`, `tipo_telefone`, `contenttypes`, permissões e os `SEQUENCE SET`, porque os nomes das sequences do Supabase são antigos.
+5. Reajuste as sequences: `manage.py sqlsequencereset <apps>` dos 7 apps, aplicado via `psql`.
+6. Confira as contagens de linhas.
 
-1. `usuarios` 0006 (schema): cria `tipo_telefone` e `telefone`.
-2. `usuarios` 0007 (dados): popula os tipos e copia o telefone de cada usuário como principal.
-3. `usuarios` 0008 (schema): remove `Usuario.telefone`.
-4. `pedidos` 0006 (schema): remove `PedidoCliente.telefone`.
+Observações:
 
-> **Atenção antes de aplicar no Supabase:** faça backup antes. A remoção do telefone do snapshot dos pedidos (`pedidos` 0006) é irreversível, pois os dados não são recuperáveis ao reverter. Publique o backend junto com o frontend novo, pois o frontend antigo depende de `telefone` no cadastro, no perfil e nos pedidos. Após aplicar, rode `telefones_fora_do_padrao` (ver [Telefones do usuário](#telefones-do-usuário-rn-021)). Estas migrations ainda não foram aplicadas no Supabase.
+- No Git Bash, `docker compose exec` com caminhos precisa de `MSYS_NO_PATHCONV=1`.
+- Para comandos Django fora do Docker, chame o Python do venv com `DATABASE_URL` explícito, porque o `.env` da raiz pode apontar para o Supabase de produção.
+- Para o SQLite, copie os dados do Postgres com `dumpdata` (com `PYTHONUTF8=1`) e `loaddata`, e apague o JSON em seguida, pois contém dados pessoais.
 
-### Procedimento para aplicar no Supabase
+### Estado do Supabase e trava até a DB-023
 
-Estado: **aplicado no Supabase até `lojas` 0003 e `usuarios` 0005**. Conferências com `showmigrations`:
+O Supabase **não foi alterado** pela DB-022. A tabela `django_migrations` de lá ainda tem os registros antigos e os nomes físicos antigos de sequences e constraints. Uma simulação local indicou que o `migrate` no Supabase aplicaria somente `usuarios.0002_dados_iniciais`.
 
-- 15/10/2026: todas as migrations existentes na época aplicadas, incluindo `pedidos` 0001 a 0005 (os 7 registros do vínculo do cliente com o pedido, então na tabela `pedidos_pedidocliente`, hoje `pedido_cliente`, com `usuario_id` preenchido) e `lojas` 0003.
-- 16/10/2026: conferido com `node scripts/backend.mjs showmigrations`; sem migration pendente na época (inclui `usuarios` 0005).
+O ajuste será feito na DB-023: backup, `migrate --plan`, aplicar a `usuarios.0002` e apagar os registros antigos dos 7 apps, mantendo as `0001_initial`.
 
-**Pendentes de aplicação** conforme o repositório (estado não verificado em 20/10/2026, sem saída recente de `showmigrations`; conferir antes de aplicar). Exigem autorização e backup:
+> **Trava até a DB-023:** não crie migrations novas nos 7 apps e não rode `migrate` no Supabase. Uma migration nova com o mesmo nome de uma antiga seria pulada em silêncio, por já constar como aplicada em `django_migrations`.
 
-- `usuarios` 0006 a 0008 (telefones) e `usuarios` 0009 (nomes físicos).
-- `pedidos` 0006 (irreversível, remove o telefone do snapshot), `pedidos` 0007 (item do pedido com produto opcional e `SET_NULL`, DB-015) e `pedidos` 0008 (nomes físicos).
-- `avaliacoes` 0002 (avaliação com produto opcional e `SET_NULL`, DB-015) e `avaliacoes` 0003 (nomes físicos).
-- `produtos` 0006 (copia a imagem legada para a imagem principal), `produtos` 0007 (nomes físicos) e `produtos` 0008 (remove o campo legado `Produto.imagem`). Não foi verificado se `produtos` 0004 e 0005 já estão aplicadas.
-- `lojas` 0004, `carrinhos` 0002 e `favoritos` 0002 (nomes físicos).
+`scripts/copiar-supabase.mjs` ainda faz restore completo (schema antigo e `django_migrations`) e depois `migrate`; ele não gera um banco "do zero". A adaptação para restaurar somente os dados é a DB-024.
 
-As migrations `*_nomes_fisicos_modelo_logico` (SCRUM-138) renomeiam as tabelas e colunas para os nomes do modelo lógico (`usuario`, `pedido`, `pedido_cliente`, `redefinicao_senha` etc.; os models usam `db_table` com esses nomes). **O código atual do backend já usa os nomes novos: aplique as migrations de renomeação e publique o backend no mesmo momento.** Aplicar só o código quebra a produção, e aplicar só as migrations quebra o backend antigo.
+### Procedimento para aplicar migrations no Supabase
 
-Os nomes das tabelas na consulta abaixo (`pedido`, `pedido_cliente`) valem depois das renomeações; antes delas, eram `pedidos_pedido` e `pedidos_pedidocliente`. O nome de app em `django_migrations` continua sendo `pedidos`, `lojas`, `usuarios` e `produtos`.
-
-O procedimento abaixo vale como referência para essas aplicações e para as futuras.
+Vale após a DB-023. Enquanto ela não for concluída, vale a trava acima.
 
 1. Faça backup (`pg_dump` ou painel do Supabase).
-2. Rode as consultas somente leitura:
-   ```sql
-   SELECT app, name FROM django_migrations WHERE app IN ('pedidos','lojas','usuarios','produtos') ORDER BY app, id;
-
-   SELECT COUNT(*) FROM pedido p
-   LEFT JOIN pedido_cliente pc ON pc.pedido_id = p.pedido_id
-   WHERE pc.pedido_cliente_id IS NULL;
-   ```
-   Os nomes de tabela e de coluna acima seguem o modelo lógico; confira-os em `docs/modelo-logico.sql` (Camila) antes de executar. A segunda consulta deve retornar `0`; caso contrário, a migration 0004 será interrompida e os pedidos órfãos devem ser tratados antes.
-3. Pare o backend publicado.
-4. Aplique um app por vez, rodando `--plan` antes de cada um: primeiro as pendentes de `lojas`, `usuarios` e `produtos`; `pedidos` por último.
-   ```powershell
-   node scripts/backend.mjs migrate lojas --plan
-   node scripts/backend.mjs migrate lojas
-   # repita para usuarios e produtos; por fim:
-   node scripts/backend.mjs migrate pedidos --plan
-   node scripts/backend.mjs migrate pedidos
-   ```
-5. Publique o código novo junto com a migration, pois o código antigo depende de `Pedido.usuario`.
+2. Confira o estado: `SELECT app, name FROM django_migrations ORDER BY app, id;`.
+3. Pare o backend publicado, se a migration alterar o schema usado pelo código em produção.
+4. Rode `node scripts/backend.mjs migrate --plan`, revise o plano e aplique com `node scripts/backend.mjs migrate`.
+5. Publique o backend e, depois, o frontend.
 
 ## SKU de produtos
 
@@ -701,7 +683,7 @@ Resposta esperada (`200`); outros gêneros cadastrados pelo administrador vêm d
 ]
 ```
 
-A migration de dados `usuarios/0010_genero_prefiro_nao_informar` normalizou os códigos legados para M/F/I e renomeou "Indefinido" para "Prefiro não informar"; os pedidos antigos mantêm o snapshot.
+A migration de dados `usuarios/0002_dados_iniciais` cria as opções M/F/I e renomeia "Indefinido" para "Prefiro não informar" apenas se o nome ainda for "Indefinido"; os pedidos antigos mantêm o snapshot.
 
 ## Redefinição de senha (RN-020)
 
@@ -716,7 +698,7 @@ Fluxo:
 
 Regras implementadas:
 
-- Código aleatório (`secrets.token_urlsafe`); o banco guarda apenas o hash SHA-256 (tabela `redefinicao_senha`, criada na migration `usuarios` 0005), nunca o código.
+- Código aleatório (`secrets.token_urlsafe`); o banco guarda apenas o hash SHA-256 (tabela `redefinicao_senha`, criada na `usuarios/0001_initial`), nunca o código.
 - Cada link vale 30 minutos e pode ser usado uma única vez (`data_utilizacao` é preenchida).
 - Pedir um novo link marca como usados os links pendentes anteriores. Ao concluir a troca, os demais links pendentes também são invalidados.
 - Link inexistente, expirado, usado ou de conta inativa retorna sempre a mesma mensagem de erro.

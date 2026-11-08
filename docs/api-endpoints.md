@@ -529,7 +529,7 @@ Resposta (200):
 ]
 ```
 
-Os campos `genero` do cadastro e de `PATCH /usuarios/me/` recebem o `codigo`. O snapshot do pedido grava o `nome` vigente na compra; pedidos antigos mantêm "Indefinido". A migration de dados `usuarios/0010_genero_prefiro_nao_informar` normalizou os códigos legados para M/F/I e renomeou "Indefinido" para "Prefiro não informar".
+Os campos `genero` do cadastro e de `PATCH /usuarios/me/` recebem o `codigo`. O snapshot do pedido grava o `nome` vigente na compra; pedidos antigos mantêm "Indefinido". A migration de dados `usuarios/0002_dados_iniciais` cria as opções M/F/I e renomeia "Indefinido" para "Prefiro não informar" somente se o nome ainda for "Indefinido".
 
 ---
 

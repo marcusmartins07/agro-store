@@ -1,8 +1,8 @@
 /*
  * Modelo lógico canônico do Agro Store — MODELO-ALVO (PostgreSQL), versão 2.4.
- * A versão 2.4 alinha loja.id_proprietario aos models (DB-003/DB-014, RN-013,
- * migration lojas/0003): uma loja por produtor (uq_loja_proprietario) e
- * RESTRICT/PROTECT; o DDL de loja não muda.
+ * A versão 2.4 alinha loja.id_proprietario aos models (DB-003/DB-014, RN-013):
+ * uma loja por produtor (uq_loja_proprietario) e RESTRICT/PROTECT; o DDL de
+ * loja não muda.
  * A versão 2.3 torna avaliacao.id_produto opcional com ON DELETE SET NULL
  * (DB-015): excluir o produto preserva a avaliação ligada ao item do pedido.
  * A versão 2.1 acrescenta redefinicao_senha (DB-017, RN-020). A versão 2.2
@@ -10,51 +10,70 @@
  * usuario.telefone e pedido_cliente.telefone: o telefone deixa de fazer parte
  * do snapshot do pedido. O diagrama 2.1 (docs/diagramas-banco) usa NUMERIC
  * para o número do telefone; aqui ele é texto, preservando zeros à esquerda.
- * A coluna usuario.foto_perfil (DB-011,
- * RN-018; migration usuarios/0004) foi incluída na conferência da DOC-022,
- * no mesmo padrão de loja.imagem_perfil ('' quando vazia).
+ * A coluna usuario.foto_perfil (DB-011, RN-018) foi incluída na conferência
+ * da DOC-022, no mesmo padrão de loja.imagem_perfil ('' quando vazia).
+ *
+ * Histórico de migrations consolidado (DB-022): cada app do backend tem uma
+ * única migration 0001_initial, gerada a partir dos models, e
+ * usuarios/0002_dados_iniciais carrega os dados fixos (gêneros M Masculino,
+ * F Feminino e I Prefiro não informar; tipos de telefone Celular, Fixo e
+ * Comercial). As migrations anteriores, inclusive as de transição de dados,
+ * foram removidas sem mudar o schema. Números de migration citados em
+ * documentos anteriores à DB-022 não existem mais no repositório.
  *
  * ATENÇÃO: este arquivo descreve o modelo-alvo, NÃO o schema atual. O schema
- * executável é gerado pelas migrations do Django (SQLite em desenvolvimento).
- * Alterações neste arquivo não autorizam, por si só, mudanças em models,
- * migrations ou API: o alinhamento exige tarefa própria e aprovação.
+ * executável é gerado pelas migrations do Django (SQLite em desenvolvimento,
+ * PostgreSQL no Docker local e em produção). Alterações neste arquivo não
+ * autorizam, por si só, mudanças em models, migrations ou API: o alinhamento
+ * exige tarefa própria e aprovação.
+ *
+ * Os nomes físicos de tabelas, colunas e chaves primárias do banco já seguem
+ * este modelo (id_<entidade>, esta_ativo, senha, valor_venda, imagem.caminho
+ * etc.), conferidos por main/tests_schema.py.
  *
  * Divergências conhecidas com os models atuais (alinhamento na DB-009):
  *
  * 1. on_delete: os models usam CASCADE onde este modelo usa RESTRICT em
  *    produto.id_loja, preco_produto.id_produto e em duas FKs de avaliacao
  *    (id_usuario, id_pedido_produto).
- * 2. Nomes físicos: tabelas e colunas aqui seguem o padrão em português
- *    (id_<entidade>, esta_ativo, senha, valor_venda, imagem.caminho etc.);
- *    os models ainda usam os nomes gerados pelo Django (id, ativo, password,
- *    preco_venda, produtos_imagemproduto.imagem etc.).
+ * 2. Nomes de constraints e índices: este modelo usa fk_*, uq_* e ck_*
+ *    (uq_carrinho_usuario_loja, uq_carrinho_produto,
+ *    uq_favorito_usuario_produto, ck_redefinicao_senha_expiracao etc.); o
+ *    banco usa os nomes gerados pelo Django, exceto as constraints nomeadas
+ *    nos models (uq_loja_proprietario, imagem_principal_unica_por_produto,
+ *    telefone_principal_unico_por_usuario,
+ *    redefinicao_senha_expiracao_apos_criacao e os CHECK de pedido_produto).
  * 3. Restrições que só existem neste modelo:
  *    CHECK (estoque >= 0), sku NOT NULL, uq_imagem_produto_ordem
  *    (id_produto, ordem), ck_avaliacao_comentario_tamanho e os demais CHECK
  *    de valores (preço, carrinho, pedido) e de vigência (ck_preco_vigencia);
  *    fora de redefinicao_senha e pedido_produto, os models não declaram
  *    CheckConstraint.
+ * 4. produto.codigo_barras é opcional (aceita NULL) neste modelo; no model e
+ *    no banco é NOT NULL, com '' quando vazio.
+ * 5. Os DEFAULT deste modelo (FALSE, TRUE, '', 0 e CURRENT_TIMESTAMP) não
+ *    existem nas colunas do banco: os valores padrão são aplicados somente
+ *    pelo ORM do Django.
  *
- * pedido_produto está alinhado aos models (DB-015, migration pedidos/0007):
- * id_produto é opcional com SET NULL, e os CHECK de quantidade (> 0),
- * valor_unitario, valor_desconto e subtotal (>= 0) existem no model como
- * pedido_produto_quantidade_positiva, pedido_produto_valor_unitario_nao_negativo,
+ * pedido_produto está alinhado aos models (DB-015): id_produto é opcional com
+ * SET NULL, e os CHECK de quantidade (> 0), valor_unitario, valor_desconto e
+ * subtotal (>= 0) existem no model como pedido_produto_quantidade_positiva,
+ * pedido_produto_valor_unitario_nao_negativo,
  * pedido_produto_valor_desconto_nao_negativo e
- * pedido_produto_subtotal_nao_negativo. avaliacao.id_produto passou a ser
- * opcional com ON DELETE SET NULL (DB-015, migration avaliacoes/0002): a
- * avaliação continua ligada ao item do pedido (id_pedido_produto), que guarda
- * o snapshot do produto. O Django não gera ON DELETE no banco: SET NULL é
- * executado pelo ORM, e a FK física fica sem ação (NO ACTION).
+ * pedido_produto_subtotal_nao_negativo. avaliacao.id_produto é opcional com
+ * ON DELETE SET NULL (DB-015): a avaliação continua ligada ao item do pedido
+ * (id_pedido_produto), que guarda o snapshot do produto. O Django não gera
+ * ON DELETE no banco: SET NULL é executado pelo ORM, e a FK física fica sem
+ * ação (NO ACTION).
  *
- * A restrição ck_redefinicao_senha_expiracao existe no model
- * (redefinicao_senha_expiracao_apos_criacao, migration usuarios/0005).
+ * A restrição ck_redefinicao_senha_expiracao existe no model com o nome
+ * redefinicao_senha_expiracao_apos_criacao.
  * A restrição de imagem principal única por produto existe no model
  * (imagem_principal_unica_por_produto) e está refletida neste arquivo.
  * A restrição de telefone principal único por usuário existe no model
- * (telefone_principal_unico_por_usuario, migration usuarios/0006) e está
- * refletida neste arquivo.
- * loja.id_proprietario está alinhado desde a migration lojas/0003 (DB-003/DB-014):
- * o model tem uq_loja_proprietario e PROTECT, equivalente ao RESTRICT daqui.
+ * (telefone_principal_unico_por_usuario) e está refletida neste arquivo.
+ * loja.id_proprietario está alinhado (DB-003/DB-014): o model tem
+ * uq_loja_proprietario e PROTECT, equivalente ao RESTRICT daqui.
  */
 
 CREATE TABLE genero (
@@ -99,7 +118,7 @@ CREATE TABLE redefinicao_senha (
 );
 
 -- RN-021: tipos fixos (Celular, Fixo, Comercial), carregados por migration
--- (usuarios/0007); não são cadastrados pelo usuário.
+-- (usuarios/0002_dados_iniciais); não são cadastrados pelo usuário.
 CREATE TABLE tipo_telefone (
     id_tipo_telefone BIGINT GENERATED BY DEFAULT AS IDENTITY PRIMARY KEY,
     descricao VARCHAR(30) NOT NULL UNIQUE

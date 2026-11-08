@@ -46,8 +46,11 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
   (mesmo padrão dos tipos de telefone, RN-021).
   O backend aceita somente um código existente na tabela; código inexistente, vazio ou nulo é recusado com a mensagem
   "Informe uma opção de gênero válida.".
-  Migração: uma migration de dados normalizou os códigos legados para M, F e I e renomeou o código I de "Indefinido"
-  para "Prefiro não informar".
+  Migração (fato histórico): os códigos legados de gênero foram normalizados para M, F e I, e o nome do código I
+  foi trocado de "Indefinido" para "Prefiro não informar".
+  Dados iniciais: a migration `usuarios/0002_dados_iniciais` cria os gêneros M Masculino, F Feminino e I Prefiro não informar
+  somente se ainda não existirem e troca o nome do código I de "Indefinido" para "Prefiro não informar" somente quando
+  ele ainda for "Indefinido"; nomes alterados pelo administrador não são desfeitos.
   Snapshot: o pedido grava o nome do gênero vigente no momento da compra. Os pedidos antigos mantêm "Indefinido"
   e os pedidos novos de clientes com código I gravam "Prefiro não informar". Renomear um gênero não altera pedidos já realizados.
 - CPF e telefones são persistidos somente com dígitos. CPF, e-mail, idade e telefones (quantidade de dígitos conforme o tipo, RN-021)
@@ -91,10 +94,12 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
   O gênero é gravado pelo nome vigente no momento da compra (RN-024).
   Decisão v1: a validação considera apenas a quantidade de dígitos; a validação de DDD e do nono dígito fica para o futuro.
   Decisão v1: o telefone do produtor não é exibido ao cliente; o contato da loja continua em tarefa própria (DB-013).
-  Migração: somente o antigo telefone único do usuário (`Usuario.telefone`) é copiado para a nova estrutura, como telefone principal.
-  Número com 11 dígitos vira Celular, com 10 dígitos vira Fixo, e valor fora do padrão entra como Celular e é listado para correção.
-  Valor vazio não gera telefone. Depois da cópia, o campo antigo é removido.
-  O telefone gravado no snapshot dos pedidos (`PedidoCliente.telefone`) não é aproveitado na migração e é removido.
+  Migração (fato histórico): somente o antigo telefone único do usuário (`Usuario.telefone`) foi copiado para a nova estrutura,
+  como telefone principal. Número com 11 dígitos virou Celular, com 10 dígitos virou Fixo, e valor fora do padrão entrou como Celular
+  e foi listado para correção. Valor vazio não gerou telefone. Depois da cópia, o campo antigo foi removido.
+  O telefone gravado no snapshot dos pedidos (`PedidoCliente.telefone`) não foi aproveitado na migração e também foi removido.
+  Dados iniciais: os tipos Celular, Fixo e Comercial são criados pela migration `usuarios/0002_dados_iniciais`,
+  somente se ainda não existirem.
   Exceção legada (RN-021): contas antigas sem telefone e contas criadas pela linha de comando (superusuário) podem ficar com 0 telefones.
   Nessas contas, o primeiro telefone cadastrado vira o principal automaticamente, e o perfil exibe um aviso pedindo o cadastro
   enquanto a lista estiver vazia. Na área administrativa do Django, o administrador precisa informar ao menos 1 telefone ao salvar o usuário.
@@ -206,7 +211,7 @@ Sempre que uma nova regra de negócio for identificada, ela deve ser adicionada 
   O backend aceita apenas JPG, PNG ou WEBP de até 5 MB, conferindo extensão e conteúdo, e renomeia o arquivo com nome aleatório.
   Uma imagem enviada não é substituída: para trocá-la, o produtor exclui a imagem e envia outra. O arquivo excluído é removido do storage.
   Os arquivos ficam no disco local em desenvolvimento e no Supabase Storage em produção.
-  O campo legado `Produto.imagem` foi migrado para a imagem principal e não é mais usado pela API; sua remoção depende de autorização.
+  O campo legado `Produto.imagem` foi copiado para a imagem principal e removido.
 - Valores financeiros devem usar Decimal no backend.
 
 ## Preços
