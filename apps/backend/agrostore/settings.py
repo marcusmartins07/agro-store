@@ -73,12 +73,8 @@ WSGI_APPLICATION = 'agrostore.wsgi.application'
 
 def configurar_banco(database_url):
     if not database_url:
-        return {
-            'ENGINE': 'django.db.backends.sqlite3',
-            'NAME': BASE_DIR / 'db.sqlite3',
-        }
+        raise ImproperlyConfigured('Defina DATABASE_URL com a conexão postgresql:// do banco.')
 
-    # Formato: postgresql://usuario:senha@host:porta/banco (ex.: Session pooler do Supabase).
     url = urlparse(database_url)
     if url.scheme not in ('postgres', 'postgresql'):
         raise ImproperlyConfigured('DATABASE_URL deve usar o esquema postgresql://.')
@@ -91,8 +87,6 @@ def configurar_banco(database_url):
         'HOST': url.hostname,
         'PORT': url.port or 5432,
         'CONN_MAX_AGE': int(os.getenv('DATABASE_CONN_MAX_AGE', '0')),
-        'DISABLE_SERVER_SIDE_CURSORS': True,
-        'OPTIONS': {'sslmode': os.getenv('DATABASE_SSLMODE', 'require')},
     }
 
 
@@ -166,42 +160,6 @@ USE_TZ = True
 STATIC_URL = 'static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = BASE_DIR / 'media'
-
-# Sem SUPABASE_STORAGE_BUCKET, os uploads ficam em MEDIA_ROOT (desenvolvimento local).
-SUPABASE_STORAGE_BUCKET = os.getenv('SUPABASE_STORAGE_BUCKET', '').strip()
-
-if SUPABASE_STORAGE_BUCKET:
-    SUPABASE_URL = os.getenv('SUPABASE_URL', '').strip().rstrip('/')
-    configuracoes_storage = {
-        'SUPABASE_URL': SUPABASE_URL,
-        'SUPABASE_S3_ACCESS_KEY_ID': os.getenv('SUPABASE_S3_ACCESS_KEY_ID', '').strip(),
-        'SUPABASE_S3_SECRET_ACCESS_KEY': os.getenv('SUPABASE_S3_SECRET_ACCESS_KEY', '').strip(),
-        'SUPABASE_S3_REGION': os.getenv('SUPABASE_S3_REGION', '').strip(),
-    }
-    faltando = [nome for nome, valor in configuracoes_storage.items() if not valor]
-    if faltando:
-        raise ImproperlyConfigured(f'Variáveis obrigatórias para o Supabase Storage: {", ".join(faltando)}.')
-
-    url_supabase = urlparse(SUPABASE_URL)
-    STORAGES = {
-        'default': {
-            'BACKEND': 'storages.backends.s3.S3Storage',
-            'OPTIONS': {
-                'bucket_name': SUPABASE_STORAGE_BUCKET,
-                'endpoint_url': f'{SUPABASE_URL}/storage/v1/s3',
-                'region_name': configuracoes_storage['SUPABASE_S3_REGION'],
-                'access_key': configuracoes_storage['SUPABASE_S3_ACCESS_KEY_ID'],
-                'secret_key': configuracoes_storage['SUPABASE_S3_SECRET_ACCESS_KEY'],
-                'addressing_style': 'path',
-                'file_overwrite': False,
-                'querystring_auth': False,
-                'custom_domain': f'{url_supabase.netloc}/storage/v1/object/public/{SUPABASE_STORAGE_BUCKET}',
-            },
-        },
-        'staticfiles': {
-            'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage',
-        },
-    }
 
 CORS_ALLOWED_ORIGINS = [
     origin.strip()

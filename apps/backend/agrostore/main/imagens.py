@@ -3,7 +3,6 @@ import re
 import uuid
 from pathlib import Path
 
-from botocore.exceptions import BotoCoreError, ClientError
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
@@ -60,7 +59,7 @@ def remover_arquivo_apos_commit(storage, nome, pasta, em_uso=None):
             return
         try:
             storage.delete(nome)
-        except (OSError, BotoCoreError, ClientError):
+        except OSError:
             logger.warning('Falha ao remover arquivo de imagem substituída do storage (pasta %s).', pasta)
 
     transaction.on_commit(remover)

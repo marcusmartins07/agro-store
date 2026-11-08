@@ -9,7 +9,6 @@ from datetime import date, timedelta
 from decimal import Decimal
 from unittest import mock
 
-from botocore.exceptions import ClientError
 from django.core import mail
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
@@ -400,7 +399,7 @@ class FotoPerfilAPITests(APITestCase):
         self.enviar_foto_valida()
         nome_anterior = self.usuario.foto_perfil.name
 
-        for erro in (OSError('disco'), ClientError({'Error': {'Code': '500'}}, 'DeleteObject')):
+        for erro in (OSError('disco'),):
             with self.subTest(erro=type(erro).__name__):
                 with mock.patch.object(FileSystemStorage, 'delete', side_effect=erro):
                     with self.assertLogs('agrostore.main.imagens', level='WARNING') as logs:

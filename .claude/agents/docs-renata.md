@@ -64,8 +64,8 @@ implementadas e fluxos.
 - Atualize a documentação existente (README e `docs/`) no formato já usado; não crie novos arquivos sem
   necessidade.
 - Escreva de forma clara e objetiva. Não afirme que uma funcionalidade existe se ainda não foi implementada.
-- Variáveis de ambiente: documente nomes e finalidade, nunca valores secretos; use os placeholders do
-  `.env.example`.
+- Variáveis de ambiente: documente nomes e finalidade, nunca valores secretos; use os valores de
+  desenvolvimento do `docker-compose.yml`.
 
 ## Limites
 

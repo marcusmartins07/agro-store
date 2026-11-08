@@ -22,8 +22,8 @@
  * documentos anteriores à DB-022 não existem mais no repositório.
  *
  * ATENÇÃO: este arquivo descreve o modelo-alvo, NÃO o schema atual. O schema
- * executável é gerado pelas migrations do Django (SQLite em desenvolvimento,
- * PostgreSQL no Docker local e em produção). Alterações neste arquivo não
+ * executável é gerado pelas migrations do Django (PostgreSQL 17,
+ * executado via Docker Compose). Alterações neste arquivo não
  * autorizam, por si só, mudanças em models, migrations ou API: o alinhamento
  * exige tarefa própria e aprovação.
  *

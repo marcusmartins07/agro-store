@@ -59,14 +59,14 @@ Instituto Federal Sul-rio-grandense – Câmpus Camaquã
 **RESUMO**
 
 <!-- orientador: revisar -->
-Este trabalho apresenta o desenvolvimento do Agro Store, uma plataforma web de comercialização voltada aos produtores rurais participantes da Feira do Produtor Rural Willi Dummer, no município de Camaquã/RS. A proposta surgiu da observação da dinâmica presencial da feira, realizada apenas nas manhãs de sábado, o que limita o alcance comercial dos produtores e dificulta a organização antecipada dos pedidos. A pesquisa caracterizou-se como aplicada, de natureza qualitativa e com abordagem de desenvolvimento de software, e foi conduzida nas etapas de levantamento de requisitos, modelagem, implementação e verificação. A modelagem contemplou o Diagrama Entidade-Relacionamento, o modelo lógico do banco de dados e diagramas UML dos principais fluxos da aplicação. O sistema foi construído com arquitetura desacoplada, composta por uma API REST desenvolvida em Python com Django e Django REST Framework, com autenticação por tokens JWT, e por uma interface web desenvolvida em Vue.js, mantidas em um único repositório. Utilizou-se o SQLite durante o desenvolvimento e o PostgreSQL, hospedado no Supabase, no ambiente de produção. Como resultado, foi entregue um Produto Mínimo Viável que atende a vinte e quatro requisitos funcionais, entre eles o cadastro de clientes, o catálogo público de produtos, o carrinho persistido no servidor, a geração de um pedido separado para cada loja, o acompanhamento do ciclo de status do pedido até a retirada presencial na feira, a gestão de lojas, produtos, preços e imagens pelos produtores, os favoritos e as avaliações de itens entregues. As regras de negócio críticas, como o controle de estoque com tratamento de concorrência e a preservação do histórico de pedidos, foram validadas no servidor e verificadas por 399 testes automatizados do backend. Pagamento online, entrega em domicílio e notificações ativas permaneceram fora do escopo e foram indicados como trabalhos futuros.
+Este trabalho apresenta o desenvolvimento do Agro Store, uma plataforma web de comercialização voltada aos produtores rurais participantes da Feira do Produtor Rural Willi Dummer, no município de Camaquã/RS. A proposta surgiu da observação da dinâmica presencial da feira, realizada apenas nas manhãs de sábado, o que limita o alcance comercial dos produtores e dificulta a organização antecipada dos pedidos. A pesquisa caracterizou-se como aplicada, de natureza qualitativa e com abordagem de desenvolvimento de software, e foi conduzida nas etapas de levantamento de requisitos, modelagem, implementação e verificação. A modelagem contemplou o Diagrama Entidade-Relacionamento, o modelo lógico do banco de dados e diagramas UML dos principais fluxos da aplicação. O sistema foi construído com arquitetura desacoplada, composta por uma API REST desenvolvida em Python com Django e Django REST Framework, com autenticação por tokens JWT, e por uma interface web desenvolvida em Vue.js, mantidas em um único repositório. O sistema é executado em contêineres Docker, orquestrados pelo Docker Compose, com o banco de dados PostgreSQL. Como resultado, foi entregue um Produto Mínimo Viável que atende a vinte e quatro requisitos funcionais, entre eles o cadastro de clientes, o catálogo público de produtos, o carrinho persistido no servidor, a geração de um pedido separado para cada loja, o acompanhamento do ciclo de status do pedido até a retirada presencial na feira, a gestão de lojas, produtos, preços e imagens pelos produtores, os favoritos e as avaliações de itens entregues. As regras de negócio críticas, como o controle de estoque com tratamento de concorrência e a preservação do histórico de pedidos, foram validadas no servidor e verificadas por 399 testes automatizados do backend. Pagamento online, entrega em domicílio e notificações ativas permaneceram fora do escopo e foram indicados como trabalhos futuros.
 
 **Palavras-chave:** Agro Store; agricultura familiar; produtores rurais; desenvolvimento web; comercialização digital.
 
 **ABSTRACT**
 
 <!-- orientador: revisar -->
-This work presents the development of Agro Store, a web commercialization platform aimed at rural producers participating in the Willi Dummer Rural Producer Fair, in the municipality of Camaquã/RS. The proposal arose from the observation of the fair's in-person dynamics, held only on Saturday mornings, which limits the producers' commercial reach and makes it difficult to organize orders in advance. The research was characterized as applied, qualitative in nature, and based on a software development approach, and it was conducted through the stages of requirements gathering, modeling, implementation, and verification. The modeling included the Entity-Relationship Diagram, the logical database model, and UML diagrams of the main application flows. The system was built with a decoupled architecture, composed of a REST API developed in Python with Django and Django REST Framework, with JWT token-based authentication, and a web interface developed in Vue.js, both kept in a single repository. SQLite was used during development and PostgreSQL, hosted on Supabase, in the production environment. As a result, a Minimum Viable Product was delivered that meets twenty-four functional requirements, including customer registration, a public product catalog, a server-side shopping cart, the creation of a separate order for each store, the tracking of the order status cycle up to in-person pickup at the fair, the management of stores, products, prices, and images by producers, favorites, and reviews of delivered items. Critical business rules, such as stock control with concurrency handling and the preservation of order history, were validated on the server and verified by 399 automated backend tests. Online payment, home delivery, and active notifications remained out of scope and were indicated as future work.
+This work presents the development of Agro Store, a web commercialization platform aimed at rural producers participating in the Willi Dummer Rural Producer Fair, in the municipality of Camaquã/RS. The proposal arose from the observation of the fair's in-person dynamics, held only on Saturday mornings, which limits the producers' commercial reach and makes it difficult to organize orders in advance. The research was characterized as applied, qualitative in nature, and based on a software development approach, and it was conducted through the stages of requirements gathering, modeling, implementation, and verification. The modeling included the Entity-Relationship Diagram, the logical database model, and UML diagrams of the main application flows. The system was built with a decoupled architecture, composed of a REST API developed in Python with Django and Django REST Framework, with JWT token-based authentication, and a web interface developed in Vue.js, both kept in a single repository. The system runs in Docker containers, orchestrated by Docker Compose, with a PostgreSQL database. As a result, a Minimum Viable Product was delivered that meets twenty-four functional requirements, including customer registration, a public product catalog, a server-side shopping cart, the creation of a separate order for each store, the tracking of the order status cycle up to in-person pickup at the fair, the management of stores, products, prices, and images by producers, favorites, and reviews of delivered items. Critical business rules, such as stock control with concurrency handling and the preservation of order history, were validated on the server and verified by 399 automated backend tests. Online payment, home delivery, and active notifications remained out of scope and were indicated as future work.
 
 **Keywords:** Agro Store; family farming; rural producers; web development; digital commercialization.
 
@@ -170,7 +170,7 @@ Quadro 10 - Endpoints de pedidos
 
 Quadro 11 - Endpoints de favoritos e avaliações
 
-Quadro 12 - Configuração dos ambientes de desenvolvimento e produção
+Quadro 12 - Serviços do ambiente de execução em contêineres
 
 Quadro 13 - Testes automatizados do backend por área
 
@@ -208,6 +208,8 @@ DRF Django REST Framework
 HTML HyperText Markup Language
 
 HTTP Hypertext Transfer Protocol
+
+HTTPS Hypertext Transfer Protocol Secure
 
 IBGE Instituto Brasileiro de Geografia e Estatística
 
@@ -570,6 +572,7 @@ Fonte: Confeccionado pelo autor (2026).
 <!-- orientador: revisar -->
 O Quadro 2 apresenta os dezesseis requisitos não funcionais, que tratam das qualidades e das restrições técnicas do sistema, como segurança, integridade dos dados e organização da arquitetura.
 
+<!-- orientador: revisar as linhas RNF13 e RNF14 do quadro abaixo, ajustadas à execução em contêineres (BE-031) -->
 **Quadro 2** - Requisitos não funcionais
 
 | Código | Descrição | Regra |
@@ -586,8 +589,8 @@ O Quadro 2 apresenta os dezesseis requisitos não funcionais, que tratam das qua
 | RNF10 | As regras de negócio críticas são validadas no backend; a interface realiza apenas cálculos de exibição. | — |
 | RNF11 | A redefinição de senha armazena somente o hash SHA-256 do código enviado, limita as solicitações a cinco e as confirmações a dez por hora por endereço de origem e transmite o código no fragmento do endereço. | RN-020 |
 | RNF12 | O tratamento de dados pessoais segue o princípio da necessidade: o telefone não integra o snapshot do pedido, o nome do avaliador é exibido abreviado e a foto de perfil é exibida apenas ao próprio usuário. | RN-010, RN-018, RN-021 |
-| RNF13 | As imagens são aceitas somente nos formatos JPG, PNG ou WEBP, com até 5 MB, conferindo extensão e conteúdo, e são gravadas com nome aleatório; o arquivo antigo é removido do armazenamento ao trocar ou excluir; os arquivos ficam no disco local em desenvolvimento e no Supabase Storage em produção. | RN-016, RN-018 |
-| RNF14 | A configuração é feita por variáveis de ambiente, sem credenciais no código-fonte; o banco de dados é o SQLite em desenvolvimento e o PostgreSQL em produção. | — |
+| RNF13 | As imagens são aceitas somente nos formatos JPG, PNG ou WEBP, com até 5 MB, conferindo extensão e conteúdo, e são gravadas com nome aleatório; o arquivo antigo é removido do armazenamento ao trocar ou excluir; os arquivos ficam no armazenamento local do *backend*. | RN-016, RN-018 |
+| RNF14 | O sistema é executado em contêineres orquestrados pelo Docker Compose, com o banco de dados PostgreSQL, e sua configuração é feita por variáveis de ambiente, sem credenciais de serviços externos no código-fonte. | — |
 | RNF15 | O backend é organizado em aplicações de domínio independentes (usuários, lojas, produtos, carrinhos, pedidos, favoritos e avaliações), permitindo acrescentar módulos sem impacto sobre os existentes. | — |
 | RNF16 | As mensagens da API e da interface são apresentadas em português do Brasil. | — |
 
@@ -1112,7 +1115,7 @@ Fonte: Confeccionado pelo autor (2026).
 # 4 DESENVOLVIMENTO
 
 <!-- orientador: revisar -->
-Este capítulo apresenta o desenvolvimento do Agro Store e descreve as funcionalidades implementadas no MVP (Produto Mínimo Viável, do inglês *Minimum Viable Product*), isto é, a versão do sistema que reúne o conjunto mínimo de funcionalidades necessário para demonstrar a proposta e obter retorno dos seus usuários (RIES, 2012). O código do sistema foi organizado em um único repositório, que contém dois projetos independentes: a API REST, desenvolvida em Python com Django e Django REST Framework, e a interface web, desenvolvida com Vue.js. Durante o desenvolvimento, utilizou-se o banco de dados SQLite, enquanto o PostgreSQL é o banco de dados adotado no ambiente de produção.
+Este capítulo apresenta o desenvolvimento do Agro Store e descreve as funcionalidades implementadas no MVP (Produto Mínimo Viável, do inglês *Minimum Viable Product*), isto é, a versão do sistema que reúne o conjunto mínimo de funcionalidades necessário para demonstrar a proposta e obter retorno dos seus usuários (RIES, 2012). O código do sistema foi organizado em um único repositório, que contém dois projetos independentes: a API REST, desenvolvida em Python com Django e Django REST Framework, e a interface web, desenvolvida com Vue.js. O sistema é executado em contêineres Docker, orquestrados pelo Docker Compose, e utiliza o banco de dados PostgreSQL, conforme detalhado na Seção 4.6.
 
 <!-- orientador: revisar -->
 Ao longo da implementação, os requisitos levantados no Capítulo 3 foram detalhados em regras de negócio, isto é, em definições sobre como o sistema deve se comportar em cada situação. As regras críticas são sempre validadas no *backend*, de modo que a interface não seja a única camada de proteção (RNF10). As seções a seguir apresentam a arquitetura do sistema (Seção 4.1), as tecnologias empregadas (Seção 4.2), a API REST (Seção 4.3), as regras de negócio implementadas (Seção 4.4), as interfaces (Seção 4.5), a implantação (Seção 4.6) e a verificação das funcionalidades (Seção 4.7).
@@ -1120,11 +1123,11 @@ Ao longo da implementação, os requisitos levantados no Capítulo 3 foram detal
 <!-- orientador: revisar -->
 ## 4.1 Arquitetura do Sistema
 
-O Agro Store adota uma arquitetura desacoplada, na qual a interface web e a API são projetos independentes que se comunicam exclusivamente por requisições HTTP com dados em JSON (RNF04). Os dois projetos são mantidos em um único repositório, organização conhecida como monorepo: a pasta apps/backend contém a API em Django REST Framework, a pasta apps/frontend contém a interface em Vue.js e a pasta scripts reúne os utilitários que iniciam os dois serviços em conjunto durante o desenvolvimento. Essa organização facilita manter a API e a interface coerentes entre si, pois uma alteração de contrato e o ajuste correspondente na interface podem ser registrados juntos.
+O Agro Store adota uma arquitetura desacoplada, na qual a interface web e a API são projetos independentes que se comunicam exclusivamente por requisições HTTP com dados em JSON (RNF04). Os dois projetos são mantidos em um único repositório, organização conhecida como monorepo: a pasta apps/backend contém a API em Django REST Framework, a pasta apps/frontend contém a interface em Vue.js e, na raiz, o arquivo de orquestração dos contêineres define como os serviços do sistema são iniciados em conjunto (Seção 4.6). Essa organização facilita manter a API e a interface coerentes entre si, pois uma alteração de contrato e o ajuste correspondente na interface podem ser registrados juntos.
 
 No *backend*, o código é organizado em aplicações de domínio independentes, uma para cada área do negócio: usuários, lojas, produtos, carrinhos, pedidos, favoritos e avaliações, além de um módulo comum com funções compartilhadas, como a validação de imagens (RNF15). Cada aplicação segue a divisão de responsabilidades do Django descrita na Seção 2.4.7: as classes de modelo (*models*) descrevem as tabelas e são traduzidas pelo ORM em instruções SQL; os *serializers* convertem os dados entre JSON e objetos do modelo e concentram as validações de campos e de regras; e as *views*, em geral organizadas como *ViewSets* do DRF e registradas em roteadores de URLs, recebem as requisições, aplicam autenticação e permissões e coordenam a operação. Regras que envolvem várias entidades, como o ajuste dos carrinhos quando o estoque diminui, foram isoladas em módulos de serviço (*services*), o que evita duplicá-las entre as *views*.
 
-No *frontend*, a interface é uma aplicação de página única (SPA, do inglês *Single Page Application*): o navegador carrega a aplicação uma única vez, e a troca de telas ocorre sem recarregar a página, com a navegação controlada por um roteador. As telas são compostas por componentes reutilizáveis, e o estado compartilhado entre elas, como a sessão do usuário, o carrinho, os favoritos e os dados da área do produtor, é mantido em *stores*, isto é, repositórios centralizados de estado. Toda a comunicação com a API passa por um único módulo de serviço, que envia o token de acesso nas requisições protegidas e, ao receber uma resposta de não autenticado, solicita automaticamente um novo token de acesso com o token de renovação e repete a requisição uma única vez; se a renovação falhar, a sessão é encerrada e o usuário é levado à tela de login. As rotas da área do produtor são protegidas por uma verificação de navegação, que consulta o perfil do usuário na API antes de liberar o acesso. Em desenvolvimento, o servidor da interface encaminha as requisições dos caminhos /api e /media para o *backend*, de modo que a interface não depende de um endereço fixo da API.
+No *frontend*, a interface é uma aplicação de página única (SPA, do inglês *Single Page Application*): o navegador carrega a aplicação uma única vez, e a troca de telas ocorre sem recarregar a página, com a navegação controlada por um roteador. As telas são compostas por componentes reutilizáveis, e o estado compartilhado entre elas, como a sessão do usuário, o carrinho, os favoritos e os dados da área do produtor, é mantido em *stores*, isto é, repositórios centralizados de estado. Toda a comunicação com a API passa por um único módulo de serviço, que envia o token de acesso nas requisições protegidas e, ao receber uma resposta de não autenticado, solicita automaticamente um novo token de acesso com o token de renovação e repete a requisição uma única vez; se a renovação falhar, a sessão é encerrada e o usuário é levado à tela de login. As rotas da área do produtor são protegidas por uma verificação de navegação, que consulta o perfil do usuário na API antes de liberar o acesso. O servidor da interface encaminha as requisições dos caminhos /api e /media para o *backend*, de modo que a interface não depende de um endereço fixo da API.
 
 A segurança das requisições é tratada na API: a autenticação padrão é feita por JWT, e a permissão padrão exige usuário autenticado, de modo que os endpoints públicos, como o catálogo e o cadastro, precisam ser liberados explicitamente (RNF02). Além do perfil, as consultas são limitadas aos recursos do próprio usuário, e um recurso de outro usuário é tratado como inexistente (RNF03). A Figura 10 apresenta o ciclo de uma requisição na API, desde a ação do usuário na interface até a resposta em JSON, incluindo a renovação automática do token e os pontos em que a requisição pode ser recusada.
 
@@ -1159,19 +1162,20 @@ Os conceitos que fundamentam as principais tecnologias foram apresentados na Se�
 
 - **Bootstrap:** biblioteca de componentes visuais e de *layout* responsivo, adotada como base visual da interface (BOOTSTRAP, 2026);
 
-- **Node.js:** ambiente de execução JavaScript utilizado para instalar as dependências e executar as ferramentas da interface e os *scripts* do repositório, nas versões 20.19 ou 22.12 e superiores (NODE.JS, 2026);
+<!-- orientador: revisar -->
+- **Node.js:** ambiente de execução JavaScript utilizado para instalar as dependências e executar as ferramentas da interface, no contêiner da interface, construído a partir da imagem oficial do Node.js na versão 24 (NODE.JS, 2026);
 
-- **SQLite:** banco de dados que armazena todos os dados em um único arquivo e dispensa um servidor (SQLITE, 2026a), utilizado no desenvolvimento e na execução dos testes automatizados, estes executados também, complementarmente, com o PostgreSQL;
+<!-- orientador: revisar -->
+- **PostgreSQL:** banco de dados do sistema, na versão 17, executado em contêiner e utilizado tanto na execução da aplicação quanto na dos testes automatizados (THE POSTGRESQL GLOBAL DEVELOPMENT GROUP, 2024);
 
-- **PostgreSQL:** banco de dados do ambiente de produção (THE POSTGRESQL GLOBAL DEVELOPMENT GROUP, 2024);
+<!-- orientador: revisar -->
+- **Docker:** plataforma que empacota uma aplicação, com suas dependências, em uma imagem e a executa como contêiner, isto é, um ambiente de execução isolado do restante do sistema operacional, o que permite reproduzir o mesmo ambiente em diferentes computadores; no Agro Store, cada serviço do sistema é executado em um contêiner próprio [CITAÇÃO NECESSÁRIA];
 
-- **Supabase:** plataforma em nuvem que hospeda o banco de dados PostgreSQL de produção e o serviço de armazenamento das imagens, o Supabase Storage (SUPABASE, 2026a; SUPABASE, 2026b);
+<!-- orientador: revisar -->
+- **Docker Compose:** ferramenta que define, em um único arquivo de configuração, os contêineres que compõem uma aplicação, suas variáveis de ambiente, suas dependências e seus volumes de dados, e os inicia em conjunto; no Agro Store, orquestra os serviços do banco de dados, do *backend* e da interface [CITAÇÃO NECESSÁRIA];
 
-- **Render:** serviço de hospedagem em nuvem utilizado para executar o *backend* em produção (RENDER, 2026);
-
-- **Vercel:** serviço de hospedagem em nuvem utilizado para publicar a interface web em produção (VERCEL, 2026);
-
-- **Servidor SMTP:** serviço de envio de e-mails utilizado na redefinição de senha em produção (KLENSIN, 2008);
+<!-- orientador: revisar -->
+- **Servidor SMTP:** serviço de envio de e-mails que pode ser configurado por variáveis de ambiente para o envio das mensagens de redefinição de senha; na configuração atual dos contêineres, as mensagens são exibidas no console do *backend* (KLENSIN, 2008);
 
 - **Mermaid:** ferramenta utilizada na elaboração dos diagramas a partir de descrições textuais, conforme a Seção 3.2.1 (MERMAID, 2026);
 
@@ -1352,7 +1356,8 @@ Como o carrinho é persistido no servidor, a quantidade escolhida pelo cliente p
 
 Em um sistema com vários usuários simultâneos, duas compras do mesmo produto podem ser processadas ao mesmo tempo. Cada uma pode ler o mesmo estoque antes que a outra o atualize e, assim, vender mais unidades do que as disponíveis. Esse fenômeno é conhecido como condição de corrida (*race condition*) (SILBERSCHATZ; GALVIN; GAGNE, 2015). Para evitá-lo, a finalização do pedido e a edição do estoque pelo produtor são executadas dentro de uma transação, isto é, um conjunto de operações tratado pelo banco de dados como uma unidade indivisível. Nessa transação, as linhas dos produtos envolvidos recebem um bloqueio pessimista, obtido pela instrução SQL `SELECT ... FOR UPDATE` (THE POSTGRESQL GLOBAL DEVELOPMENT GROUP, 2026). Enquanto uma operação mantém o bloqueio, as demais que precisam do mesmo produto aguardam sua conclusão e então leem o estoque já atualizado, o que impede a venda acima do disponível (RNF09). Na finalização, os produtos são bloqueados sempre na mesma ordem, o que reduz o risco de impasse (*deadlock*) entre transações concorrentes.
 
-Esse bloqueio por linha é efetivo no PostgreSQL, banco de dados adotado no ambiente de produção. Durante o desenvolvimento, utiliza-se o SQLite, sistema gerenciador de banco de dados que armazena todos os dados em um único arquivo e dispensa a instalação de um servidor. O SQLite não oferece bloqueio por linha. Nesse ambiente, a proteção decorre do próprio SQLite, que serializa as operações de escrita no banco de dados (SQLITE, 2026b). Por essa razão, o comportamento de referência para o controle de concorrência é o do PostgreSQL, cuja verificação no ambiente de produção é discutida na Seção 5.1.
+<!-- orientador: revisar -->
+Esse bloqueio por linha é oferecido pelo PostgreSQL, único banco de dados utilizado pelo sistema, tanto na execução da aplicação quanto na dos testes automatizados. A verificação desse comportamento com requisições efetivamente simultâneas é discutida na Seção 5.1.
 
 <!-- orientador: revisar -->
 ### 4.4.2 Pedidos e Ciclo de Status
@@ -1406,7 +1411,7 @@ A introdução da nova estrutura exigiu a migração dos dados existentes, isto 
 Complementarmente, o sistema permite que cada usuário possua uma foto de perfil e que cada loja possua uma imagem de apresentação, ambas opcionais e únicas. A foto de perfil é enviada, trocada ou removida pelo próprio usuário na página de perfil e é exibida somente a ele, nessa página e no menu da conta; ela não aparece em avaliações, em pedidos nem na área do produtor, o que limita a exposição de um dado pessoal (RNF12). Quando o usuário não possui foto, a interface apresenta as iniciais do seu nome. A imagem da loja pode ser escolhida já no cadastro da loja, conforme descrito na Seção 3.2.5.2.3, ou enviada posteriormente na tela Dados da loja (Seção 4.5.14), e somente o proprietário pode enviá-la, trocá-la ou removê-la. Ela é exibida nessa tela, onde é gerenciada, e na página de detalhe do produto, junto ao nome da loja, apenas como identificação; os cartões do catálogo continuam a apresentar a imagem principal do produto. Quando a loja não possui imagem, a interface apresenta a inicial do nome da loja.
 
 <!-- orientador: revisar -->
-Ambas as imagens seguem as mesmas validações adotadas para as imagens dos produtos (Seção 4.4.3): o *backend* aceita apenas arquivos JPG, PNG ou WEBP com até 5 MB, conferindo tanto a extensão quanto o conteúdo do arquivo, e armazena cada um com um nome gerado aleatoriamente. Quando o envio é recusado, a imagem atual é mantida. Diferentemente das imagens dos produtos, o envio de uma nova imagem substitui a anterior, e a remoção pode ser feita sem o envio de outra, mediante confirmação em uma janela de diálogo. O arquivo substituído ou removido é excluído do armazenamento somente após a confirmação da transação no banco de dados, isto é, depois que a alteração foi efetivamente gravada, o que evita apagar um arquivo ainda referenciado caso a gravação falhe. Valores antigos de imagem da loja que não seguem o padrão de nome gerado pelo sistema são exibidos como ausência de imagem e não são apagados. A foto de perfil e a imagem da loja não fazem parte do *snapshot* do pedido (Seção 4.4.7), de modo que sua troca ou remoção não altera os pedidos já realizados. Os arquivos são armazenados no disco local durante o desenvolvimento e no Supabase Storage, serviço de armazenamento de arquivos em nuvem (SUPABASE, 2026b), no ambiente de produção.
+Ambas as imagens seguem as mesmas validações adotadas para as imagens dos produtos (Seção 4.4.3): o *backend* aceita apenas arquivos JPG, PNG ou WEBP com até 5 MB, conferindo tanto a extensão quanto o conteúdo do arquivo, e armazena cada um com um nome gerado aleatoriamente. Quando o envio é recusado, a imagem atual é mantida. Diferentemente das imagens dos produtos, o envio de uma nova imagem substitui a anterior, e a remoção pode ser feita sem o envio de outra, mediante confirmação em uma janela de diálogo. O arquivo substituído ou removido é excluído do armazenamento somente após a confirmação da transação no banco de dados, isto é, depois que a alteração foi efetivamente gravada, o que evita apagar um arquivo ainda referenciado caso a gravação falhe. Valores antigos de imagem da loja que não seguem o padrão de nome gerado pelo sistema são exibidos como ausência de imagem e não são apagados. A foto de perfil e a imagem da loja não fazem parte do *snapshot* do pedido (Seção 4.4.7), de modo que sua troca ou remoção não altera os pedidos já realizados. Assim como as imagens dos produtos, esses arquivos são gravados no armazenamento local do *backend*, em uma pasta de mídia definida na configuração do Django, conforme descrito na Seção 4.6.
 
 <!-- orientador: revisar -->
 ### 4.4.5 Favoritos
@@ -1465,7 +1470,8 @@ Na tela de redefinição, o usuário informa a nova senha e sua confirmação. A
 
 Os dois serviços da API envolvidos no fluxo, o de solicitação e o de confirmação, são públicos, pois são utilizados por quem não consegue se autenticar. Para limitar o uso abusivo, como o envio massivo de e-mails ou tentativas sucessivas de adivinhar códigos, o *backend* restringe a quantidade de requisições por endereço IP (*Internet Protocol*) de origem: até cinco solicitações de *link* e até dez tentativas de confirmação por hora (RNF11). Ao exceder esses limites, a API recusa a requisição com a mensagem "Muitas solicitações. Tente novamente mais tarde.".
 
-O envio do e-mail utiliza o recurso nativo do Django. Em ambiente de desenvolvimento, a mensagem é apenas exibida no console do servidor, enquanto, em produção, é enviada por um servidor SMTP (*Simple Mail Transfer Protocol*), protocolo padrão de envio de mensagens eletrônicas (KLENSIN, 2008), configurado por variáveis de ambiente, de modo que as credenciais de acesso não ficam registradas no código-fonte. O e-mail é enviado somente após a gravação da solicitação no banco de dados e, em caso de falha no envio, o erro é registrado no servidor, sem alteração da resposta neutra apresentada ao usuário. Cabe destacar que esse e-mail constitui uma mensagem transacional, isto é, uma resposta direta a uma ação iniciada pelo próprio usuário e necessária para concluí-la. Ele não se confunde com as notificações ativas tratadas na Seção 5.2, como os avisos de mudança de status dos pedidos ou de estoque baixo, que seriam enviadas por iniciativa do sistema e permanecem como trabalho futuro. A verificação desse fluxo, por testes automatizados e por validação manual em ambiente real, é descrita na Seção 4.7.
+<!-- orientador: revisar -->
+O envio do e-mail utiliza o recurso nativo do Django. Na configuração atual dos contêineres (Seção 4.6), a mensagem é apenas exibida no console do servidor; o envio efetivo pode ser feito por um servidor SMTP (*Simple Mail Transfer Protocol*), protocolo padrão de envio de mensagens eletrônicas (KLENSIN, 2008), configurado por variáveis de ambiente, de modo que as credenciais de acesso não ficam registradas no código-fonte. O e-mail é enviado somente após a gravação da solicitação no banco de dados e, em caso de falha no envio, o erro é registrado no servidor, sem alteração da resposta neutra apresentada ao usuário. Cabe destacar que esse e-mail constitui uma mensagem transacional, isto é, uma resposta direta a uma ação iniciada pelo próprio usuário e necessária para concluí-la. Ele não se confunde com as notificações ativas tratadas na Seção 5.2, como os avisos de mudança de status dos pedidos ou de estoque baixo, que seriam enviadas por iniciativa do sistema e permanecem como trabalho futuro. A verificação desse fluxo, por testes automatizados e por validação manual em ambiente real, é descrita na Seção 4.7.
 
 <!-- orientador: revisar -->
 ## 4.5 Interfaces do Sistema
@@ -1715,22 +1721,25 @@ Na Figura 35, o primeiro bloco apresenta o nome, obrigatório, a descrição e o
 <!-- orientador: revisar -->
 ## 4.6 Implantação
 
-O Agro Store foi preparado para dois ambientes de execução: o de desenvolvimento, utilizado na construção e nos testes do sistema, e o de produção, no qual a plataforma é disponibilizada aos usuários. A diferença entre os ambientes é controlada exclusivamente por variáveis de ambiente, de modo que o mesmo código é executado nos dois casos e nenhuma credencial é registrada no código-fonte (RNF14). Em desenvolvimento, as variáveis são lidas de um arquivo local, criado a partir de um modelo versionado que contém apenas nomes e valores de exemplo. O Quadro 12 apresenta a configuração de cada componente nos dois ambientes.
+<!-- orientador: revisar -->
+O Agro Store é executado exclusivamente em contêineres Docker, orquestrados pelo Docker Compose, ferramentas apresentadas na Seção 4.2. O arquivo de orquestração, mantido na raiz do repositório, define três serviços: o banco de dados PostgreSQL, na versão 17; o *backend*, que executa a API em Django REST Framework; e a interface web, executada pelo servidor do Vite. Cada serviço é construído a partir de uma imagem própria, que reúne a versão da linguagem e as dependências necessárias, de modo que um único comando inicia o sistema completo em qualquer computador com o Docker instalado, sem a instalação manual do Python, do Node.js ou do banco de dados e sem depender de contas em serviços externos. A configuração de cada serviço é feita por variáveis de ambiente declaradas nesse arquivo, que contém apenas valores destinados ao uso local, sem credenciais de serviços externos (RNF14). O Quadro 12 apresenta os serviços e a configuração de cada um.
 
-**Quadro 12** - Configuração dos ambientes de desenvolvimento e produção
+<!-- orientador: revisar -->
+**Quadro 12** - Serviços do ambiente de execução em contêineres
 
-| Componente | Desenvolvimento | Produção |
+| Serviço | Função | Configuração |
 | --- | --- | --- |
-| Interface web | Servidor local do Vite, que encaminha as requisições de /api e /media ao *backend* | Vercel, configurada como aplicação de página única, com reescrita das rotas para a página inicial e endereço da API definido nas variáveis VITE_API_URL e VITE_BACKEND_URL |
-| API | Servidor de desenvolvimento do Django, executado localmente | Render |
-| Banco de dados | SQLite, quando a variável DATABASE_URL está vazia | PostgreSQL hospedado no Supabase, definido pela variável DATABASE_URL |
-| Arquivos de imagem | Disco local do *backend* | Supabase Storage, definido pelas variáveis do armazenamento |
-| E-mail | Exibição das mensagens no console do servidor | Servidor SMTP, definido pelas variáveis de e-mail |
-| Configuração | Arquivo local criado a partir do modelo versionado | Variáveis de ambiente de cada serviço |
+| Banco de dados | Armazenamento dos dados do sistema | Imagem oficial do PostgreSQL 17; os dados são mantidos em um volume, área de armazenamento gerenciada pelo Docker que é preservada entre as reinicializações do contêiner; o serviço só é considerado pronto após uma verificação periódica de disponibilidade |
+| *Backend* | API REST em Django REST Framework | Imagem baseada no Python 3.14; ao iniciar, aplica as migrações ao banco de dados e executa o servidor de desenvolvimento do Django; conecta-se ao banco de dados pela variável DATABASE_URL, grava as imagens na pasta de mídia (MEDIA_ROOT) e exibe os e-mails no console |
+| Interface web | Interface em Vue.js | Imagem baseada no Node.js 24; executa o servidor do Vite, que encaminha ao *backend* as requisições dos caminhos /api e /media |
 
 Fonte: Confeccionado pelo autor (2026).
 
-Em desenvolvimento, um único comando inicia a API e a interface em conjunto. Como o servidor da interface encaminha ao *backend* as requisições da API e dos arquivos de mídia, a aplicação é acessada por uma única origem, sem depender de um endereço fixo da API. Em produção, a interface publicada na Vercel é configurada para que qualquer rota da aplicação seja atendida pela página inicial, uma vez que a navegação entre as telas é feita no navegador; o endereço da API é informado à interface pelas variáveis de ambiente. O *backend* executado no Render conecta-se ao PostgreSQL do Supabase e grava as imagens no Supabase Storage. As origens autorizadas a chamar a API são definidas por uma variável de CORS (*Cross-Origin Resource Sharing*), mecanismo pelo qual o navegador permite que uma página consuma uma API publicada em outro endereço. Outras variáveis definem o endereço da interface, utilizado no *link* do e-mail de redefinição de senha, e a quantidade de *proxies* reversos à frente do *backend*, necessária para que o limite de requisições considere o endereço real do usuário.
+<!-- orientador: revisar -->
+O serviço do *backend* só é iniciado depois que o banco de dados está disponível, e o serviço da interface, depois do *backend*. Como o servidor da interface encaminha ao *backend* as requisições da API e dos arquivos de mídia, a aplicação é acessada pelo navegador por uma única origem, sem depender de um endereço fixo da API. Ainda assim, as origens autorizadas a chamar a API diretamente são definidas por uma variável de CORS (*Cross-Origin Resource Sharing*), mecanismo pelo qual o navegador permite que uma página consuma uma API publicada em outro endereço. Outras variáveis definem o endereço da interface, utilizado no *link* do e-mail de redefinição de senha, e o modo de envio dos e-mails, que, na configuração atual, são exibidos no console do *backend* e podem ser enviados por um servidor SMTP mediante a alteração dessas variáveis. As imagens enviadas pelos usuários são gravadas na pasta de mídia do *backend*, definida na configuração do Django, e servidas pelo próprio Django, recurso que o *framework* oferece somente no modo de depuração. As portas dos serviços são publicadas apenas no endereço local do computador, de modo que o sistema não fica acessível a partir de outros computadores da rede.
+
+<!-- orientador: revisar -->
+A execução exclusiva em contêineres reduz o sistema a um único modo de execução, reproduzível a partir do repositório por qualquer pessoa que precise avaliá-lo, elimina a dependência de contas e credenciais de serviços externos e faz com que a aplicação e os testes automatizados utilizem o mesmo sistema gerenciador de banco de dados. Em contrapartida, o sistema não fica acessível pela internet: as limitações dessa configuração são discutidas na Seção 5.1, e as possibilidades de evolução, na Seção 5.2.
 
 <!-- orientador: revisar -->
 A estrutura do banco de dados é criada e atualizada por meio das migrações do Django, arquivos que descrevem, em ordem, as alterações a serem aplicadas ao esquema do banco de dados a cada evolução das classes de modelo (DJANGO SOFTWARE FOUNDATION, 2026a). Ao longo do desenvolvimento, foram acumuladas trinta e sete migrações nas sete aplicações de domínio do *backend*: usuarios, lojas, produtos, carrinhos, pedidos, favoritos e avaliacoes. Parte delas alterava dados já existentes, como a transferência do vínculo do cliente para a entidade Pedido_Cliente, a reorganização dos telefones, descrita na Seção 4.4.4, e a cópia da imagem registrada no antigo campo de imagem do produto para a entidade Imagem. Essas migrações de dados foram separadas das que alteravam a estrutura, por compatibilidade com o PostgreSQL, e algumas possuíam verificações que interrompiam a aplicação caso encontrassem dados incompatíveis.
@@ -1739,14 +1748,16 @@ A estrutura do banco de dados é criada e atualizada por meio das migrações do
 Concluída essa evolução, o histórico foi consolidado, isto é, as migrações de cada aplicação foram substituídas por uma única migração inicial, gerada a partir das classes de modelo vigentes, que cria diretamente o mesmo esquema produzido pelo histórico anterior, sem alterá-lo. Os dados fixos dos quais o sistema depende, a saber, as opções de gênero padrão (M Masculino, F Feminino e I Prefiro não informar) e os tipos de telefone (Celular, Fixo e Comercial), passaram a ser carregados por uma única migração de dados iniciais. Essa migração é idempotente, ou seja, sua execução repetida produz o mesmo resultado, sem duplicar registros, e renomeia a opção de código I de "Indefinido" para "Prefiro não informar" somente quando o nome ainda corresponde ao anterior, preservando eventuais renomeações realizadas pelo administrador, conforme descrito na Seção 3.2.3. As migrações de transição foram removidas junto com o histórico, pois já haviam cumprido o seu papel: os bancos de dados que passaram por elas mantêm os dados transferidos, e uma nova instalação passa a ser criada diretamente no esquema final, em menos etapas e sem depender de transformações de dados que não se aplicam a um banco vazio.
 
 <!-- orientador: revisar -->
-Após a consolidação, os bancos de dados locais de desenvolvimento, em SQLite e em PostgreSQL executado em contêiner, isto é, em um ambiente de execução isolado do restante do sistema operacional, foram recriados a partir do esquema consolidado e recarregados com os dados de uma cópia de segurança do banco de dados de produção, datada de 6 de novembro de 2026. A conferência da quantidade de registros de cada tabela não apontou diferenças, e a comparação estrutural do esquema apontou somente diferenças nos nomes de restrições e de sequências gerados automaticamente, sendo as sequências os objetos do PostgreSQL que fornecem os valores das chaves primárias. O banco de dados de produção, hospedado no Supabase, não foi recriado. Como o Django registra no próprio banco de dados as migrações já aplicadas, esse registro precisa ser conciliado com o histórico consolidado, procedimento planejado como etapa posterior que exige cópia de segurança prévia e é tratado como procedimento controlado, cujo estado é discutido na Seção 5.1.
+Após a consolidação, o esquema consolidado foi validado em bancos de dados locais, recriados a partir dele e recarregados com os dados de uma cópia de segurança do banco de dados do sistema, datada de 6 de novembro de 2026. A conferência da quantidade de registros de cada tabela não apontou diferenças, e a comparação estrutural do esquema apontou somente diferenças nos nomes de restrições e de sequências gerados automaticamente, sendo as sequências os objetos do PostgreSQL que fornecem os valores das chaves primárias. Na configuração atual, o banco de dados é criado diretamente pelas migrações consolidadas e pela migração de dados iniciais, aplicadas automaticamente quando o serviço do *backend* é iniciado.
 
 <!-- orientador: revisar -->
 ## 4.7 Testes e Verificação
 
-As regras de negócio descritas neste capítulo foram verificadas por meio de testes automatizados do *backend*, que simulam as requisições à API e conferem as respostas e os dados gravados no banco de dados. Após a consolidação das migrações descrita na Seção 4.6, a suíte completa, executada com o comando `python manage.py test` na pasta do *backend*, reunia 399 testes automatizados, todos aprovados, sem falhas nem erros, tanto com o banco de dados SQLite quanto com o PostgreSQL. Entre eles, quatro testes verificam a migração de dados iniciais: a existência dos gêneros e dos tipos de telefone padrão no banco de dados migrado, a ausência de registros duplicados quando a carga é executada novamente, a renomeação da opção "Indefinido" para "Prefiro não informar" e a preservação de um nome de gênero alterado pelo administrador. Os testes que verificavam as migrações de transição, como a cópia dos telefones antigos e a migração das imagens dos produtos, foram removidos junto com essas migrações. O Quadro 13 apresenta a distribuição dos testes por área.
+As regras de negócio descritas neste capítulo foram verificadas por meio de testes automatizados do *backend*, que simulam as requisições à API e conferem as respostas e os dados gravados no banco de dados. Após a consolidação das migrações descrita na Seção 4.6, a suíte completa, executada com o comando `python manage.py test` no *backend*, reunia 399 testes automatizados, todos aprovados, sem falhas nem erros, com o banco de dados PostgreSQL. Entre eles, quatro testes verificam a migração de dados iniciais: a existência dos gêneros e dos tipos de telefone padrão no banco de dados migrado, a ausência de registros duplicados quando a carga é executada novamente, a renomeação da opção "Indefinido" para "Prefiro não informar" e a preservação de um nome de gênero alterado pelo administrador. Os testes que verificavam as migrações de transição, como a cópia dos telefones antigos e a migração das imagens dos produtos, foram removidos junto com essas migrações. O Quadro 13 apresenta a distribuição dos testes por área.
 
 <!-- autor: informar a data da execução da suíte de 399 testes e, se desejar, o tempo de execução em cada banco de dados -->
+<!-- orientador: após a BE-031, confirmar o resultado da suíte executada no contêiner do backend (PostgreSQL 17) e atualizar a quantidade de testes e a data, se mudarem -->
+<!-- orientador: revisar o parágrafo acima, ajustado para a execução exclusiva com PostgreSQL (BE-031) -->
 
 <!-- orientador: revisar -->
 **Quadro 13** - Testes automatizados do backend por área
@@ -1776,7 +1787,7 @@ Fonte: Confeccionado pelo autor (2026).
 A autenticação por JWT é verificada principalmente de forma indireta, por meio dos testes de autenticação e permissões dos demais endpoints, que conferem a recusa das requisições sem token ou de usuários sem permissão. Não há testes automatizados da interface: a verificação do *frontend* foi realizada manualmente no navegador e pela geração da versão de produção da interface. Complementarmente, as telas relacionadas ao controle de estoque foram inspecionadas visualmente nas larguras de 375 e 1280 pixels, representativas de *smartphones* e de computadores de mesa, respectivamente, em atenção ao requisito de responsividade (RNF05).
 
 <!-- orientador: revisar -->
-Além dos testes automatizados, o fluxo de redefinição de senha foi validado manualmente em ambiente real em 16 de outubro de 2026. Nessa validação, o *backend* foi executado com o banco de dados PostgreSQL hospedado no Supabase e com envio efetivo de e-mails por meio do servidor SMTP do Gmail, na porta 587 e com criptografia TLS (*Transport Layer Security*), protocolo que protege a comunicação entre a aplicação e o servidor de e-mail (RESCORLA, 2018), configurado por variáveis de ambiente; o *frontend* foi executado localmente. A solicitação de redefinição obteve a resposta neutra prevista, com código HTTP 200, que indica sucesso no processamento da requisição (FIELDING; NOTTINGHAM; RESCHKE, 2022), e gerou um registro de redefinição com expiração exatamente trinta minutos após sua criação e data de utilização ainda não preenchida. Verificou-se também que a nova solicitação invalidou uma solicitação anterior da mesma conta, conforme a regra descrita na Seção 4.4.8. O e-mail foi recebido na caixa de entrada do destinatário e, a partir do *link* recebido, a nova senha foi cadastrada com sucesso pela tela de redefinição. A recusa de um *link* já utilizado e o acesso com a nova senha não foram repetidos manualmente nessa validação, permanecendo verificados pelos testes automatizados do *backend*.
+Além dos testes automatizados, o fluxo de redefinição de senha foi validado manualmente em 16 de outubro de 2026, com envio efetivo de e-mails. Nessa validação, o *backend* foi executado com o banco de dados PostgreSQL e com o envio de e-mails por meio do servidor SMTP do Gmail, na porta 587 e com criptografia TLS (*Transport Layer Security*), protocolo que protege a comunicação entre a aplicação e o servidor de e-mail (RESCORLA, 2018), configurado por variáveis de ambiente. A solicitação de redefinição obteve a resposta neutra prevista, com código HTTP 200, que indica sucesso no processamento da requisição (FIELDING; NOTTINGHAM; RESCHKE, 2022), e gerou um registro de redefinição com expiração exatamente trinta minutos após sua criação e data de utilização ainda não preenchida. Verificou-se também que a nova solicitação invalidou uma solicitação anterior da mesma conta, conforme a regra descrita na Seção 4.4.8. O e-mail foi recebido na caixa de entrada do destinatário e, a partir do *link* recebido, a nova senha foi cadastrada com sucesso pela tela de redefinição. A recusa de um *link* já utilizado e o acesso com a nova senha não foram repetidos manualmente nessa validação, permanecendo verificados pelos testes automatizados do *backend*.
 
 <!-- autor: registrar aqui, se desejar, as validações manuais das telas no navegador (avaliações, foto de perfil, imagem da loja, recuperação de senha); não há testes de usabilidade com usuários a relatar -->
 
@@ -1822,6 +1833,7 @@ Fonte: Confeccionado pelo autor (2026).
 
 O Quadro 15 apresenta a mesma relação para os requisitos não funcionais.
 
+<!-- orientador: revisar as linhas RNF09, RNF13 e RNF14 do quadro abaixo, ajustadas à execução em contêineres (BE-031) -->
 **Quadro 15** - Conformidade dos requisitos não funcionais
 
 | Requisito | Como foi atendido | Seção |
@@ -1834,12 +1846,12 @@ O Quadro 15 apresenta a mesma relação para os requisitos não funcionais.
 | RNF06 | Mecanismo de senhas padrão do Django com PBKDF2 e validadores | 4.4.8 |
 | RNF07 | Restrições de unicidade e chaves estrangeiras no banco, complementadas pela API | 3.2.4 |
 | RNF08 | Exclusão restritiva, *snapshot* e desativação no lugar da exclusão | 4.4.7 |
-| RNF09 | Transações com bloqueio de linhas; verificação no PostgreSQL de produção pendente | 4.4.1; 5.1 |
+| RNF09 | Transações com bloqueio de linhas no PostgreSQL; verificação com requisições simultâneas pendente | 4.4.1; 5.1 |
 | RNF10 | Validação final de todas as regras críticas no *backend* | 4; 4.5 |
 | RNF11 | *Hash* SHA-256 do código, limites por origem e código no fragmento do endereço | 4.4.8 |
 | RNF12 | Telefone fora do *snapshot*, nome abreviado e foto restrita ao usuário | 4.4.4; 4.4.7 |
-| RNF13 | Validação de formato, tamanho e conteúdo, nome aleatório e armazenamento no Supabase Storage | 4.4.3; 4.4.4 |
-| RNF14 | Variáveis de ambiente, SQLite em desenvolvimento e PostgreSQL em produção | 4.6 |
+| RNF13 | Validação de formato, tamanho e conteúdo, nome aleatório e armazenamento local no *backend* | 4.4.3; 4.4.4; 4.6 |
+| RNF14 | Execução em contêineres com Docker Compose, PostgreSQL e variáveis de ambiente sem credenciais de serviços externos | 4.6 |
 | RNF15 | Aplicações de domínio independentes no *backend* | 4.1 |
 | RNF16 | Mensagens da API e da interface em português do Brasil | 4.3 |
 
@@ -1871,10 +1883,12 @@ Algumas funcionalidades disponíveis na API ainda não possuem interface. A suge
 A API também apresenta limitações de validação e de contrato identificadas durante a documentação. O CNPJ é verificado quanto à unicidade e ao tamanho, mas não quanto aos dígitos verificadores. Algumas rotas respondem com erro interno do servidor, em vez de uma mensagem de validação, quando recebem identificadores não numéricos, como a atualização de itens do carrinho e de status de pedidos, e quando o status do pedido é informado por nome, e não por seu identificador. A listagem de avaliações é pública, mas a consulta individual de uma avaliação exige autenticação, embora apresente o mesmo conteúdo. As listagens não são paginadas, o que pode afetar o desempenho com grandes volumes de dados.
 
 <!-- orientador: revisar -->
-Quanto ao banco de dados, o banco implementado ainda não reproduz todas as restrições de integridade do modelo lógico apresentado na Seção 3.2.4: as ações de exclusão restritiva de quatro relações, as restrições de verificação de estoque, de preço, dos valores do carrinho e do pedido, de nota e de comentário, a unicidade da ordem das imagens, os nomes de quatro restrições e a obrigatoriedade das colunas sku e codigo_barras, uma vez que, no banco implementado, a primeira aceita valor nulo e a segunda é obrigatória, ao contrário do modelo-alvo. Essas regras são garantidas hoje pela camada de aplicação. Entre as restrições de verificação de valores, somente as dos itens de pedido já existem no banco de dados: quantidade positiva e valor unitário, valor do desconto e subtotal não negativos. Além disso, o desenvolvimento foi realizado predominantemente com o banco de dados SQLite; após a consolidação das migrações descrita na Seção 4.6, a suíte de testes automatizados foi executada também com o PostgreSQL, em ambiente local. A consolidação foi validada nos bancos de dados locais, recriados a partir do esquema consolidado e recarregados com os dados de uma cópia de segurança da produção, datada de 6 de novembro de 2026. Nessa cópia, todas as migrações anteriores à consolidação estavam aplicadas, exceto a antiga normalização das opções de gênero, e a comparação estrutural com o esquema consolidado não apontou diferenças além dos nomes de restrições e de sequências gerados automaticamente. Conforme essa cópia, o esquema do banco de dados de produção, hospedado no Supabase, é equivalente ao consolidado; esse banco, porém, não foi recriado e mantém o registro das migrações aplicadas segundo o histórico anterior. Resta apenas conciliar esse registro com o histórico consolidado, etapa planejada e ainda não executada até a redação desta seção. Como a normalização do gênero não chegou a ser aplicada em produção, a opção de código I ainda se chama "Indefinido" nesse banco e deverá ser renomeada para "Prefiro não informar" pela migração de dados iniciais, descrita na Seção 4.6, no momento da conciliação. Por fim, o comportamento do bloqueio por linha descrito na Seção 4.4.1 ainda precisa ser verificado no PostgreSQL de produção, e não há testes automatizados da interface.
+Quanto ao banco de dados, o banco implementado ainda não reproduz todas as restrições de integridade do modelo lógico apresentado na Seção 3.2.4: as ações de exclusão restritiva de quatro relações, as restrições de verificação de estoque, de preço, dos valores do carrinho e do pedido, de nota e de comentário, a unicidade da ordem das imagens, os nomes de quatro restrições e a obrigatoriedade das colunas sku e codigo_barras, uma vez que, no banco implementado, a primeira aceita valor nulo e a segunda é obrigatória, ao contrário do modelo-alvo. Essas regras são garantidas hoje pela camada de aplicação. Entre as restrições de verificação de valores, somente as dos itens de pedido já existem no banco de dados: quantidade positiva e valor unitário, valor do desconto e subtotal não negativos. Além disso, o comportamento do bloqueio por linha descrito na Seção 4.4.1 ainda não foi verificado por testes com requisições efetivamente simultâneas, e não há testes automatizados da interface.
 
-<!-- autor: após a conciliação do registro de migrations no Supabase (DB-023), atualizar o parágrafo acima com a data e o resultado; até lá, manter a conciliação como etapa planejada -->
-<!-- orientador: revisar o parágrafo acima, atualizado após a consolidação das migrations (DB-022) -->
+<!-- orientador: revisar o parágrafo acima, ajustado à execução exclusiva em contêineres (BE-031); a conciliação do registro de migrations no banco de dados anterior (DB-023) foi cancelada e saiu do texto -->
+
+<!-- orientador: revisar -->
+Quanto à execução, o sistema funciona apenas no computador em que os contêineres são iniciados e não fica acessível pela internet, de modo que não pode ser utilizado pelos produtores e clientes da feira na configuração atual. A configuração dos contêineres é voltada ao uso local: o *backend* é executado pelo servidor de desenvolvimento do Django, em modo de depuração, que não é indicado para uso em produção; as imagens enviadas ficam na pasta de mídia do próprio *backend* e são servidas pelo Django, recurso disponível somente nesse modo; e os e-mails de redefinição de senha são exibidos no console, sem envio efetivo, enquanto não for configurado um servidor SMTP. Os dados do sistema ficam restritos aos volumes do computador local e não contam com um procedimento de cópia de segurança.
 
 <!-- orientador: revisar -->
 ## 5.2 Trabalhos Futuros
@@ -1908,7 +1922,11 @@ A partir das limitações identificadas e do escopo definido para o MVP, as segu
 <!-- orientador: revisar -->
 - Alinhamento do banco de dados implementado ao modelo lógico, levando para o banco as restrições hoje garantidas pela camada de aplicação, o que exige verificar antes os dados que violariam cada restrição;
 
-- Verificação do controle de concorrência no PostgreSQL do ambiente de produção e criação de testes automatizados da interface;
+<!-- orientador: revisar -->
+- Verificação do controle de concorrência por meio de testes com requisições efetivamente simultâneas e criação de testes automatizados da interface;
+
+<!-- orientador: revisar -->
+- Publicação da plataforma em um ambiente de produção acessível pela internet, com servidor de aplicação adequado a esse uso, comunicação protegida por HTTPS, armazenamento das imagens em um serviço dedicado, envio efetivo de e-mails por servidor SMTP e rotina de cópias de segurança do banco de dados, de modo que a plataforma possa ser utilizada pelos produtores e clientes da feira;
 
 - Paginação das listagens da API;
 
@@ -1991,6 +2009,12 @@ DJANGO SOFTWARE FOUNDATION. **Migrations**. [S. l.], 2026a. Disponível em: http
 
 DJANGO SOFTWARE FOUNDATION. **Password management in Django**. [S. l.], 2026b. Disponível em: https://docs.djangoproject.com/en/stable/topics/auth/passwords/. Acesso em: 20 out. 2026.
 
+<!-- orientador: revisar -->
+<!-- autor: completar as duas referências abaixo com a documentação oficial consultada (título, ano, endereço e data de acesso) e substituir os marcadores [CITAÇÃO NECESSÁRIA] dos itens Docker e Docker Compose da Seção 4.2 pela citação correspondente -->
+[CITAÇÃO NECESSÁRIA: documentação oficial do Docker]
+
+[CITAÇÃO NECESSÁRIA: documentação oficial do Docker Compose]
+
 FIELDING, Roy Thomas. **Architectural styles and the design of network-based software architectures**. 2000. Tese (Doutorado em Information and Computer Science) – University of California, Irvine, 2000.
 
 FIELDING, R.; NOTTINGHAM, M.; RESCHKE, J. **HTTP semantics**. RFC 9110. [S. l.]: IETF, jun. 2022. Disponível em: https://www.rfc-editor.org/rfc/rfc9110. Acesso em: 20 out. 2026.
@@ -2025,8 +2049,6 @@ PYTHON SOFTWARE FOUNDATION. **Python documentation**. 2024. Disponível em: http
 
 RAMOS, Vinícius. **O que é o Django REST Framework (DRF)?** Python Academy, 27 ago. 2024. Disponível em: https://pythonacademy.com.br/blog/o-que-e-o-django-rest-framework. Acesso em: 11 abr. 2026.
 
-RENDER. **Render documentation**. [S. l.], 2026. Disponível em: https://render.com/docs. Acesso em: 20 out. 2026.
-
 RESCORLA, E. **The Transport Layer Security (TLS) Protocol Version 1.3**. RFC 8446. [S. l.]: IETF, ago. 2018. Disponível em: https://www.rfc-editor.org/rfc/rfc8446. Acesso em: 20 out. 2026.
 
 RIES, Eric. **A startup enxuta**. São Paulo: Leya, 2012.
@@ -2039,17 +2061,9 @@ SILBERSCHATZ, Abraham; GALVIN, Peter Baer; GAGNE, Greg. **Fundamentos de sistema
 
 SILVA, Kathrein. **Feira do Produtor Rural Willi Dummer acontece neste sábado (20)**. Clic Camaquã, Camaquã, 17 set. 2025. Disponível em: https://www.cliccamaqua.com.br/noticias/feira-do-produtor-rural-willi-dummer-acontece-neste-sabado-20/. Acesso em: 06 abr. 2026.
 
-SQLITE. **About SQLite**. [S. l.], 2026a. Disponível em: https://www.sqlite.org/about.html. Acesso em: 20 out. 2026.
-
-SQLITE. **File locking and concurrency in SQLite version 3**. [S. l.], 2026b. Disponível em: https://www.sqlite.org/lockingv3.html. Acesso em: 20 out. 2026.
-
 STALLINGS, William. **Criptografia e segurança de redes**: princípios e práticas. 6. ed. São Paulo: Pearson, 2015.
 
 STRONG BUSINESS SCHOOL. **O que é B2C (Business to Consumer)?** [S. l.], [2026?]. Disponível em: https://strong.com.br/glossario/o-que-e-b2c-business-to-consumer/. Acesso em: 13 jun. 2026.
-
-SUPABASE. **Database**. [S. l.], 2026a. Disponível em: https://supabase.com/docs/guides/database. Acesso em: 20 out. 2026.
-
-SUPABASE. **Storage**. [S. l.], 2026b. Disponível em: https://supabase.com/docs/guides/storage. Acesso em: 20 out. 2026.
 
 THE POSTGRESQL GLOBAL DEVELOPMENT GROUP. **PostgreSQL documentation**. 2024. Disponível em: https://www.postgresql.org/docs/. Acesso em: 11 abr. 2026.
 
@@ -2058,8 +2072,6 @@ THE POSTGRESQL GLOBAL DEVELOPMENT GROUP. **PostgreSQL documentation**: explicit 
 TIOBE SOFTWARE. **TIOBE Index**. [S. l.], 2026. Disponível em: https://www.tiobe.com/tiobe-index/. Acesso em: 20 out. 2026.
 
 UNIÃO EUROPEIA. Regulamento (UE) 2016/679 do Parlamento Europeu e do Conselho, de 27 de abril de 2016. Relativo à proteção das pessoas singulares no que diz respeito ao tratamento de dados pessoais e à livre circulação desses dados. **Jornal Oficial da União Europeia**, L 119, 4 maio 2016.
-
-VERCEL. **Vercel documentation**. [S. l.], 2026. Disponível em: https://vercel.com/docs. Acesso em: 20 out. 2026.
 
 VITE. **Vite documentation**. [S. l.], 2026. Disponível em: https://vite.dev/. Acesso em: 20 out. 2026.
 

@@ -5,8 +5,7 @@
       "mcp__claude_ai_Atlassian_MCP__addOrEditJiraIssueComment",
       "mcp__claude_ai_Atlassian_MCP__transitionJiraIssue",
       "mcp__claude_ai_Atlassian_MCP__createJiraIssue",
-      "mcp__claude_ai_Atlassian_MCP__executeWrite",
-      "Bash(venv/Scripts/python.exe -I *aplicar_supabase.py*)"
+      "mcp__claude_ai_Atlassian_MCP__executeWrite"
     ]
   }
 }

@@ -8,14 +8,12 @@ Os dados dos exemplos são fictícios e ambientados na Feira do Produtor Rural W
 
 ### 1.1 Convenções gerais
 
-- URL base em desenvolvimento: `http://localhost:8000`.
-- URL base em produção: `<URL do backend>` (backend publicado no Render; a URL real não é registrada neste documento). O frontend, publicado na Vercel (`<domínio da Vercel>`), consome a API pela variável `VITE_API_URL`, e o backend só aceita chamadas das origens listadas em `CORS_ALLOWED_ORIGINS`. Banco PostgreSQL e armazenamento de imagens ficam no Supabase.
+- URL base: `http://127.0.0.1:8000` (backend no Docker Compose). O frontend acessa a API pelo proxy do Vite em `/api/v1`, e o backend só aceita chamadas das origens listadas em `CORS_ALLOWED_ORIGINS`. O banco é PostgreSQL, em container.
 - Formato: JSON (`Content-Type: application/json`). Uploads de imagem usam `multipart/form-data`.
 - Não há paginação configurada (`REST_FRAMEWORK` não define classe de paginação): toda listagem devolve um array JSON simples.
 - Datas/horas saem em ISO 8601 UTC (ex.: `"2026-10-20T14:32:10.512345Z"`); datas simples em `AAAA-MM-DD`.
 - CPF, CNPJ, SKU, código de barras e telefones são sempre texto (somente dígitos no caso de CPF e telefone).
-- Arquivos de mídia (imagens) são servidos em `/media/...` apenas com `DEBUG` ativo (ou pelo Supabase Storage quando
-  `SUPABASE_STORAGE_BUCKET` está definido). As URLs de imagem devolvidas pela API são absolutas.
+- Arquivos de mídia (imagens) ficam em `apps/backend/media` e são servidos em `/media/...` apenas com `DEBUG` ativo. As URLs de imagem devolvidas pela API são absolutas.
 - Rotas fora da API REST: `admin/` (Django Admin) e `/media/` (arquivos, somente em `DEBUG`). Não são documentadas aqui.
 - Os `ViewSet`s com `DefaultRouter` também expõem uma "raiz da API" do roteador (ex.: `/api/v1/lojas/`); ela não faz parte do contrato e não é documentada.
   O `DefaultRouter` também aceita sufixos de formato (ex.: `/api/v1/produtos/1.json`), igualmente fora do contrato.

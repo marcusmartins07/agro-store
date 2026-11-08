@@ -6,20 +6,17 @@ Marketplace para produtores rurais desenvolvido com **Vue 3 + Vite + Pinia + Vue
 
 ## 🚀 Como rodar o projeto
 
-### 1. Instalar dependências
-```bash
-npm install
-```
+O projeto roda somente com Docker Compose. Na raiz do repositório:
 
-### 2. Rodar em desenvolvimento
+### 1. Rodar em desenvolvimento
 ```bash
-npm run dev
+docker compose up --build
 ```
-Acesse: http://localhost:5173
+Acesse: http://127.0.0.1:5173
 
-### 3. Gerar build de produção
+### 2. Gerar build
 ```bash
-npm run build
+docker compose exec frontend npm run build
 ```
 
 ---

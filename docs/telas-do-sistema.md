@@ -23,10 +23,9 @@ O conteúdo foi levantado a partir de:
 
 ### 1.3 URL base e autenticação
 
-- URL base da API: `/api/v1` (valor padrão de `API_BASE_URL`, que pode ser alterado pela variável `VITE_API_URL`). Todas as URLs das tabelas
-  deste documento são relativas a essa base (ex.: `GET /produtos/` corresponde a `GET /api/v1/produtos/`). Em desenvolvimento, o Vite encaminha `/api`
-  e `/media` para o backend (`http://127.0.0.1:8000`). Em produção, o frontend é publicado na Vercel (`<domínio da Vercel>`) e não usa esse proxy: `VITE_API_URL`
-  e `VITE_BACKEND_URL` apontam para o backend publicado no Render (`<URL do backend>`).
+- URL base da API: `/api/v1` (valor fixo de `API_BASE_URL`). Todas as URLs das tabelas
+  deste documento são relativas a essa base (ex.: `GET /produtos/` corresponde a `GET /api/v1/produtos/`). O Vite encaminha `/api`
+  e `/media` para o backend (`http://backend:8000`, na rede do Docker Compose).
 - Formato: JSON; envios de imagem usam `multipart/form-data`.
 - Sessão: após login ou cadastro, os tokens `access` e `refresh` e o objeto do usuário ficam no `localStorage`. A tela considera o usuário
   "logado" quando existe `access_token` salvo (`authStore.estaLogado`); a validade só é conferida quando a API responde 401.

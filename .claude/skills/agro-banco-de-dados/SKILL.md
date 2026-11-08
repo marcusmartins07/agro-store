@@ -1,6 +1,6 @@
 ---
 name: agro-banco-de-dados
-description: "Modelo de dados do Agro Store: fonte de verdade em docs/modelo-logico.sql, convenções de nomes em português, compatibilidade Django/SQLite/PostgreSQL, relações e histórico, migrations e restrições. Use ao propor, alterar ou revisar models, migrations, constraints ou o modelo lógico."
+description: "Modelo de dados do Agro Store: fonte de verdade em docs/modelo-logico.sql, convenções de nomes em português, compatibilidade Django/PostgreSQL, relações e histórico, migrations e restrições. Use ao propor, alterar ou revisar models, migrations, constraints ou o modelo lógico."
 ---
 
 > Origem: `skills/database.md`. Referências a `.ai/skills/*.md` correspondem às skills `agro-*` desta pasta.
@@ -12,7 +12,7 @@ description: "Modelo de dados do Agro Store: fonte de verdade em docs/modelo-log
 Orientar alterações no modelo de dados do Agro Store. O modelo lógico canônico
 está em [`docs/modelo-logico.sql`](../../docs/modelo-logico.sql); ele é uma
 referência PostgreSQL. O schema executável é gerado pelas migrations Django
-(SQLite em desenvolvimento, PostgreSQL no Docker local e em produção).
+(PostgreSQL 17 do `docker compose`, único ambiente de execução do projeto).
 
 Uma mudança no SQL canônico não autoriza, por si só, mudança em models,
 migrations ou API. Antes de alinhar a implementação, avaliar o impacto e obter
@@ -87,14 +87,14 @@ Histórico consolidado (DB-022): cada app (`usuarios`, `lojas`, `produtos`, `car
 dados fixos: gêneros M, F e I e tipos de telefone Celular, Fixo e Comercial. `status_pedido` não tem seed e é criado
 sob demanda. O seed de gênero cria M, F e I somente se não existirem e troca I de "Indefinido" para "Prefiro não
 informar" somente quando ainda for "Indefinido", sem desfazer nomes trocados pelo administrador (RN-024). Números de
-migration anteriores à DB-022 (por exemplo `lojas/0003` ou `usuarios/0007`) não existem mais. Comandos locais
-chamam o Python do venv com `DATABASE_URL` explícito, porque o `.env` da raiz aponta para o Supabase.
+migration anteriores à DB-022 (por exemplo `lojas/0003` ou `usuarios/0007`) não existem mais. Comandos do Django
+rodam somente no container, com `docker compose exec backend python manage.py ...`.
 
 Após uma alteração de model aprovada:
 
 1. Atualizar o model e gerar a migration; para renomeações, preferir operações
    de rename/mapeamento que preservem os dados em vez de recriar tabelas.
-2. Revisar compatibilidade SQLite/PostgreSQL, constraints, `on_delete` e dados
+2. Revisar compatibilidade com PostgreSQL, constraints, `on_delete` e dados
    existentes antes de aplicar a migration.
 3. Verificar serializers, admin, views, permissões, serviços/stores/telas do
    frontend, testes, documentação técnica e texto do TCC.
@@ -108,7 +108,3 @@ Não fazer automaticamente sem autorização:
 - Remover campos, relacionamentos ou dados.
 - Alterar cardinalidade, estratégia de carrinho/pedidos ou contrato da API.
 - Criar migrations sem uma alteração de model aprovada.
-
-Trava temporária (DB-022, Tech Lead): até a DB-023 ser executada, não criar migrations novas nos apps `usuarios`,
-`lojas`, `produtos`, `carrinhos`, `pedidos`, `favoritos` e `avaliacoes`, mesmo com alteração de model aprovada, e
-não rodar `migrate` no Supabase.
