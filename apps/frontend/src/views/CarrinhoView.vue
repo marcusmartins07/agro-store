@@ -62,7 +62,15 @@
                   Incluir {{ item.produto_nome }} na finalização
                 </label>
 
-                <span class="miniatura imagem-placeholder rounded-3 flex-shrink-0" aria-hidden="true">
+                <img
+                  v-if="exibirImagem(item)"
+                  :src="item.produto_imagem"
+                  alt=""
+                  class="miniatura rounded-3 flex-shrink-0 object-fit-cover border"
+                  loading="lazy"
+                  @error="marcarFalhaImagem(item.produto_imagem)"
+                >
+                <span v-else class="miniatura imagem-placeholder rounded-3 flex-shrink-0" aria-hidden="true">
                   <IconeSvg nome="imagem" :tamanho="22" />
                 </span>
 
@@ -192,6 +200,7 @@ const finalizando = ref(false)
 const mensagemErro = ref('')
 const erroCarregamento = ref('')
 const erroFinalizacao = ref('')
+const imagensComFalha = ref(new Set())
 
 const lojasDoCarrinho = computed(() =>
   Object.entries(carrinhoStore.porFornecedor).map(([fornecedor, itens]) => ({
@@ -287,6 +296,14 @@ function descreverSituacao(item) {
 
 function podeFinalizar(item) {
   return descreverSituacao(item).finalizavel
+}
+
+function exibirImagem(item) {
+  return !!item.produto_imagem && !imagensComFalha.value.has(item.produto_imagem)
+}
+
+function marcarFalhaImagem(url) {
+  imagensComFalha.value = new Set([...imagensComFalha.value, url])
 }
 
 function idSituacao(item) {

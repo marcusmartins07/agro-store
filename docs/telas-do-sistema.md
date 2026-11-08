@@ -401,7 +401,7 @@ A tela é alvo de dois links: o nome da loja em cada cartão de pedido (Meus ped
 
 Figura 10 - Carrinho
 
-**Para que serve.** Reúne os itens do cliente agrupados por loja. Cada item tem caixa de seleção, miniatura neutra (o item do carrinho não traz imagem), nome com link para o
+**Para que serve.** Reúne os itens do cliente agrupados por loja. Cada item tem caixa de seleção, miniatura com a imagem principal do produto (`produto_imagem`; sem imagem ou se ela falhar ao carregar, placeholder com ícone), nome com link para o
 produto, preço unitário líquido, seletor de quantidade, subtotal e botão de remover. O resumo mostra itens selecionados, subtotal, descontos e total; com itens de mais de uma loja,
 lista o valor por loja e informa que será gerado um pedido para cada uma (RN-011). Há o texto de retirada (RN-008), o botão "Finalizar pedido" e o link "Continuar comprando".
 Ao carregar, todos os itens finalizáveis vêm selecionados; só os itens selecionados são enviados na finalização. Sucesso leva a `/pedidos`.

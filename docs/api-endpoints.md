@@ -1019,7 +1019,9 @@ O usuário só acessa os próprios carrinhos (de outro usuário, 404).
 Carrinho (`CarrinhoSerializer`): `carrinho_id`, `loja`, `loja_nome`, `valor_bruto`, `valor_desconto`, `valor_liquido` (strings, calculados pelo backend com o preço vigente) e `itens[]`.
 
 Item (`CarrinhoProdutoSerializer`): `carrinho_produto_id`, `carrinho`, `produto`, `produto_nome`, `loja`, `loja_nome`, `valor_unitario`, `valor_desconto` (números),
-`quantidade`, `estoque` (estoque atual do produto), `disponivel` (ativo, loja ativa e estoque > 0), `subtotal` (número: `(valor_unitario - valor_desconto) * quantidade`).
+`quantidade`, `estoque` (estoque atual do produto), `disponivel` (ativo, loja ativa e estoque > 0), `subtotal` (número: `(valor_unitario - valor_desconto) * quantidade`),
+`produto_imagem` (somente leitura: URL absoluta da imagem principal do produto, ou `null` quando o produto não tem imagem).
+O campo aparece em `itens[]` de `GET /api/v1/carrinhos/` e `GET /api/v1/carrinhos/{id}/`, e nas respostas de `POST /api/v1/carrinhos/` e `PATCH /api/v1/carrinhos/itens/{item_id}/`.
 Sem preço vigente, o item sai com `valor_unitario: null`, `valor_desconto: 0.0` e `subtotal: 0.0`.
 
 Item com `quantidade` 0 (estoque reduzido por outro pedido ou pelo produtor) permanece no carrinho como "sem estoque" e não pode ser finalizado.
@@ -1052,7 +1054,8 @@ Resposta (200):
         "quantidade": 2,
         "estoque": 18,
         "disponivel": true,
-        "subtotal": 52.2
+        "subtotal": 52.2,
+        "produto_imagem": "http://localhost:8000/media/produtos/a1b2c3d4.jpg"
       }
     ]
   }
@@ -1097,7 +1100,8 @@ Resposta (201): o **item** (não o carrinho), no formato de item da seção 11:
   "quantidade": 2,
   "estoque": 18,
   "disponivel": true,
-  "subtotal": 52.2
+  "subtotal": 52.2,
+  "produto_imagem": "http://localhost:8000/media/produtos/a1b2c3d4.jpg"
 }
 ```
 

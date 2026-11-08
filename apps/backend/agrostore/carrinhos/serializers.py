@@ -1,11 +1,13 @@
 from rest_framework import serializers
 
 from agrostore.produtos.models import Produto
+from agrostore.produtos.serializers import url_imagem_principal
 from .models import Carrinho, CarrinhoProduto
 
 
 class CarrinhoProdutoSerializer(serializers.ModelSerializer):
     produto_nome = serializers.StringRelatedField(source='produto', read_only=True)
+    produto_imagem = serializers.SerializerMethodField()
     loja = serializers.IntegerField(source='carrinho.loja_id', read_only=True)
     loja_nome = serializers.StringRelatedField(source='carrinho.loja', read_only=True)
     valor_unitario = serializers.ReadOnlyField()
@@ -21,6 +23,7 @@ class CarrinhoProdutoSerializer(serializers.ModelSerializer):
             'carrinho',
             'produto',
             'produto_nome',
+            'produto_imagem',
             'loja',
             'loja_nome',
             'valor_unitario',
@@ -31,6 +34,9 @@ class CarrinhoProdutoSerializer(serializers.ModelSerializer):
             'subtotal',
         ]
         read_only_fields = ['carrinho']
+
+    def get_produto_imagem(self, obj):
+        return url_imagem_principal(obj.produto, self.context.get('request'))
 
 
 class CarrinhoSerializer(serializers.ModelSerializer):

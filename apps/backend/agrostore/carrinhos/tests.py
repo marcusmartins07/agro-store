@@ -1,11 +1,17 @@
+import shutil
+import tempfile
 from decimal import Decimal
 
+from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import connection
+from django.test import override_settings
+from django.test.utils import CaptureQueriesContext
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from agrostore.carrinhos.models import Carrinho, CarrinhoProduto
 from agrostore.lojas.models import Loja
-from agrostore.produtos.models import Categoria, PrecoProduto, Produto
+from agrostore.produtos.models import Categoria, ImagemProduto, PrecoProduto, Produto
 from agrostore.usuarios.models import Genero, Usuario
 
 
@@ -319,3 +325,123 @@ class CarrinhoAPITests(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['loja'], self.loja.loja_id)
+
+
+MEDIA_ROOT_TESTES = tempfile.mkdtemp()
+PNG_VALIDO = b'\x89PNG\r\n\x1a\n' + b'\x00' * 32
+
+
+@override_settings(MEDIA_ROOT=MEDIA_ROOT_TESTES)
+class CarrinhoImagemProdutoAPITests(APITestCase):
+    @classmethod
+    def tearDownClass(cls):
+        shutil.rmtree(MEDIA_ROOT_TESTES, ignore_errors=True)
+        super().tearDownClass()
+
+    def setUp(self):
+        genero, _ = Genero.objects.get_or_create(id_genero='M', defaults={'genero': 'Masculino'})
+        self.cliente = Usuario.objects.create_user(
+            cpf='12345678901',
+            email='cliente@example.com',
+            password='senha123',
+            nome='Cliente Teste',
+            data_nascimento='1990-01-01',
+            genero=genero,
+        )
+        produtor = Usuario.objects.create_user(
+            cpf='12345678903',
+            email='produtor@example.com',
+            password='senha123',
+            nome='Produtor Teste',
+            data_nascimento='1980-01-01',
+            genero=genero,
+            is_produtor=True,
+        )
+        self.loja = Loja.objects.create(proprietario=produtor, nome='Loja Verde', cnpj='12345678000199')
+        self.categoria = Categoria.objects.create(nome='Frutas')
+        self.produto = self.criar_produto('Maçã')
+        self.client.force_authenticate(self.cliente)
+
+    def criar_produto(self, nome):
+        produto = Produto.objects.create(loja=self.loja, nome=nome, estoque=10, categoria=self.categoria)
+        PrecoProduto.objects.create(produto=produto, preco_venda=Decimal('10.00'))
+        return produto
+
+    def criar_imagem(self, produto, ordem, e_principal):
+        arquivo = SimpleUploadedFile(f'imagem{ordem}.png', PNG_VALIDO, content_type='image/png')
+        return ImagemProduto.objects.create(produto=produto, imagem=arquivo, ordem=ordem, e_principal=e_principal)
+
+    def url_absoluta(self, imagem):
+        return f'http://testserver{imagem.imagem.url}'
+
+    def test_listagem_retorna_url_absoluta_da_imagem_principal(self):
+        self.criar_imagem(self.produto, 0, False)
+        principal = self.criar_imagem(self.produto, 1, True)
+        self.client.post('/api/v1/carrinhos/', {'produto': self.produto.produto_id, 'quantidade': 1}, format='json')
+
+        response = self.client.get('/api/v1/carrinhos/')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data[0]['itens'][0]['produto_imagem'], self.url_absoluta(principal))
+
+    def test_produto_sem_imagem_retorna_nulo(self):
+        self.client.post('/api/v1/carrinhos/', {'produto': self.produto.produto_id, 'quantidade': 1}, format='json')
+
+        response = self.client.get('/api/v1/carrinhos/')
+
+        self.assertIsNone(response.data[0]['itens'][0]['produto_imagem'])
+
+    def test_adicionar_retorna_url_absoluta_da_imagem(self):
+        principal = self.criar_imagem(self.produto, 0, True)
+
+        novo = self.client.post('/api/v1/carrinhos/', {'produto': self.produto.produto_id, 'quantidade': 1}, format='json')
+        repetido = self.client.post('/api/v1/carrinhos/', {'produto': self.produto.produto_id, 'quantidade': 1}, format='json')
+
+        self.assertEqual(novo.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(novo.data['produto_imagem'], self.url_absoluta(principal))
+        self.assertEqual(repetido.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(repetido.data['produto_imagem'], self.url_absoluta(principal))
+
+    def test_atualizar_quantidade_retorna_url_absoluta_da_imagem(self):
+        principal = self.criar_imagem(self.produto, 0, True)
+        item_id = self.client.post(
+            '/api/v1/carrinhos/', {'produto': self.produto.produto_id, 'quantidade': 1}, format='json'
+        ).data['carrinho_produto_id']
+
+        response = self.client.patch(f'/api/v1/carrinhos/itens/{item_id}/', {'quantidade': 3}, format='json')
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data['produto_imagem'], self.url_absoluta(principal))
+
+    def test_listagem_busca_imagens_em_uma_unica_consulta(self):
+        outro_produto = self.criar_produto('Pera')
+        for produto in (self.produto, outro_produto):
+            self.criar_imagem(produto, 0, True)
+            self.criar_imagem(produto, 1, False)
+            self.client.post('/api/v1/carrinhos/', {'produto': produto.produto_id, 'quantidade': 1}, format='json')
+
+        with CaptureQueriesContext(connection) as consultas:
+            response = self.client.get('/api/v1/carrinhos/')
+
+        consultas_de_imagem = [consulta for consulta in consultas.captured_queries if 'FROM "imagem"' in consulta['sql']]
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data[0]['itens']), 2)
+        self.assertEqual(len(consultas_de_imagem), 1)
+
+    def test_produto_imagem_enviada_no_post_e_no_patch_e_ignorada(self):
+        principal = self.criar_imagem(self.produto, 0, True)
+        falsa = 'http://exemplo.com/falsa.png'
+
+        criado = self.client.post(
+            '/api/v1/carrinhos/', {'produto': self.produto.produto_id, 'quantidade': 1, 'produto_imagem': falsa}, format='json'
+        )
+        item_id = criado.data['carrinho_produto_id']
+        atualizado = self.client.patch(
+            f'/api/v1/carrinhos/itens/{item_id}/', {'quantidade': 2, 'produto_imagem': falsa}, format='json'
+        )
+
+        self.assertEqual(criado.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(criado.data['produto_imagem'], self.url_absoluta(principal))
+        self.assertEqual(atualizado.status_code, status.HTTP_200_OK)
+        self.assertEqual(atualizado.data['produto_imagem'], self.url_absoluta(principal))
+        self.assertEqual(CarrinhoProduto.objects.get(pk=item_id).quantidade, 2)
