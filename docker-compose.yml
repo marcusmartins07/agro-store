@@ -1,0 +1,60 @@
+name: agro-store
+
+services:
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: agrostore
+      POSTGRES_USER: agrostore
+      POSTGRES_PASSWORD: agrostore
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U agrostore -d agrostore"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  backend:
+    build:
+      context: ./apps/backend
+    environment:
+      DJANGO_SECRET_KEY: desenvolvimento-local-docker-nao-usar-em-producao
+      DJANGO_DEBUG: "true"
+      DJANGO_ALLOWED_HOSTS: localhost,127.0.0.1,backend
+      CORS_ALLOWED_ORIGINS: http://localhost:5173,http://127.0.0.1:5173
+      FRONTEND_URL: http://localhost:5173
+      DATABASE_URL: postgresql://agrostore:agrostore@db:5432/agrostore
+      DATABASE_SSLMODE: disable
+      DATABASE_CONN_MAX_AGE: "0"
+      SUPABASE_STORAGE_BUCKET: ""
+      EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+    ports:
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - ./apps/backend:/app
+    depends_on:
+      db:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./apps/frontend
+    environment:
+      VITE_API_URL: /api/v1
+      VITE_BACKEND_URL: ""
+      API_PROXY_TARGET: http://backend:8000
+      API_PROXY_CHANGE_ORIGIN: "false"
+      DEV_SERVER_POLLING: "true"
+    ports:
+      - "127.0.0.1:5173:5173"
+    volumes:
+      - ./apps/frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  db_data:

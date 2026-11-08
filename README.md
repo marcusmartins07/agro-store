@@ -53,6 +53,8 @@ apps/
 scripts/
   dev.mjs    inicia os dois serviços
   backend.mjs executa comandos do Django carregando o .env
+  copiar-supabase.mjs copia os dados do Supabase para o banco do Docker local
+docker-compose.yml ambiente Docker local (apenas desenvolvimento)
 docs/
   TCC.md, api-endpoints.md, telas-do-sistema.md, modelo-logico.sql,
   flutter-design-guide.md, diagramas/ (fontes Mermaid)
@@ -108,6 +110,66 @@ npm run check
 
 O arquivo `.env` da raiz (copie de `.env.example`) só é carregado quando o backend é iniciado por `node scripts/backend.mjs <comando>` ou pelos scripts do `package.json`. Rodar `python apps/backend/manage.py` direto não lê o `.env`. Para aplicar migrations de um app específico, use, por exemplo, `node scripts/backend.mjs migrate usuarios`.
 
+## Ambiente Docker local
+
+Alternativa ao `npm run dev` para subir banco, backend e frontend em containers. É um ambiente apenas de desenvolvimento: os `Dockerfile` não são usados na publicação, que continua na arquitetura descrita em [Publicação em produção](#publicação-em-produção) (Vercel, Render e Supabase).
+
+Pré-requisito: Docker Desktop aberto.
+
+> **Atenção: os containers não usam o `.env` da raiz, mas `npm run migrate`, `npm run dev` e `node scripts/backend.mjs` continuam carregando esse `.env`.** Se ele apontar para o Supabase (`DATABASE_URL` preenchida), esses comandos atingem a produção. No ambiente Docker, execute os comandos do Django somente com `docker compose exec`.
+
+Serviços:
+
+| Serviço | Imagem | Endereço no host | Função |
+| --- | --- | --- | --- |
+| `db` | `postgres:17` | `127.0.0.1:5433` | Banco PostgreSQL local (volume `db_data`). |
+| `backend` | `python:3.14-slim` | `127.0.0.1:8000` | Executa `migrate` e `runserver`. |
+| `frontend` | `node:24-slim` | `127.0.0.1:5173` | Servidor de desenvolvimento do Vite. |
+
+Comandos, na raiz do repositório:
+
+```powershell
+docker compose up --build                  # sobe o ambiente (acrescente -d para segundo plano)
+docker compose down                        # para os containers e preserva o banco
+docker compose down -v                     # para e zera o banco
+docker compose up --build -V               # depois de mudar dependências do frontend
+docker compose exec backend python manage.py <comando>   # comandos do Django no ambiente Docker
+```
+
+Acesso:
+
+- Use `http://127.0.0.1:5173`. Se houver um Vite local rodando, `localhost:5173` pode cair nele, e não no container.
+- Com os containers no ar, a porta 8000 fica ocupada, o que impede o backend de `npm run dev`.
+
+Variáveis do Vite lidas por `apps/frontend/vite.config.js`: `API_PROXY_TARGET` (destino do proxy de `/api` e `/media`), `API_PROXY_CHANGE_ORIGIN` e `DEV_SERVER_POLLING`. O `docker-compose.yml` as define; fora do Docker o comportamento padrão não muda.
+
+### Copiar os dados do Supabase para o Docker local
+
+```powershell
+node scripts/copiar-supabase.mjs                          # gera um dump e restaura no banco local
+node scripts/copiar-supabase.mjs backups/<arquivo>.dump   # restaura um dump existente, sem acessar o Supabase
+```
+
+Como funciona:
+
+- Lê o `DATABASE_URL` do `.env` e faz um `pg_dump` somente leitura do schema `public`, usando a imagem `postgres:17` (não é preciso instalar `pg_dump`). O arquivo é gravado em `backups/agro-store-supabase-<data>-<hora>.dump`.
+- Inclui tabelas, dados e sequências do `public`. Não inclui os schemas `auth` e `storage`, roles, permissões nem os arquivos de imagem do bucket.
+- O script faz restore completo (schema antigo e `django_migrations`) e depois `migrate`; não gera um banco "do zero". O modo somente dados é a DB-024 (ver [Banco de dados e migrations](#banco-de-dados-e-migrations)).
+- A restauração usa um banco temporário: se o `pg_restore` falhar, o banco local é preservado. O `migrate` roda depois da troca de banco; se ele falhar, o banco antigo não volta, e o dump continua disponível.
+
+Limitações conhecidas:
+
+- Precisa de saída de rede para a porta 5432. Em redes ou ambientes que bloqueiam essa porta, a cópia pode falhar com `Connection refused`; a alternativa é repetir em outra rede.
+- Se um dump futuro tiver políticas RLS, a restauração para com erro e o banco local fica intacto. O dump atual não trouxe políticas.
+- As imagens dos dados copiados aparecem quebradas (404), porque os arquivos ficam no bucket, que o Docker não acessa.
+- O procedimento foi executado com sucesso em 06/11/2026 e validado comparando as contagens do dump com as do banco local.
+
+> **Dados pessoais:** `backups/` (ignorado no git) e o volume do banco passam a conter CPF, e-mail e hashes de senha reais, sem criptografia. Cada cópia gera um novo dump, e a limpeza é manual: apague os dumps e rode `docker compose down -v`. Quem copiou os dados consegue entrar com as senhas reais dos usuários, e os e-mails de redefinição de senha aparecem no log do backend.
+
+### Testes no Postgres do container
+
+A suíte roda com 399 testes, sem erros conhecidos. O erro antigo de `usuarios.tests_migrations` (`varchar(11)`) deixou de existir com a remoção desses testes (DB-022). Rode com `manage.py test agrostore`; `npm run test:backend` não inclui `agrostore.main`.
+
 ## Variáveis de ambiente
 
 Os nomes e os valores de exemplo estão em `.env.example`. Nunca versione valores reais, principalmente senhas, chaves e `DJANGO_SECRET_KEY`.
@@ -128,7 +190,7 @@ Os nomes e os valores de exemplo estão em `.env.example`. Nunca versione valore
 
 ## Publicação em produção
 
-Arquitetura de produção: frontend na Vercel, backend no Render e banco PostgreSQL com armazenamento de imagens no Supabase. Este repositório não contém `render.yaml`, `Procfile` nem `Dockerfile`; a configuração do Render é feita no painel do serviço. URLs e valores reais não são versionados: este documento usa `<URL do backend>` e `<domínio da Vercel>`.
+Arquitetura de produção: frontend na Vercel, backend no Render e banco PostgreSQL com armazenamento de imagens no Supabase. Este repositório não contém `render.yaml` nem `Procfile`; a configuração do Render é feita no painel do serviço. Os `Dockerfile` e o `docker-compose.yml` existentes servem somente ao ambiente de desenvolvimento local (ver [Ambiente Docker local](#ambiente-docker-local)) e não fazem parte da publicação. URLs e valores reais não são versionados: este documento usa `<URL do backend>` e `<domínio da Vercel>`.
 
 ### Frontend (Vercel, SCRUM-142)
 
